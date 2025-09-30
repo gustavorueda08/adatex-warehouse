@@ -10,6 +10,7 @@ export default function Button({
   disabled = false,
   bold = false,
   fullWidth = false,
+  className = "",
   ...props
 }) {
   return (
@@ -25,7 +26,8 @@ export default function Button({
             variant === "emerald",
           "font-bold": bold,
           "w-full": fullWidth,
-        }
+        },
+        className
       )}
       onClick={onClick}
     >

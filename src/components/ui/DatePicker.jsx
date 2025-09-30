@@ -20,11 +20,12 @@ import { es } from "date-fns/locale";
 import { CalendarIcon } from "@heroicons/react/24/solid";
 
 /**
- * RangeDatePicker (moderno)
+ * RangeDatePicker (moderno y responsive)
  * - Calendar popover con selección de rango
  * - Inputs con formato DD/MM/YYYY
  * - Presets rápidos (Últimos 7 días, Este mes, etc.)
  * - Cierre al hacer click fuera / Escape
+ * - Responsive: modal en móvil, popover en desktop
  * - 100% controlado hacia afuera vía props o con estado interno si no pasas value/onChange
  */
 export default function DatePicker({
@@ -35,6 +36,7 @@ export default function DatePicker({
   presets = true,
   placeholder = "Rango de fechas",
   locale = es,
+  className = "",
 }) {
   // estado interno si no es controlado
   const [range, setRange] = useState({ from: null, to: null });
@@ -42,8 +44,29 @@ export default function DatePicker({
   const current = controlled ? value ?? { from: null, to: null } : range;
 
   const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const popRef = useRef(null);
   const btnRef = useRef(null);
+
+  // Detectar si es móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Prevenir scroll del body cuando el modal está abierto en móvil
+  useEffect(() => {
+    if (open && isMobile) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [open, isMobile]);
 
   // cerrar al hacer click fuera / ESC
   useEffect(() => {
@@ -152,14 +175,107 @@ export default function DatePicker({
       ? `${fmt(current.from)} – ${fmt(current.to)}`
       : placeholder;
 
+  // Contenido del calendario y controles (compartido entre modal y popover)
+  const CalendarContent = () => (
+    <>
+      {/* Calendario */}
+      <div className="p-3 md:p-4">
+        <DayPicker
+          mode="range"
+          selected={current}
+          onSelect={onSelect}
+          numberOfMonths={isMobile ? 1 : 2}
+          fixedWeeks
+          locale={locale}
+          disabled={disabled}
+          weekStartsOn={1}
+          className="rdp"
+          classNames={{
+            caption: "rdp-caption text-sm font-medium",
+            head_cell: "rdp-head_cell text-xs text-zinc-500",
+            day: "rdp-day h-9 w-9 text-sm",
+            range_middle: "bg-zinc-700",
+            range_end: "bg-zinc-700 rounded-r-full",
+            range_start: "bg-zinc-700 rounded-l-full",
+            selected: "",
+            chevron: "bg-white rounded-full",
+          }}
+        />
+      </div>
+
+      {/* Sidebar: inputs + presets */}
+      <div className="p-4 border-t md:border-t-0 md:border-l border-zinc-700 space-y-3 w-full md:max-w-[240px]">
+        <div className="space-y-2">
+          <label className="block text-xs text-zinc-400">Desde</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="dd/mm/aaaa"
+            value={fmt(current.from)}
+            onChange={(e) => onInputChange("from", e.target.value)}
+            className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-xs text-zinc-400">Hasta</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="dd/mm/aaaa"
+            value={fmt(current.to)}
+            onChange={(e) => onInputChange("to", e.target.value)}
+            className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          />
+        </div>
+
+        {presets && (
+          <div className="pt-1 space-y-1">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">
+              Rápidos
+            </p>
+            <div className="flex flex-col gap-1">
+              {presetList.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className="text-left text-sm px-2.5 py-1.5 rounded text-white hover:bg-zinc-700 transition-colors"
+                  onClick={() => setRangeSafe(p.get())}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="pt-2 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="text-sm px-3 py-1.5 min-w-20 rounded border border-zinc-500 text-white hover:bg-zinc-700 transition-colors"
+            onClick={() => setRangeSafe({ from: null, to: null })}
+          >
+            Limpiar
+          </button>
+          <button
+            type="button"
+            className="text-sm px-3 py-1.5 min-w-20 rounded bg-zinc-600 text-white hover:bg-zinc-500 transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            Listo
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="relative inline-block w-full">
-      {/* Trigger */}
+    <div className={`relative inline-block w-full ${className}`}>
+      {/* Trigger Button */}
       <button
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="max-w-60 w-full text-center bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-0"
+        className="w-full text-center bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500"
       >
         {/* icono calendario */}
         <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3 text-zinc-400">
@@ -168,108 +284,73 @@ export default function DatePicker({
         <span
           className={
             "block truncate " +
-            (current.from && current.to ? "text-white" : "text-zinc-400")
+            (current.from && current.to ? "text-white" : "text-zinc-400") +
+            " self-start text-left"
           }
         >
           {label}
         </span>
       </button>
-      {/* Popover */}
+
+      {/* Popover (Desktop) o Modal (Mobile) */}
       {open && (
-        <div
-          ref={popRef}
-          className="absolute z-50 mt-2 w-[min(90vw,680px)] bg-zinc-900 rounded-lg shadow-md overflow-hidden"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto]">
-            {/* Calendario */}
-            <div className="p-3">
-              <DayPicker
-                mode="range"
-                selected={current}
-                onSelect={onSelect}
-                numberOfMonths={2}
-                fixedWeeks
-                locale={locale}
-                disabled={disabled}
-                weekStartsOn={1}
-                className="rdp p-4"
-                classNames={{
-                  caption: "rdp-caption  text-sm font-medium",
-                  head_cell: "rdp-head_cell text-xs text-zinc-500",
-                  day: "rdp-day h-9 w-9 text-sm",
-                  range_middle: "bg-zinc-700",
-                  range_end: "bg-zinc-700 rounded-r-full",
-                  range_start: "bg-zinc-700 rounded-l-full",
-                  selected: "",
-                  chevron: "bg-white rounded-full",
-                }}
-              />
-            </div>
+        <>
+          {isMobile ? (
+            /* Modal para móvil */
+            <>
+              {/* Backdrop */}
+              <div className="fixed inset-0 bg-black/50 z-40" />
 
-            {/* Sidebar derecha: inputs + presets */}
-            <div className="p-4 border-t md:border-t-0 md:border-l border-zinc-200 dark:border-zinc-700 space-y-3 w-full max-w-[240px]">
-              <div className="space-y-2">
-                <label className="block text-xs text-zinc-500">Desde</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="dd/mm/aaaa"
-                  value={fmt(current.from)}
-                  onChange={(e) => onInputChange("from", e.target.value)}
-                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs text-zinc-500">Hasta</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="dd/mm/aaaa"
-                  value={fmt(current.to)}
-                  onChange={(e) => onInputChange("to", e.target.value)}
-                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                />
-              </div>
-
-              {presets && (
-                <div className="pt-1 space-y-1">
-                  <p className="text-xs uppercase tracking-wide text-zinc-500">
-                    Rápidos
-                  </p>
-                  <div className="flex flex-col gap-1">
-                    {presetList.map((p) => (
-                      <button
-                        key={p.key}
-                        type="button"
-                        className="text-left text-sm px-2.5 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                        onClick={() => setRangeSafe(p.get())}
+              {/* Modal */}
+              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+                <div
+                  ref={popRef}
+                  className="bg-zinc-900 rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+                >
+                  {/* Header del modal */}
+                  <div className="sticky top-0 bg-zinc-900 border-b border-zinc-700 px-4 py-3 flex items-center justify-between z-10">
+                    <h3 className="text-lg font-semibold text-white">
+                      Seleccionar rango
+                    </h3>
+                    <button
+                      onClick={() => setOpen(false)}
+                      className="text-zinc-400 hover:text-white transition-colors p-1"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        {p.label}
-                      </button>
-                    ))}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Contenido */}
+                  <div className="grid grid-cols-1">
+                    <CalendarContent />
                   </div>
                 </div>
-              )}
-
-              <div className="pt-2 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  className="text-sm px-3 py-1.5 min-w-20 rounded border border-zinc-300 dark:border-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                  onClick={() => setRangeSafe({ from: null, to: null })}
-                >
-                  Limpiar
-                </button>
-                <button
-                  type="button"
-                  className="text-sm px-3 py-1.5 min-w-20 rounded bg-zinc-600 text-white hover:bg-zinc-500 transition-colors"
-                  onClick={() => setOpen(false)}
-                >
-                  Listo
-                </button>
+              </div>
+            </>
+          ) : (
+            /* Popover para desktop */
+            <div
+              ref={popRef}
+              className="absolute z-50 mt-2 left-0 w-[min(90vw,680px)] bg-zinc-900 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto]">
+                <CalendarContent />
               </div>
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );

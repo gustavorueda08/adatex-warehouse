@@ -117,7 +117,7 @@ export default function Sidebar({
   return (
     <div className="min-h-screen  dark">
       {/* Top Nav */}
-      <nav className="fixed top-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+      <nav className="fixed top-0 z-50 w-full  border-gray-200 bg-zinc-600">
         <div className="px-3 py-3 lg:px-5 lg:pl-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -219,11 +219,11 @@ export default function Sidebar({
       <aside
         id="logo-sidebar"
         aria-label="Sidebar"
-        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 transition-[transform,width] duration-200 ease-in-out w-64 ${
+        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-zinc-600 transition-[transform,width] duration-200 ease-in-out w-64 ${
           openSidebar ? "translate-x-0" : "-translate-x-full"
         } sm:translate-x-0 sm:w-16 sm:hover:w-64`}
       >
-        <div className="h-full px-3 pb-4 overflow-y-auto bg-white dark:bg-gray-800">
+        <div className="h-full px-3 pb-4 overflow-y-auto bg-zinc-600">
           <ul className="space-y-2 font-medium">
             {links.map((item, index) => {
               const hasChildren =

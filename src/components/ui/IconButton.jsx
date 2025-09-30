@@ -6,6 +6,7 @@ export default function IconButton({
   children,
   variant = "zinc",
   onClick = () => {},
+  className = "",
   ...props
 }) {
   return (
@@ -20,7 +21,8 @@ export default function IconButton({
             variant === "zinc",
           "text-emerald-600 hover:text-emerald-500 active:text-emerald-700":
             variant === "emerald",
-        }
+        },
+        className
       )}
       onClick={onClick}
     >

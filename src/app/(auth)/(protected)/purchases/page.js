@@ -1,6 +1,7 @@
 "use client";
 
 import Filters from "@/components/ui/Filters";
+import Input from "@/components/ui/Input";
 import Table from "@/components/ui/Table";
 import { useOrders } from "@/lib/hooks/useOrders";
 import format from "@/lib/utils/forrmat";
@@ -298,8 +299,8 @@ export default function PurchasesPage() {
     }
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-7 gap-4">
-          <div className="col-span-5">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+          <div className="col-span-1 md:col-span-5">
             <h3 className="font-bold text-lg py-2">Resumen de productos</h3>
             <Table
               columns={[
@@ -340,7 +341,7 @@ export default function PurchasesPage() {
               ]}
             />
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1 md:col-span-2">
             <h3 className="font-bold text-lg py-2">Detalles</h3>
             <Table
               columns={[
@@ -356,9 +357,9 @@ export default function PurchasesPage() {
   };
 
   return (
-    <div className="w-full px-4">
+    <div className="w-full md:px-4">
       {loading && <div>Cargando</div>}
-      <h1 className="py-5 text-3xl font-bold">Ordenes de Compra</h1>
+      <h1 className="font-bold text-3xl  py-4">Ordenes de Compra</h1>
       <Filters
         search={search}
         setSearch={setSearch}

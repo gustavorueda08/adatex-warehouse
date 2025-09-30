@@ -6,7 +6,12 @@ import {
   ChevronDownIcon,
   XMarkIcon,
   CheckIcon,
+  PlusCircleIcon,
 } from "@heroicons/react/24/outline";
+import Input from "./Input";
+import Searchbar from "./Searchbar";
+import IconButton from "./IconButton";
+import { TrashIcon } from "@heroicons/react/24/solid";
 
 export default function Select({
   options = [],
@@ -23,6 +28,10 @@ export default function Select({
   renderValue,
   emptyMessage = "No hay opciones disponibles",
   maxHeight = 200,
+  hasMenu = true,
+  menuTitle = "Agregar",
+  onClickMenu = () => {},
+  menuVariant = "emerald",
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -202,7 +211,7 @@ export default function Select({
           disabled ? "bg-zinc-600 cursor-not-allowed" : "",
         ].join(" ")}
       >
-        <div className="flex items-center flex-1 min-w-0">
+        <div className="flex items-center flex-1 min-w-0 py-0.5">
           {multiple && selectedOptions.length > 0 ? (
             <div className="flex flex-wrap gap-1 mr-2">
               {selectedOptions.slice(0, 3).map((option, i) => (
@@ -266,15 +275,26 @@ export default function Select({
             }}
           >
             {searchable && (
-              <div className="p-2 border-b border-zinc-700">
-                <input
-                  ref={searchRef}
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar..."
-                  className="w-full px-3 py-2 text-sm bg-zinc-800 text-white border border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                />
+              <div className="flex flex-row gap-2 p-2 w-full justify-between">
+                <div className="flex-10/12">
+                  <Searchbar
+                    className=""
+                    ref={searchRef}
+                    search={searchTerm}
+                    setSearch={setSearchTerm}
+                  />
+                </div>
+                {hasMenu && (
+                  <div className="felx-2/12 flex align-middle justify-center">
+                    <IconButton
+                      variant={menuVariant}
+                      className=""
+                      onClick={() => onClickMenu()}
+                    >
+                      <PlusCircleIcon className="w-6 h-6" />
+                    </IconButton>
+                  </div>
+                )}
               </div>
             )}
 
