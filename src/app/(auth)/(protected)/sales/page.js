@@ -3,7 +3,7 @@
 import Filters from "@/components/ui/Filters";
 import Table from "@/components/ui/Table";
 import { useOrders } from "@/lib/hooks/useOrders";
-import format from "@/lib/utils/forrmat";
+import format from "@/lib/utils/format";
 import { orderStatesArray } from "@/lib/utils/orderStates";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import unitsAreConsistent from "@/lib/utils/unitsConsistency";

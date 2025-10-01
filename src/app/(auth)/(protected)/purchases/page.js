@@ -1,15 +1,18 @@
 "use client";
 
+import Button from "@/components/ui/Button";
 import Filters from "@/components/ui/Filters";
 import Input from "@/components/ui/Input";
 import Table from "@/components/ui/Table";
 import { useOrders } from "@/lib/hooks/useOrders";
-import format from "@/lib/utils/forrmat";
+import format from "@/lib/utils/format";
 import { orderStatesArray } from "@/lib/utils/orderStates";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import unitsAreConsistent from "@/lib/utils/unitsConsistency";
 import moment from "moment-timezone";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 export default function PurchasesPage() {
   const [selectedOrders, setSelectedOrders] = useState([]);
@@ -20,6 +23,8 @@ export default function PurchasesPage() {
   const [selectedStates, setSelectedStates] = useState(
     new Set(states.map((s) => s.key))
   );
+  const [loading, setLoading] = useState(true);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1); // Resetear a página 1 cuando cambien los filtros
@@ -50,29 +55,34 @@ export default function PurchasesPage() {
 
     return { createdAt: dateFilter };
   };
-  const { orders, meta, loading, pagination } = useOrders({
-    pagination: { page: currentPage, pageSize: 20 },
-    q: search,
-    sort: ["updatedAt:desc"],
-    filters: {
-      type: "purchase",
-      supplier: {
-        name: {
-          $contains: search,
+  const { orders, deleteOrder, updateOrder, refetch, isWorking, pagination } =
+    useOrders({
+      pagination: { page: currentPage, pageSize: 20 },
+      q: search,
+      sort: ["updatedAt:desc"],
+      filters: {
+        type: "purchase",
+        supplier: {
+          name: {
+            $contains: search,
+          },
         },
+        state: Array.from(selectedStates),
+        ...buildDateFilter(range),
       },
-      state: Array.from(selectedStates),
-      ...buildDateFilter(range),
-    },
-    populate: [
-      "orderProducts",
-      "orderProducts.product",
-      "supplier",
-      "sourceWarehouse",
-      "destinationWarehouse",
-      "generatedBy",
-    ],
-  });
+      populate: [
+        "orderProducts",
+        "orderProducts.product",
+        "supplier",
+        "sourceWarehouse",
+        "destinationWarehouse",
+        "generatedBy",
+      ],
+    });
+
+  useEffect(() => {
+    setLoading(isWorking);
+  }, [isWorking]);
 
   const { orders: confirmedOrders, pagination: confirmedOrdersPagination } =
     useOrders({
@@ -222,7 +232,6 @@ export default function PurchasesPage() {
   // Manejar selección de órdenes
   const handleOrderSelection = (selectedIds) => {
     setSelectedOrders(selectedIds);
-    console.log("Órdenes seleccionadas:", selectedIds);
   };
 
   // Manejar edición de orden
@@ -233,9 +242,10 @@ export default function PurchasesPage() {
 
   // Función para renderizar contenido expandido
   const renderOrderExpandedContent = (order, rowIndex) => {
+    console.log("ORDEN", order, rowIndex);
     moment().tz("America/Bogota");
     const consistency = unitsAreConsistent(
-      order.orderProducts.map((o) => o.product)
+      order.orderProducts?.map((o) => o.product)
     );
     let totalQuantity = consistency ? 0 : " - ";
     let grandTotal = 0;
@@ -259,7 +269,7 @@ export default function PurchasesPage() {
           ? orderProduct.confirmedPackages
           : orderProduct.deliveredPackages
       );
-      const price = Number(orderProduct.unitPrice);
+      const price = Number(orderProduct.price);
       const total = Number(price * quantity);
       if (consistency) {
         totalQuantity += quantity;
@@ -267,16 +277,18 @@ export default function PurchasesPage() {
       grandTotal += total;
       totalPackages += packages;
       return {
-        id: orderProduct.id,
+        id: `EXPANDED-${orderProduct.id}`,
         name: orderProduct.name,
-        unitPrice: format(orderProduct.unitePrice, "$"),
-        quantity: `${format(quantity)} ${orderProduct.product.unit}`,
-        packages: format(packages),
-        price: format(price, "$"),
-        total: format(total, "$"),
+        price,
+        quantity,
+        packages,
+        price,
+        total,
+        unit: orderProduct.product.unit,
       };
     });
     const details = [];
+    /*
     if (order.state === "draft" && order.type === ORDER_TYPES.PURCHASE) {
       details.push(
         ...[
@@ -296,49 +308,64 @@ export default function PurchasesPage() {
           },
         ]
       );
-    }
+    }*/
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-          <div className="col-span-1 md:col-span-5">
+          <div className="col-span-1 md:col-span-5 rounded-4xl">
             <h3 className="font-bold text-lg py-2">Resumen de productos</h3>
             <Table
               columns={[
                 {
                   key: "name",
                   label: "Producto",
+                  footer: "Total",
                 },
                 {
                   key: "price",
                   label: "Precio",
+                  render: (_, row) => format(row.price, "$") || "-",
+                  footer: "-",
                 },
                 {
                   key: "quantity",
                   label: "Cantidad",
+                  footer: (data) =>
+                    unitsAreConsistent(data)
+                      ? format(
+                          data.reduce(
+                            (acc, product) => acc + Number(product.quantity),
+                            0
+                          )
+                        )
+                      : "-",
                 },
                 {
                   key: "packages",
                   label: "Unidades",
+                  footer: (data) =>
+                    format(
+                      data.reduce(
+                        (acc, product) => acc + Number(product.packages),
+                        0
+                      )
+                    ),
                 },
                 {
                   key: "total",
                   label: "Total",
+                  reder: (_, row) => format(row.total, "$") || "-",
+                  footer: (data) =>
+                    format(
+                      data.reduce(
+                        (acc, product) => acc + Number(product.total),
+                        0
+                      ),
+                      "$"
+                    ),
                 },
               ]}
-              data={[
-                ...products,
-                {
-                  name: "Gran Total",
-                  price: "-",
-                  quantity:
-                    unitsAreConsistent && products.length > 0
-                      ? `${format(totalQuantity)} ${unit}`
-                      : "-",
-                  packages: format(totalPackages),
-                  total: format(grandTotal, "$"),
-                  className: "font-bold",
-                },
-              ]}
+              data={products}
             />
           </div>
           <div className="col-span-1 md:col-span-2">
@@ -356,10 +383,206 @@ export default function PurchasesPage() {
     );
   };
 
+  const handleCompleteSelectedOrders = async () => {
+    if (selectedOrders.length === 0) {
+      toast.error("No hay órdenes seleccionadas");
+      return;
+    }
+    const result = await Swal.fire({
+      title: "Completar Órdenes",
+      html: `Se completarán <strong>${selectedOrders.length}</strong> orden(es) <br/> Esta acción no se puede deshacer.`,
+      icon: "info",
+      iconColor: "green",
+      showCancelButton: true,
+      confirmButtonText: "Sí, completar",
+      cancelButtonText: "Cancelar",
+      background: "#27272a",
+      color: "#fff",
+      confirmButtonColor: "green",
+      cancelButtonColor: "#71717a",
+    });
+    if (!result.isConfirmed) return;
+    const loadingToast = toast.loading("Completando órdenes...");
+    try {
+      const promises = selectedOrders.map((orderId) =>
+        updateOrder(orderId, { state: "completed" })
+      );
+      const results = await Promise.all(promises);
+      const allSuccess = results.every((r) => r.success);
+      const failedCount = results.filter((r) => !r.success).length;
+      toast.dismiss(loadingToast);
+      if (allSuccess) {
+        toast.success(
+          `${selectedOrders.length} órdenes completadas exitosamente`
+        );
+        setSelectedOrders([]);
+      } else {
+        toast.error(
+          `${
+            results.length - failedCount
+          } completadas, ${failedCount} fallaron`,
+          { duration: 5000 }
+        );
+      }
+      await refetch();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Error al completar órdenes");
+      console.error("Error:", error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+  const handleConfirmSelectedOrder = async () => {
+    if (selectedOrders.length === 0) {
+      toast.error("No hay órdenes seleccionadas");
+      return;
+    }
+    const result = await Swal.fire({
+      title: "Confirmar Órdenes",
+      html: `Se confirmarán <strong>${selectedOrders.length}</strong> orden(es) <br/> Esta acción no se puede deshacer.`,
+      icon: "info",
+      iconColor: "red",
+      showCancelButton: true,
+      confirmButtonText: "Sí, confirmar",
+      cancelButtonText: "Cancelar",
+      background: "#27272a",
+      color: "#fff",
+      confirmButtonColor: "red",
+      cancelButtonColor: "#71717a",
+    });
+    if (!result.isConfirmed) return;
+    const loadingToast = toast.loading("Eliminando órdenes...");
+    try {
+      const promises = selectedOrders.map((orderId) =>
+        updateOrder(orderId, { state: "confirmed" })
+      );
+      const results = await Promise.all(promises);
+      const allSuccess = results.every((r) => r.success);
+      const failedCount = results.filter((r) => !r.success).length;
+      toast.dismiss(loadingToast);
+      if (allSuccess) {
+        toast.success(
+          `${selectedOrders.length} órdenes confirmadas exitosamente`
+        );
+        setSelectedOrders([]);
+      } else {
+        toast.error(
+          `${
+            results.length - failedCount
+          } confirmadas, ${failedCount} fallaron`,
+          { duration: 5000 }
+        );
+      }
+      await refetch();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Error al confirmar órdenes");
+      console.error("Error:", error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+  const handleDeleteOrder = async (orderId) => {
+    const order = orders.find((order) => order.id === orderId);
+    if (order.state !== "draft" && order.state !== "confirmed") {
+      toast.error("No se puede eliminar la orden");
+      return;
+    }
+    const result = await Swal.fire({
+      title: "Eliminar Órdenes",
+      html: `Se eliminará la orden <strong>${
+        order.containerCode || order.code
+      }</strong><br/> Esta acción no se puede deshacer.`,
+      icon: "warning",
+      iconColor: "red",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      background: "#27272a",
+      color: "#fff",
+      confirmButtonColor: "red",
+      cancelButtonColor: "#71717a",
+    });
+    if (!result.isConfirmed) return;
+    const loadingToast = toast.loading("Eliminando órdenes...");
+    try {
+      const result = await deleteOrder(order.id);
+      toast.dismiss(loadingToast);
+      if (result.success) {
+        toast.success(
+          `Órdenen ${order.containerCode || order.code} eliminada exitosamente`
+        );
+        setSelectedOrders([]);
+      } else {
+        toast.error(
+          `Se produjo un error al eliminar la órden ${
+            order.containerCode || order.code
+          }`,
+          { duration: 5000 }
+        );
+      }
+      await refetch();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Error al eliminar órden");
+      console.error("Error:", error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+  const handleDeleteSelectedOrders = async () => {
+    if (selectedOrders.length === 0) {
+      toast.error("No hay órdenes seleccionadas");
+      return;
+    }
+    const result = await Swal.fire({
+      title: "Eliminar Órdenes",
+      html: `Se eliminarán <strong>${selectedOrders.length}</strong> orden(es) <br/> Esta acción no se puede deshacer.`,
+      icon: "warning",
+      iconColor: "red",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      background: "#27272a",
+      color: "#fff",
+      confirmButtonColor: "red",
+      cancelButtonColor: "#71717a",
+    });
+    if (!result.isConfirmed) return;
+    const loadingToast = toast.loading("Eliminando órdenes...");
+    try {
+      const promises = selectedOrders.map((orderId) => deleteOrder(orderId));
+      const results = await Promise.all(promises);
+      const allSuccess = results.every((r) => r.success);
+      const failedCount = results.filter((r) => !r.success).length;
+
+      toast.dismiss(loadingToast);
+
+      if (allSuccess) {
+        toast.success(
+          `${selectedOrders.length} órdenes eliminadas exitosamente`
+        );
+        setSelectedOrders([]);
+      } else {
+        toast.error(
+          `${results.length - failedCount} eliminadas, ${failedCount} fallaron`,
+          { duration: 5000 }
+        );
+      }
+      await refetch();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Error al eliminar órdenes");
+      console.error("Error:", error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <div className="w-full md:px-4">
-      {loading && <div>Cargando</div>}
-      <h1 className="font-bold text-3xl  py-4">Ordenes de Compra</h1>
+      <h1 className="font-bold text-3xl  py-4 ">Ordenes de Compra</h1>
       <Filters
         search={search}
         setSearch={setSearch}
@@ -379,7 +602,39 @@ export default function PurchasesPage() {
         pagination={pagination}
         getDetailPath={getOrderDetailPath}
         onPageChange={setCurrentPage}
+        onRowDelete={(row) => handleDeleteOrder(row)}
+        canDeleteRow={(row) =>
+          row.state === "draft" || row.state === "confirmed"
+        }
+        emptyMessage="No se encontraron órdenes de compra con los filtros existentes"
       />
+
+      <div className="py-4 flex flex-col w-full md:w-auto md:flex-row gap-3 md:justify-end">
+        <Button
+          variant="zinc"
+          disabled={selectedOrders.length === 0}
+          onClick={handleConfirmSelectedOrder}
+          className="w-full md:w-auto"
+        >
+          Confirmar Ordenes
+        </Button>
+        <Button
+          variant="emerald"
+          disabled={selectedOrders.length === 0}
+          onClick={handleCompleteSelectedOrders}
+          className="w-full md:w-auto"
+        >
+          Completar Ordenes
+        </Button>
+        <Button
+          variant="red"
+          disabled={selectedOrders.length === 0}
+          onClick={handleDeleteSelectedOrders}
+          className="w-full md:w-auto"
+        >
+          Eliminar Ordenes
+        </Button>
+      </div>
     </div>
   );
 }

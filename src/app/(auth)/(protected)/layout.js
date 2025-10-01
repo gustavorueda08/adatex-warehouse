@@ -3,7 +3,7 @@ import "../../globals.css";
 import { ThemeModeScript } from "flowbite-react";
 import { getTokenFromCookies } from "@/lib/auth/session";
 import Sidebar from "@/components/ui/Nav";
-
+import { Toaster } from "react-hot-toast";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -23,7 +23,7 @@ export default async function RootLayout({ children }) {
   const token = await getTokenFromCookies();
   if (!token) redirect("/login");
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className="">
       <head>
         <ThemeModeScript />
       </head>
@@ -31,6 +31,30 @@ export default async function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Sidebar>{children}</Sidebar>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            // Estilos para todos los toasts
+            style: {
+              background: "#27272a", // zinc-800
+              color: "#fff",
+              border: "1px solid #3f3f46", // zinc-700
+            },
+            // Estilos específicos por tipo
+            success: {
+              iconTheme: {
+                primary: "#10b981", // emerald-500
+                secondary: "#fff",
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: "#ef4444", // red-500
+                secondary: "#fff",
+              },
+            },
+          }}
+        />
       </body>
     </html>
   );

@@ -8,8 +8,6 @@ import {
   endOfDay,
   endOfMonth,
   format,
-  isAfter,
-  isBefore,
   isValid,
   parse,
   startOfDay,
@@ -18,47 +16,80 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "@heroicons/react/24/solid";
+import { createPortal } from "react-dom";
 
-/**
- * RangeDatePicker (moderno y responsive)
- * - Calendar popover con selección de rango
- * - Inputs con formato DD/MM/YYYY
- * - Presets rápidos (Últimos 7 días, Este mes, etc.)
- * - Cierre al hacer click fuera / Escape
- * - Responsive: modal en móvil, popover en desktop
- * - 100% controlado hacia afuera vía props o con estado interno si no pasas value/onChange
- */
 export default function DatePicker({
-  value, // { from: Date|null, to: Date|null }
-  onChange, // (range) => void
+  value, // Date | null (single) o { from: Date|null, to: Date|null } (range)
+  onChange, // (value) => void
+  mode = "single", // "single" | "range"
   minDate,
   maxDate,
   presets = true,
-  placeholder = "Rango de fechas",
+  placeholder = "Seleccionar fecha",
   locale = es,
   className = "",
 }) {
-  // estado interno si no es controlado
-  const [range, setRange] = useState({ from: null, to: null });
+  const [internalValue, setInternalValue] = useState(
+    mode === "range" ? { from: null, to: null } : null
+  );
   const controlled = typeof onChange === "function";
-  const current = controlled ? value ?? { from: null, to: null } : range;
+  const current = controlled
+    ? value ?? (mode === "range" ? { from: null, to: null } : null)
+    : internalValue;
 
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const popRef = useRef(null);
   const btnRef = useRef(null);
 
-  // Detectar si es móvil
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Prevenir scroll del body cuando el modal está abierto en móvil
+  useEffect(() => {
+    if (open && btnRef.current && !isMobile) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+
+      setPosition({
+        top: rect.bottom + scrollY + 8,
+        left: rect.left + scrollX,
+        width: rect.width,
+      });
+    }
+  }, [open, isMobile]);
+
+  useEffect(() => {
+    if (!open || isMobile) return;
+
+    const handleScroll = () => {
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect();
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+        const scrollX = window.scrollX || document.documentElement.scrollLeft;
+
+        setPosition({
+          top: rect.bottom + scrollY + 8,
+          left: rect.left + scrollX,
+          width: rect.width,
+        });
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [open, isMobile]);
+
   useEffect(() => {
     if (open && isMobile) {
       document.body.style.overflow = "hidden";
@@ -68,7 +99,6 @@ export default function DatePicker({
     }
   }, [open, isMobile]);
 
-  // cerrar al hacer click fuera / ESC
   useEffect(() => {
     if (!open) return;
     const onDoc = (e) => {
@@ -89,7 +119,6 @@ export default function DatePicker({
     };
   }, [open]);
 
-  // límites opcionales
   const disabled = useMemo(() => {
     const arr = [];
     if (minDate) arr.push({ before: startOfDay(minDate) });
@@ -103,30 +132,36 @@ export default function DatePicker({
     return isValid(d) ? d : null;
   };
 
-  const setRangeSafe = (next) => {
-    if (!controlled) setRange(next);
+  const setValueSafe = (next) => {
+    if (!controlled) setInternalValue(next);
     onChange?.(next);
   };
 
-  const onSelect = (r) => {
-    // DayPicker puede entregar parcial {from} o completo {from,to}
-    setRangeSafe(r ?? { from: null, to: null });
+  const onSelect = (selected) => {
+    if (mode === "single") {
+      setValueSafe(selected || null);
+      setOpen(false);
+    } else {
+      setValueSafe(selected ?? { from: null, to: null });
+    }
   };
 
   const onInputChange = (which, str) => {
-    const d = parseInput(str);
-    let next = { ...current };
-    next[which] = d;
-    // normalizar: from <= to
-    if (next.from && next.to && isAfter(next.from, next.to)) {
-      // si editas inicio > fin, corremos el otro extremo
-      if (which === "from") next.to = next.from;
-      else next.from = next.to;
+    if (mode === "single") {
+      const d = parseInput(str);
+      setValueSafe(d);
+    } else {
+      const d = parseInput(str);
+      let next = { ...current };
+      next[which] = d;
+      if (next.from && next.to && next.from > next.to) {
+        if (which === "from") next.to = next.from;
+        else next.from = next.to;
+      }
+      setValueSafe(next);
     }
-    setRangeSafe(next);
   };
 
-  // presets
   const presetList = useMemo(
     () => [
       {
@@ -170,89 +205,110 @@ export default function DatePicker({
     []
   );
 
-  const label =
-    current.from && current.to
+  const label = useMemo(() => {
+    if (mode === "single") {
+      return current ? fmt(current) : placeholder;
+    }
+    return current.from && current.to
       ? `${fmt(current.from)} – ${fmt(current.to)}`
       : placeholder;
+  }, [mode, current, placeholder]);
 
-  // Contenido del calendario y controles (compartido entre modal y popover)
   const CalendarContent = () => (
     <>
-      {/* Calendario */}
       <div className="p-3 md:p-4">
         <DayPicker
-          mode="range"
+          mode={mode}
           selected={current}
           onSelect={onSelect}
-          numberOfMonths={isMobile ? 1 : 2}
+          numberOfMonths={mode === "range" && !isMobile ? 2 : 1}
           fixedWeeks
           locale={locale}
           disabled={disabled}
           weekStartsOn={1}
           className="rdp"
           classNames={{
-            caption: "rdp-caption text-sm font-medium",
+            caption: "rdp-caption text-sm font-medium text-white",
             head_cell: "rdp-head_cell text-xs text-zinc-500",
-            day: "rdp-day h-9 w-9 text-sm",
-            range_middle: "bg-zinc-700",
-            range_end: "bg-zinc-700 rounded-r-full",
-            range_start: "bg-zinc-700 rounded-l-full",
-            selected: "",
-            chevron: "bg-white rounded-full",
+            day: "rdp-day h-9 w-9 text-sm text-white hover:bg-zinc-700 rounded-full",
+            day_selected:
+              mode === "single" ? "bg-zinc-600 text-white rounded-full" : "",
+            day_today: "font-bold",
+            range_middle: mode === "range" ? "bg-zinc-700" : "",
+            range_end: mode === "range" ? "bg-zinc-600 rounded-r-full" : "",
+            range_start: mode === "range" ? "bg-zinc-600 rounded-l-full" : "",
           }}
         />
       </div>
 
-      {/* Sidebar: inputs + presets */}
       <div className="p-4 border-t md:border-t-0 md:border-l border-zinc-700 space-y-3 w-full md:max-w-[240px]">
-        <div className="space-y-2">
-          <label className="block text-xs text-zinc-400">Desde</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="dd/mm/aaaa"
-            value={fmt(current.from)}
-            onChange={(e) => onInputChange("from", e.target.value)}
-            className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="block text-xs text-zinc-400">Hasta</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="dd/mm/aaaa"
-            value={fmt(current.to)}
-            onChange={(e) => onInputChange("to", e.target.value)}
-            className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-          />
-        </div>
-
-        {presets && (
-          <div className="pt-1 space-y-1">
-            <p className="text-xs uppercase tracking-wide text-zinc-400">
-              Rápidos
-            </p>
-            <div className="flex flex-col gap-1">
-              {presetList.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  className="text-left text-sm px-2.5 py-1.5 rounded text-white hover:bg-zinc-700 transition-colors"
-                  onClick={() => setRangeSafe(p.get())}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+        {mode === "single" ? (
+          <div className="space-y-2">
+            <label className="block text-xs text-zinc-400">Fecha</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="dd/mm/aaaa"
+              value={fmt(current)}
+              onChange={(e) => onInputChange(null, e.target.value)}
+              className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            />
           </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <label className="block text-xs text-zinc-400">Desde</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                value={fmt(current.from)}
+                onChange={(e) => onInputChange("from", e.target.value)}
+                className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs text-zinc-400">Hasta</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                value={fmt(current.to)}
+                onChange={(e) => onInputChange("to", e.target.value)}
+                className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              />
+            </div>
+
+            {presets && (
+              <div className="pt-1 space-y-1">
+                <p className="text-xs uppercase tracking-wide text-zinc-400">
+                  Rápidos
+                </p>
+                <div className="flex flex-col gap-1">
+                  {presetList.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      className="text-left text-sm px-2.5 py-1.5 rounded text-white hover:bg-zinc-700 transition-colors"
+                      onClick={() => setValueSafe(p.get())}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className="pt-2 flex items-center justify-between gap-2">
           <button
             type="button"
             className="text-sm px-3 py-1.5 min-w-20 rounded border border-zinc-500 text-white hover:bg-zinc-700 transition-colors"
-            onClick={() => setRangeSafe({ from: null, to: null })}
+            onClick={() => {
+              setValueSafe(mode === "range" ? { from: null, to: null } : null);
+              if (mode === "single") setOpen(false);
+            }}
           >
             Limpiar
           </button>
@@ -270,21 +326,21 @@ export default function DatePicker({
 
   return (
     <div className={`relative inline-block w-full ${className}`}>
-      {/* Trigger Button */}
       <button
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="w-full text-center bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500"
       >
-        {/* icono calendario */}
         <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3 text-zinc-400">
           <CalendarIcon className="w-5 h-5" />
         </span>
         <span
           className={
             "block truncate " +
-            (current.from && current.to ? "text-white" : "text-zinc-400") +
+            ((mode === "single" ? current : current.from && current.to)
+              ? "text-white"
+              : "text-zinc-400") +
             " self-start text-left"
           }
         >
@@ -292,64 +348,70 @@ export default function DatePicker({
         </span>
       </button>
 
-      {/* Popover (Desktop) o Modal (Mobile) */}
-      {open && (
+      {open && typeof window !== "undefined" && (
         <>
-          {isMobile ? (
-            /* Modal para móvil */
-            <>
-              {/* Backdrop */}
-              <div className="fixed inset-0 bg-black/50 z-40" />
-
-              {/* Modal */}
-              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          {isMobile
+            ? createPortal(
+                <>
+                  <div className="fixed inset-0 bg-black/50 z-[9998]" />
+                  <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center">
+                    <div
+                      ref={popRef}
+                      className="bg-zinc-900 rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+                    >
+                      <div className="sticky top-0 bg-zinc-900 border-b border-zinc-700 px-4 py-3 flex items-center justify-between z-10">
+                        <h3 className="text-lg font-semibold text-white">
+                          {mode === "single"
+                            ? "Seleccionar fecha"
+                            : "Seleccionar rango"}
+                        </h3>
+                        <button
+                          onClick={() => setOpen(false)}
+                          className="text-zinc-400 hover:text-white transition-colors p-1"
+                        >
+                          <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1">
+                        <CalendarContent />
+                      </div>
+                    </div>
+                  </div>
+                </>,
+                document.body
+              )
+            : createPortal(
                 <div
                   ref={popRef}
-                  className="bg-zinc-900 rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+                  className="fixed z-[9999] bg-zinc-900 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden"
+                  style={{
+                    top: `${position.top}px`,
+                    left: `${position.left}px`,
+                    minWidth: `${position.width}px`,
+                    width:
+                      mode === "range"
+                        ? "min(90vw, 680px)"
+                        : "min(90vw, 500px)",
+                  }}
                 >
-                  {/* Header del modal */}
-                  <div className="sticky top-0 bg-zinc-900 border-b border-zinc-700 px-4 py-3 flex items-center justify-between z-10">
-                    <h3 className="text-lg font-semibold text-white">
-                      Seleccionar rango
-                    </h3>
-                    <button
-                      onClick={() => setOpen(false)}
-                      className="text-zinc-400 hover:text-white transition-colors p-1"
-                    >
-                      <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Contenido */}
-                  <div className="grid grid-cols-1">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_auto]">
                     <CalendarContent />
                   </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Popover para desktop */
-            <div
-              ref={popRef}
-              className="absolute z-50 mt-2 left-0 w-[min(90vw,680px)] bg-zinc-900 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto]">
-                <CalendarContent />
-              </div>
-            </div>
-          )}
+                </div>,
+                document.body
+              )}
         </>
       )}
     </div>

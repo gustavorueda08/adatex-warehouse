@@ -29,6 +29,7 @@ export default function Filters(props) {
           className="w-full md:w-auto"
         />
         <DatePicker
+          mode="range"
           value={range}
           onChange={setRange}
           placeholder="Selecciona un rango"

@@ -12,11 +12,12 @@ import Input from "./Input";
 import Searchbar from "./Searchbar";
 import IconButton from "./IconButton";
 import { TrashIcon } from "@heroicons/react/24/solid";
+import classNames from "classnames";
 
 export default function Select({
   options = [],
-  value, // controlado: single -> any | null ; multiple -> any[] | []
-  onChange, // (newValue) => void
+  value,
+  onChange,
   multiple = false,
   searchable = false,
   placeholder = "Seleccionar...",
@@ -42,15 +43,13 @@ export default function Select({
   });
 
   const selectRef = useRef(null);
-  const dropdownRef = useRef(null); // 👈 nuevo: referencia al Portal
+  const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
-  // --- Controlado vs no-controlado
   const isControlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(multiple ? [] : null);
   const currentValue = isControlled ? value : internalValue;
 
-  // Filtrado por búsqueda
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm.trim()) return options;
     const q = searchTerm.toLowerCase();
@@ -61,66 +60,62 @@ export default function Select({
     );
   }, [options, searchTerm, searchable]);
 
-  // Normaliza valor a array para cálculos internos
   const normalizedValue = useMemo(() => {
     if (multiple) return Array.isArray(currentValue) ? currentValue : [];
     return currentValue != null ? [currentValue] : [];
   }, [currentValue, multiple]);
 
-  // Opciones seleccionadas (si value es objeto, debe ser misma referencia)
   const selectedOptions = useMemo(
     () => options.filter((o) => normalizedValue.includes(o.value)),
     [options, normalizedValue]
   );
 
-  // Posición del dropdown
+  // 👇 Mejorado: cálculo de posición más preciso
   const updateDropdownPosition = () => {
     if (!selectRef.current) return;
     const rect = selectRef.current.getBoundingClientRect();
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const scrollX = window.scrollX || document.documentElement.scrollLeft;
+
     setDropdownPosition({
-      top: rect.bottom + scrollY,
-      left: rect.left + scrollX,
+      top: rect.bottom + 4, // 👈 Usar coordenadas viewport directamente
+      left: rect.left,
       width: rect.width,
     });
   };
 
-  // Cerrar al click fuera — ahora respeta el portal
   useEffect(() => {
     const handleClickOutside = (event) => {
       const t = event.target;
       const insideTrigger = selectRef.current?.contains(t);
       const insideDropdown = dropdownRef.current?.contains(t);
-      if (insideTrigger || insideDropdown) return; // 👈 no cerrar si el click está dentro del portal
+      if (insideTrigger || insideDropdown) return;
       setIsOpen(false);
       setSearchTerm("");
     };
-    const handleScroll = () => isOpen && updateDropdownPosition();
-    const handleResize = () => isOpen && updateDropdownPosition();
+
+    // 👇 Actualizar posición en scroll y resize
+    const handleScrollOrResize = () => {
+      if (isOpen) updateDropdownPosition();
+    };
 
     document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
     };
   }, [isOpen]);
 
-  // Focus en buscador al abrir
   useEffect(() => {
     if (isOpen && searchable && searchRef.current) searchRef.current.focus();
   }, [isOpen, searchable]);
 
-  // Reposicionar al abrir
   useEffect(() => {
     if (isOpen) updateDropdownPosition();
   }, [isOpen]);
 
-  // Manejar selección
   const commitValue = (next) => {
     if (!isControlled) setInternalValue(next);
     onChange?.(next);
@@ -164,7 +159,6 @@ export default function Select({
     });
   };
 
-  // Estilos por tamaño
   const sizeStyles = {
     sm: "px-2 py-1 text-sm",
     md: "px-3 py-2 text-sm",
@@ -199,17 +193,17 @@ export default function Select({
   };
 
   return (
-    <div ref={selectRef} className={`relative ${className}`}>
+    <div ref={selectRef} className={classNames("relative", className)}>
       {/* Trigger */}
       <button
         type="button"
         onClick={toggleDropdown}
         disabled={disabled}
-        className={[
+        className={classNames(
           "w-full flex items-center justify-between rounded-md bg-zinc-800 text-white",
           sizeStyles[size],
-          disabled ? "bg-zinc-600 cursor-not-allowed" : "",
-        ].join(" ")}
+          { "bg-zinc-600 cursor-not-allowed": disabled }
+        )}
       >
         <div className="flex items-center flex-1 min-w-0 py-0.5">
           {multiple && selectedOptions.length > 0 ? (
@@ -238,7 +232,7 @@ export default function Select({
               )}
             </div>
           ) : (
-            <div className="truncate">{renderSelectedValue()}</div>
+            <div className="md:truncate text-left">{renderSelectedValue()}</div>
           )}
         </div>
 
@@ -260,23 +254,22 @@ export default function Select({
         </div>
       </button>
 
-      {/* Portal */}
+      {/* Portal - 👇 Cambio clave aquí */}
       {isOpen &&
         typeof window !== "undefined" &&
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed bg-zinc-900 mt-1 rounded-md shadow-2xl"
+            className="fixed bg-zinc-900 rounded-md shadow-2xl z-[9999]"
             style={{
-              top: dropdownPosition.top,
-              left: dropdownPosition.left,
-              width: dropdownPosition.width,
-              zIndex: 9999,
+              top: `${dropdownPosition.top}px`,
+              left: `${dropdownPosition.left}px`,
+              width: `${dropdownPosition.width}px`,
             }}
           >
             {searchable && (
               <div className="flex flex-row gap-2 p-2 w-full justify-between">
-                <div className="flex-10/12">
+                <div className="flex-1">
                   <Searchbar
                     className=""
                     ref={searchRef}
@@ -285,7 +278,7 @@ export default function Select({
                   />
                 </div>
                 {hasMenu && (
-                  <div className="felx-2/12 flex align-middle justify-center">
+                  <div className="flex align-middle justify-center">
                     <IconButton
                       variant={menuVariant}
                       className=""
@@ -304,27 +297,30 @@ export default function Select({
                   {searchTerm ? "No se encontraron resultados" : emptyMessage}
                 </div>
               ) : (
-                filteredOptions.map((option, index) => {
-                  const isSelected = normalizedValue.includes(option.value);
-                  return (
-                    <button
-                      key={`SELECT-${option.value}-${index}`}
-                      type="button"
-                      onClick={() => handleOptionSelect(option)}
-                      disabled={option.disabled}
-                      className={[
-                        "w-full px-3 py-2 text-left text-sm flex items-center",
-                        "hover:bg-zinc-800",
-                        isSelected ? "bg-zinc-700" : "",
-                        option.disabled
-                          ? "text-gray-600 cursor-not-allowed"
-                          : "cursor-pointer",
-                      ].join(" ")}
-                    >
-                      {renderSingleOption(option, index)}
-                    </button>
-                  );
-                })
+                <>
+                  {filteredOptions.map((option, index) => {
+                    const isSelected = normalizedValue.includes(option.value);
+                    return (
+                      <button
+                        key={`SELECT-${option.value}-${index}`}
+                        type="button"
+                        onClick={() => handleOptionSelect(option)}
+                        disabled={option.disabled}
+                        className={[
+                          "w-full p-4 text-left text-sm flex items-center",
+                          "hover:bg-zinc-800",
+                          isSelected ? "bg-zinc-700" : "",
+                          option.disabled
+                            ? "text-gray-600 cursor-not-allowed"
+                            : "cursor-pointer",
+                        ].join(" ")}
+                      >
+                        {renderSingleOption(option, index)}
+                      </button>
+                    );
+                  })}
+                  <div className="bg-zinc-900 h-10 rounded-b-md"></div>
+                </>
               )}
             </div>
           </div>,

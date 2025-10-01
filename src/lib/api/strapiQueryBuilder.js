@@ -348,6 +348,8 @@ export function normalizeFilters(filters) {
 
   // Normalizar tipos de orden
   if (normalized.type) {
+    console.log("🔍 Tipo antes de normalizar:", normalized.type);
+
     if (normalized.type.$in) {
       const normalizedTypes = normalizeOrderTypes(normalized.type.$in);
       if (normalizedTypes && normalizedTypes.length > 0) {
@@ -355,9 +357,15 @@ export function normalizeFilters(filters) {
       } else {
         delete normalized.type.$in;
       }
-    }
-
-    if (normalized.type.$eq) {
+    } else if (typeof normalized.type === "string") {
+      // 👇 Convertir string directo a $eq
+      const normalizedType = normalizeOrderTypes([normalized.type])[0];
+      if (normalizedType) {
+        normalized.type = { $eq: normalizedType };
+      } else {
+        delete normalized.type;
+      }
+    } else if (normalized.type.$eq) {
       const normalizedType = normalizeOrderTypes([normalized.type.$eq])[0];
       if (normalizedType) {
         normalized.type.$eq = normalizedType;
@@ -365,5 +373,9 @@ export function normalizeFilters(filters) {
         delete normalized.type.$eq;
       }
     }
+
+    console.log("✅ Tipo después de normalizar:", normalized.type);
   }
+
+  return normalized;
 }

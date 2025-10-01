@@ -5,16 +5,12 @@ import Link from "next/link";
 import {
   ChevronRightIcon,
   ChevronDownIcon,
-  PencilSquareIcon,
   DocumentMagnifyingGlassIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
 import { Checkbox } from "flowbite-react";
+import IconButton from "./IconButton";
 
-/**
- * Componente de tabla reutilizable con selección, expansión y navegación
- * Responsive con vista de tarjetas en móvil y tabla en desktop
- */
 export default function Table({
   data = [],
   columns = [],
@@ -36,16 +32,15 @@ export default function Table({
   canExpandRow = () => true,
   getRowClassName = () => "",
   getDisabledMessage = () => "",
+  footer = null,
 }) {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [allSelected, setAllSelected] = useState(false);
 
-  // Obtener rows que se pueden seleccionar
   const selectableRows = data.filter(canSelectRow);
   const selectableRowIds = selectableRows.map(getRowId);
 
-  // Manejar selección de todos los rows
   const handleSelectAll = useCallback(
     (checked) => {
       if (checked) {
@@ -62,7 +57,6 @@ export default function Table({
     [selectableRowIds, onRowSelect]
   );
 
-  // Manejar selección individual de row
   const handleRowSelect = useCallback(
     (rowId, checked) => {
       const newSelected = new Set(selectedRows);
@@ -78,7 +72,6 @@ export default function Table({
     [selectedRows, onRowSelect]
   );
 
-  // Expandir/contraer row
   const toggleRowExpansion = useCallback(
     (rowId) => {
       const newExpanded = new Set(expandedRows);
@@ -92,15 +85,16 @@ export default function Table({
     [expandedRows]
   );
 
-  // Manejar clic en row (para navegación o expansión)
   const handleRowClick = useCallback(
     (e, row, rowId) => {
       if (
         e.target.type === "checkbox" ||
         e.target.tagName === "BUTTON" ||
         e.target.tagName === "A" ||
+        e.target.tagName === "INPUT" ||
         e.target.closest("button") ||
-        e.target.closest("a")
+        e.target.closest("a") ||
+        e.target.closest("input")
       ) {
         return;
       }
@@ -112,7 +106,6 @@ export default function Table({
     [renderExpandedContent, canExpandRow, toggleRowExpansion]
   );
 
-  // Renderizar celda individual
   const renderCell = useCallback((column, row, rowIndex) => {
     if (column.render) {
       return column.render(row[column.key], row, rowIndex);
@@ -120,199 +113,117 @@ export default function Table({
     return row[column.key] || "-";
   }, []);
 
-  // Verificar si todos los rows seleccionables están seleccionados
+  // Función para renderizar el footer de una columna
+  const renderFooterCell = useCallback(
+    (column) => {
+      if (!column.footer) return "";
+
+      // Si es función, ejecutarla
+      if (typeof column.footer === "function") {
+        return column.footer(data);
+      }
+
+      // Si es string u otro valor, retornarlo directamente
+      return column.footer;
+    },
+    [data]
+  );
+
+  // Verificar si hay algún footer definido
+  const hasFooter = footer || columns.some((col) => col.footer !== undefined);
+
   const areAllSelectableSelected =
     selectableRowIds.length > 0 &&
     selectableRowIds.every((id) => selectedRows.has(id));
 
-  // COMPONENTE DE TARJETA MÓVIL
-  const MobileCard = ({ row, rowIndex }) => {
-    const rowId = getRowId(row);
-    const isSelected = selectedRows.has(rowId);
-    const isExpanded = expandedRows.has(rowId);
-    const canSelect = canSelectRow(row);
-    const canEdit = canEditRow(row);
-    const canView = canViewRow(row);
-    const canDelete = canDeleteRow(row);
-    const canExpand = canExpandRow(row);
-    const detailPath = getDetailPath && canView ? getDetailPath(row) : null;
-    const disabledMessage = getDisabledMessage(row);
-
-    return (
-      <div className="bg-neutral-800 rounded-lg p-4 mb-4 shadow-lg ">
-        {/* Header de la tarjeta con checkbox y acciones */}
-        <div className="flex items-center justify-between mb-3 pb-3 border-b border-neutral-700">
-          <div className="flex items-center gap-2">
-            {onRowSelect &&
-              (canSelect ? (
-                <Checkbox
-                  checked={isSelected}
-                  onChange={(e) => handleRowSelect(rowId, e.target.checked)}
-                />
-              ) : (
-                <input
-                  type="checkbox"
-                  disabled
-                  className="w-4 h-4 text-gray-400 bg-gray-100 border-gray-300 rounded cursor-not-allowed opacity-50"
-                  title={disabledMessage || "No se puede seleccionar"}
-                />
-              ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {getDetailPath && canView && (
-              <Link
-                href={getDetailPath(row)}
-                className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
-              >
-                <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-600" />
-              </Link>
-            )}
-
-            {onRowDelete && canDelete && (
-              <button
-                onClick={() => onRowDelete(row.id)}
-                className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
-              >
-                <TrashIcon className="w-5 h-5 text-orange-800 hover:text-orange-700" />
-              </button>
-            )}
-
-            {renderExpandedContent && canExpand && (
-              <button
-                onClick={() => toggleRowExpansion(rowId)}
-                className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
-              >
-                <ChevronDownIcon
-                  className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
-                    isExpanded ? "rotate-180" : "rotate-0"
-                  }`}
-                />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Contenido de la tarjeta */}
-        <div className="space-y-2.5">
-          {columns.map((column, index) => (
-            <div
-              key={column.key}
-              className={`flex justify-between items-start gap-3 align-middle`}
-            >
-              <span className="text-gray-400 text-sm self-center font-medium min-w-[100px]">
-                {column.label}:
-              </span>
-              <span className="text-white text-sm text-right flex-1">
-                {detailPath && index === 0 ? (
-                  <Link
-                    href={detailPath}
-                    className="hover:underline text-white font-bold"
-                    onClick={(e) => {
-                      if (!canView) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    {renderCell(column, row, rowIndex)}
-                  </Link>
-                ) : (
-                  <div className={row.className}>
-                    {renderCell(column, row, rowIndex)}
-                  </div>
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Contenido expandido */}
-        {renderExpandedContent && isExpanded && canExpand && (
-          <div className="mt-4 pt-4 border-t border-neutral-700 animate-in fade-in slide-in-from-top-2 duration-300">
-            {renderExpandedContent(row, rowIndex)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // LOADING STATE
   if (loading) {
     return (
-      <div className="bg-black p-4">
+      <div className="bg-black">
         {/* Loading para móvil */}
         <div className="block md:hidden space-y-4">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="bg-neutral-800 rounded-lg p-4 animate-pulse"
+              className="bg-neutral-800 rounded-lg p-4 shadow-lg animate-pulse"
             >
-              <div className="h-4 bg-neutral-700 rounded w-3/4 mb-3"></div>
-              <div className="h-4 bg-neutral-700 rounded w-1/2"></div>
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-neutral-700">
+                <div className="w-4 h-4 bg-neutral-700 rounded"></div>
+                <div className="flex gap-2">
+                  <div className="w-8 h-8 bg-neutral-700 rounded"></div>
+                  <div className="w-8 h-8 bg-neutral-700 rounded"></div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="w-20 h-3 bg-neutral-700 rounded"></div>
+                  <div className="w-32 h-3 bg-neutral-600 rounded"></div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="w-24 h-3 bg-neutral-700 rounded"></div>
+                  <div className="w-24 h-3 bg-neutral-600 rounded"></div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <div className="w-16 h-3 bg-neutral-700 rounded"></div>
+                  <div className="w-40 h-3 bg-neutral-600 rounded"></div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Loading para desktop */}
-        <div className="hidden md:block">
-          <table className="w-full text-sm text-left table-fixed">
+        <div className="hidden md:block relative overflow-x-auto shadow-md sm:rounded-lg">
+          <table className="w-full text-sm text-left">
             <thead className="text-xs uppercase">
               <tr className="bg-neutral-900">
-                {onRowSelect && selectableRows.length > 0 && (
-                  <th scope="col">
-                    <div className="flex items-center my-4 p-4 rounded-l ml-4 bg-neutral-600 shadow-xl">
-                      <input type="checkbox" className="w-4 h-4" disabled />
-                      <label className="sr-only">Seleccionar todos</label>
-                    </div>
-                  </th>
-                )}
-                {renderExpandedContent && data.length > 0 && (
-                  <th scope="col">
-                    <div className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></div>
-                  </th>
-                )}
                 {columns.map((column, index) => (
                   <th key={column.key} scope="col">
                     <div
-                      className={`shadow-xl my-4 p-4 bg-neutral-600 whitespace-nowrap ${
-                        index + 1 === columns.length && !onRowEdit
-                          ? "mr-4 rounded-r"
-                          : "mr-0"
+                      className={`my-4 p-4 bg-neutral-600 shadow-xl ${
+                        index === 0 ? "ml-4 rounded-l" : ""
                       } ${
-                        index === 0 && !renderExpandedContent
-                          ? "ml-4 rounded-l"
-                          : ""
+                        index === columns.length - 1 ? "mr-4 rounded-r" : ""
                       }`}
                     >
-                      {column.label}
+                      <div className="h-3 bg-neutral-500 rounded w-20 animate-pulse"></div>
                     </div>
                   </th>
                 ))}
-                {(onRowEdit || getDetailPath) && (
-                  <th scope="col">
-                    <div className="shadow-xl my-4 p-4 bg-neutral-600 whitespace-nowrap mr-4 rounded-r">
-                      Acciones
-                    </div>
-                  </th>
-                )}
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td
-                  colSpan={
-                    columns.length +
-                    (onRowSelect ? 1 : 0) +
-                    (renderExpandedContent ? 1 : 0) +
-                    (onRowEdit || getDetailPath ? 1 : 0)
-                  }
-                  className="px-6 py-8 text-center text-gray-500"
+              {[1, 2, 3, 4, 5].map((rowNum) => (
+                <tr
+                  key={rowNum}
+                  className="bg-neutral-900 border-b border-neutral-800"
                 >
-                  Cargando datos...
-                </td>
-              </tr>
+                  {columns.map((column, colIndex) => (
+                    <td key={column.key} className="p-4">
+                      <div className="animate-pulse">
+                        <div
+                          className={`h-3 bg-neutral-700 rounded ${
+                            colIndex === 0 ? "w-32" : "w-24"
+                          }`}
+                        ></div>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
+
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-neutral-800 px-6 py-4 rounded-lg shadow-xl border border-neutral-700">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-white font-medium">
+                  Cargando datos...
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -322,9 +233,8 @@ export default function Table({
     <div className="bg-black">
       {/* VISTA MÓVIL - TARJETAS */}
       <div className="block md:hidden">
-        {/* Seleccionar todos en móvil */}
         {onRowSelect && selectableRows.length > 0 && (
-          <div className="bg-neutral-800 rounded-lg p-4 mb-4 flex items-center justify-between shadow-lg ">
+          <div className="bg-neutral-800 rounded-lg p-4 mb-4 flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3">
               <Checkbox
                 checked={areAllSelectableSelected}
@@ -340,30 +250,160 @@ export default function Table({
           </div>
         )}
 
-        {/* Indicador de scroll */}
         {data.length > 0 && (
-          <div className="bg-neutral-800 text-gray-400 text-xs p-2 text-center rounded mb-4 ">
+          <div className="bg-zinc-800 text-gray-400 text-xs p-2 text-center rounded mb-4">
             Mostrando {data.length}{" "}
             {data.length === 1 ? "elemento" : "elementos"}
           </div>
         )}
 
-        {/* Tarjetas o mensaje vacío */}
         {data.length === 0 ? (
-          <div className="text-center text-gray-500 py-8 bg-neutral-800 rounded-lg ">
+          <div className="text-center text-gray-500 py-8 bg-zinc-800 rounded-lg">
             {emptyMessage}
           </div>
         ) : (
-          data.map((row, rowIndex) => (
-            <MobileCard key={getRowId(row)} row={row} rowIndex={rowIndex} />
-          ))
+          <>
+            {data.map((row, rowIndex) => {
+              const rowId = getRowId(row);
+              const isSelected = selectedRows.has(rowId);
+              const isExpanded = expandedRows.has(rowId);
+              const canSelect = canSelectRow(row);
+              const canView = canViewRow(row);
+              const canDelete = canDeleteRow(row);
+              const canExpand = canExpandRow(row);
+              const detailPath =
+                getDetailPath && canView ? getDetailPath(row) : null;
+              const disabledMessage = getDisabledMessage(row);
+
+              return (
+                <div
+                  key={rowId}
+                  className="bg-zinc-900 rounded-lg p-4 mb-4 shadow-lg"
+                >
+                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-neutral-700">
+                    <div className="flex items-center gap-2">
+                      {onRowSelect &&
+                        (canSelect ? (
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={(e) =>
+                              handleRowSelect(rowId, e.target.checked)
+                            }
+                          />
+                        ) : (
+                          <input
+                            type="checkbox"
+                            disabled
+                            className="w-4 h-4 text-gray-400 bg-gray-100 border-gray-300 rounded cursor-not-allowed opacity-50"
+                            title={disabledMessage || "No se puede seleccionar"}
+                          />
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {getDetailPath && canView && (
+                        <Link
+                          href={getDetailPath(row)}
+                          className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
+                        >
+                          <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-600" />
+                        </Link>
+                      )}
+
+                      {onRowDelete && canDelete && (
+                        <IconButton
+                          onClick={() => onRowDelete(row.id, rowIndex)}
+                          variant="red"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </IconButton>
+                      )}
+
+                      {renderExpandedContent && canExpand && (
+                        <button
+                          onClick={() => toggleRowExpansion(rowId)}
+                          className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
+                        >
+                          <ChevronDownIcon
+                            className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
+                              isExpanded ? "rotate-180" : "rotate-0"
+                            }`}
+                          />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {columns.map((column, index) => (
+                      <div
+                        key={`${rowId}-${column.key}`}
+                        className="inline-block sm:flex sm:flex-row justify-between w-full items-start sm:gap-3 align-middle"
+                      >
+                        <h3 className="text-gray-400 text-sm self-center font-bold mb-1 md:mb-0 sm:flex-1/5">
+                          {column.label}:
+                        </h3>
+                        <span className="text-sm text-right w-full sm:flex-4/5">
+                          {detailPath && index === 0 ? (
+                            <Link
+                              href={detailPath}
+                              className="hover:underline text-white font-bold"
+                              onClick={(e) => {
+                                if (!canView) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            >
+                              {renderCell(column, row, rowIndex)}
+                            </Link>
+                          ) : (
+                            <div className={row.className}>
+                              {renderCell(column, row, rowIndex)}
+                            </div>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {renderExpandedContent && isExpanded && canExpand && (
+                    <div className="mt-4 pt-4 border-t border-neutral-700 animate-in fade-in slide-in-from-top-2 duration-300">
+                      {renderExpandedContent(row, rowIndex)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Footer móvil */}
+            {hasFooter && (
+              <div className="bg-zinc-800 rounded-lg p-4 mt-4 shadow-lg">
+                {footer || (
+                  <div className="space-y-2.5">
+                    {columns.map((column) => (
+                      <div
+                        key={`footer-mobile-${column.key}`}
+                        className="inline-block sm:flex sm:flex-row justify-between w-full items-start sm:gap-3 align-middle"
+                      >
+                        <h3 className="text-gray-400 text-sm self-center font-bold mb-1 md:mb-0 sm:flex-1/5">
+                          {column.label}:
+                        </h3>
+                        <span className="text-sm text-right w-full sm:flex-4/5 text-white font-medium">
+                          {renderFooterCell(column)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* VISTA DESKTOP - TABLA */}
       <div className="hidden md:block relative overflow-x-auto shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left">
-          {/* Header */}
           <thead className="text-xs uppercase">
             <tr className="bg-neutral-900">
               {onRowSelect && selectableRows.length > 0 && (
@@ -392,12 +432,12 @@ export default function Table({
                 <th key={column.key} scope="col">
                   <div
                     className={`shadow-xl my-4 p-4 ${
-                      index + 1 === columns.length && !onRowEdit
+                      index + 1 === columns.length && !onRowEdit && !hasFooter
                         ? "mr-4 rounded-r"
                         : "mr-0"
                     } ${
                       (index === 0 && data.length === 0) ||
-                      (index === 0 && !renderExpandedContent)
+                      (index === 0 && !renderExpandedContent && !onRowSelect)
                         ? "ml-4 rounded-l"
                         : ""
                     } bg-neutral-600 whitespace-nowrap`}
@@ -417,7 +457,6 @@ export default function Table({
             </tr>
           </thead>
 
-          {/* Body */}
           <tbody>
             {data.length === 0 ? (
               <tr>
@@ -440,37 +479,16 @@ export default function Table({
                 const isExpanded = expandedRows.has(rowId);
                 const detailPath =
                   getDetailPath && canViewRow(row) ? getDetailPath(row) : null;
-
                 const canSelect = canSelectRow(row);
-                const canEdit = canEditRow(row);
                 const canView = canViewRow(row);
                 const canExpand = canExpandRow(row);
-
-                const baseRowClasses = `
-                  border-b border-gray-200 dark:border-gray-700 
-                  hover:bg-gray-50 dark:hover:bg-gray-600
-                  ${
-                    isSelected
-                      ? "bg-blue-50 dark:bg-blue-900/20"
-                      : "bg-white dark:bg-gray-800"
-                  }
-                  ${
-                    (renderExpandedContent && canExpand) || detailPath
-                      ? "cursor-pointer"
-                      : ""
-                  }
-                `;
-                const customRowClasses = getRowClassName(row, rowIndex);
-                const rowClasses =
-                  `${baseRowClasses} ${customRowClasses}`.trim();
                 const disabledMessage = getDisabledMessage(row);
 
                 return (
                   <React.Fragment key={rowId}>
                     <tr
                       onClick={(e) => handleRowClick(e, row, rowId)}
-                      className="bg-neutral-900"
-                      title={disabledMessage || undefined}
+                      className="bg-neutral-900 border-b border-neutral-800 hover:bg-neutral-800 transition-colors"
                     >
                       {onRowSelect && (
                         <td className="w-4 p-4">
@@ -547,9 +565,7 @@ export default function Table({
                               }`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (!canView) {
-                                  e.preventDefault();
-                                }
+                                if (!canView) e.preventDefault();
                               }}
                               title={
                                 !canView
@@ -568,30 +584,26 @@ export default function Table({
                       ))}
 
                       {(onRowEdit || getDetailPath) && (
-                        <td className="px-6 py-4 space-x-2 flex flex-row gap-3">
-                          {getDetailPath && canView && (
-                            <Link
-                              href={getDetailPath(row)}
-                              className="font-medium dark:text-blue-500 hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-800" />
-                            </Link>
-                          )}
-                          {onRowDelete && canDeleteRow(row) && (
-                            <button
-                              onClick={() => {
-                                if (
-                                  onRowDelete &&
-                                  typeof onRowDelete === "function"
-                                ) {
-                                  onRowDelete(row.id);
-                                }
-                              }}
-                            >
-                              <TrashIcon className="w-5 h-5 text-orange-800 hover:text-orange-900" />
-                            </button>
-                          )}
+                        <td className="p-4">
+                          <div className="flex flex-row gap-3 justify-between align-middle">
+                            {getDetailPath && canView && (
+                              <Link
+                                href={getDetailPath(row)}
+                                className="font-medium dark:text-blue-500 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-800" />
+                              </Link>
+                            )}
+                            {onRowDelete && canDeleteRow(row) && (
+                              <IconButton
+                                onClick={() => onRowDelete(row.id, rowIndex)}
+                                variant="red"
+                              >
+                                <TrashIcon className="w-5 h-5" />
+                              </IconButton>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -630,10 +642,51 @@ export default function Table({
               })
             )}
           </tbody>
+
+          {/* Footer desktop */}
+          {hasFooter && data.length > 0 && (
+            <tfoot>
+              <tr className="bg-neutral-900">
+                {onRowSelect && selectableRows.length > 0 && (
+                  <td className="my-4 p-4 rounded-l ml-4 bg-neutral-600 shadow-xl"></td>
+                )}
+
+                {renderExpandedContent && data.length > 0 && (
+                  <td className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></td>
+                )}
+
+                {columns.map((column, index) => (
+                  <td key={`footer-${column.key}`}>
+                    <div
+                      className={`shadow-xl  font-bold my-4 p-4 ${
+                        index + 1 === columns.length &&
+                        !(onRowEdit || getDetailPath)
+                          ? "mr-4 rounded-r"
+                          : "mr-0"
+                      } ${
+                        index === 0 && !renderExpandedContent && !onRowSelect
+                          ? "ml-4 rounded-l"
+                          : ""
+                      } bg-neutral-600 whitespace-nowrap text-white font-bold text-xs uppercase`}
+                    >
+                      {renderFooterCell(column)}
+                    </div>
+                  </td>
+                ))}
+
+                {(onRowEdit || getDetailPath) && (
+                  <td>
+                    <div className="font-bold shadow-xl my-4 p-4 bg-neutral-600 whitespace-nowrap mr-4 rounded-r text-white  text-xs uppercase">
+                      -
+                    </div>
+                  </td>
+                )}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
-      {/* PAGINACIÓN (compartida entre móvil y desktop) */}
       {pagination && (
         <nav className="bg-neutral-900 p-4" aria-label="Navegación de tabla">
           <div className="flex items-center flex-column flex-wrap md:flex-row justify-between bg-neutral-600 rounded py-2 px-3">
@@ -671,29 +724,23 @@ export default function Table({
                   </button>
                 </li>
 
-                {(() => {
-                  const currentPage = pagination.page;
-                  const totalPages = pagination.pageCount;
-                  const pageNumbers = [];
-                  for (let i = 1; i <= totalPages; i++) {
-                    pageNumbers.push(i);
-                  }
-
-                  return pageNumbers.map((pageNum) => (
-                    <li key={`page-${pageNum}`}>
-                      <button
-                        onClick={() => onPageChange && onPageChange(pageNum)}
-                        className={`flex items-center justify-center px-4 h-8 leading-tight ${
-                          currentPage === pageNum
-                            ? "bg-zinc-700 hover:bg-zinc-500"
-                            : "bg-zinc-900 hover:bg-zinc-500"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    </li>
-                  ));
-                })()}
+                {Array.from(
+                  { length: pagination.pageCount },
+                  (_, i) => i + 1
+                ).map((pageNum) => (
+                  <li key={`page-${pageNum}`}>
+                    <button
+                      onClick={() => onPageChange && onPageChange(pageNum)}
+                      className={`flex items-center justify-center px-4 h-8 leading-tight ${
+                        pagination.page === pageNum
+                          ? "bg-zinc-700 hover:bg-zinc-500"
+                          : "bg-zinc-900 hover:bg-zinc-500"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  </li>
+                ))}
 
                 <li>
                   <button

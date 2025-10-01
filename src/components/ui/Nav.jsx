@@ -74,10 +74,9 @@ export default function Sidebar({
 }) {
   const [openSidebar, setOpenSidebar] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState(false);
-  const [openGroups, setOpenGroups] = useState(() => new Set()); // controla submenús
+  const [openGroups, setOpenGroups] = useState(() => new Set());
   const userMenuRef = useRef(null);
 
-  // Escape para cerrar
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") {
@@ -89,7 +88,6 @@ export default function Sidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Cierre click afuera para menú usuario
   useEffect(() => {
     const onClickOutside = (e) => {
       if (
@@ -104,7 +102,6 @@ export default function Sidebar({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [openUserMenu]);
 
-  // Toggle de un grupo por índice
   const toggleGroup = (idx) => {
     setOpenGroups((prev) => {
       const next = new Set(prev);
@@ -115,9 +112,9 @@ export default function Sidebar({
   };
 
   return (
-    <div className="min-h-screen  dark">
+    <div className="min-h-screen dark bg-zinc-800">
       {/* Top Nav */}
-      <nav className="fixed top-0 z-50 w-full  border-gray-200 bg-zinc-600">
+      <nav className="fixed top-0 z-50 w-full  bg-zinc-800">
         <div className="px-3 py-3 lg:px-5 lg:pl-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -127,7 +124,7 @@ export default function Sidebar({
                 aria-expanded={openSidebar}
                 aria-label="Open sidebar"
                 onClick={() => setOpenSidebar((v) => !v)}
-                className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
+                className="inline-flex items-center p-2 text-sm text-gray-400 rounded-lg sm:hidden hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600"
               >
                 <span className="sr-only">Open sidebar</span>
                 <DefaultIconMenu className="w-6 h-6" />
@@ -138,20 +135,20 @@ export default function Sidebar({
                   className="h-8 me-3"
                   alt={logo.alt || "Logo"}
                 />
-                <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap dark:text-white">
+                <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap text-white">
                   {brand}
                 </span>
               </a>
             </div>
 
-            {/* Menú usuario (opcional) */}
+            {/* Menú usuario */}
             <div className="flex items-center ms-3 relative" ref={userMenuRef}>
               <button
                 type="button"
                 aria-haspopup="menu"
                 aria-expanded={openUserMenu}
                 onClick={() => setOpenUserMenu((v) => !v)}
-                className="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
+                className="flex text-sm bg-gray-700 rounded-full focus:ring-4 focus:ring-gray-600"
               >
                 <span className="sr-only">Open user menu</span>
                 <img
@@ -165,13 +162,11 @@ export default function Sidebar({
                 role="menu"
                 className={`${
                   openUserMenu ? "block" : "hidden"
-                } z-50 absolute right-0 top-12 my-4 min-w-56 text-base list-none bg-white divide-y divide-gray-100 rounded-sm shadow-sm dark:bg-gray-700 dark:divide-gray-600`}
+                } z-50 absolute right-0 top-12 my-4 min-w-56 text-base list-none bg-gray-700 divide-y divide-gray-600 rounded shadow-lg`}
               >
                 <div className="px-4 py-3">
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    {user.name}
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 truncate dark:text-gray-300">
+                  <p className="text-sm text-white">{user.name}</p>
+                  <p className="text-sm font-medium text-gray-300 truncate">
                     {user.email}
                   </p>
                 </div>
@@ -179,7 +174,7 @@ export default function Sidebar({
                   <li>
                     <a
                       href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
                     >
                       Dashboard
                     </a>
@@ -187,7 +182,7 @@ export default function Sidebar({
                   <li>
                     <a
                       href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
                     >
                       Settings
                     </a>
@@ -195,7 +190,7 @@ export default function Sidebar({
                   <li>
                     <a
                       href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
                     >
                       Earnings
                     </a>
@@ -203,7 +198,7 @@ export default function Sidebar({
                   <li>
                     <button
                       onClick={onSignOut}
-                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+                      className="w-full text-left block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
                     >
                       Sign out
                     </button>
@@ -211,19 +206,19 @@ export default function Sidebar({
                 </ul>
               </div>
             </div>
-            {/* /Menú usuario */}
           </div>
         </div>
       </nav>
+
       {/* Sidebar */}
       <aside
         id="logo-sidebar"
         aria-label="Sidebar"
-        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-zinc-600 transition-[transform,width] duration-200 ease-in-out w-64 ${
+        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-zinc-800 transition-[transform,width] duration-200 ease-in-out w-64 ${
           openSidebar ? "translate-x-0" : "-translate-x-full"
         } sm:translate-x-0 sm:w-16 sm:hover:w-64`}
       >
-        <div className="h-full px-3 pb-4 overflow-y-auto bg-zinc-600">
+        <div className="h-full px-3 pb-4 overflow-y-auto">
           <ul className="space-y-2 font-medium">
             {links.map((item, index) => {
               const hasChildren =
@@ -237,10 +232,10 @@ export default function Sidebar({
                     <a
                       href={item.href || "#"}
                       title={item.label}
-                      className="flex items-center p-2 sm:min-w-0 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group"
+                      className="flex items-center p-2 sm:min-w-0 text-white rounded-lg hover:bg-gray-700 group"
                     >
                       {item.icon && (
-                        <span className="text-gray-500 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white">
+                        <span className="text-gray-400 group-hover:text-white">
                           <item.icon className="w-5 h-5" />
                         </span>
                       )}
@@ -251,8 +246,8 @@ export default function Sidebar({
                         <span
                           className={`inline-flex items-center justify-center px-2 ms-3 text-sm font-medium rounded-full transition-opacity duration-200 sm:opacity-0 group-hover/sidebar:sm:opacity-100 ${
                             item.badgeVariant === "blue"
-                              ? "text-blue-800 bg-blue-100 dark:bg-blue-900 dark:text-blue-300"
-                              : "text-gray-800 bg-gray-100 dark:bg-gray-700 dark:text-gray-300"
+                              ? "text-blue-300 bg-blue-900"
+                              : "text-gray-300 bg-gray-700"
                           }`}
                         >
                           {item.badge}
@@ -271,10 +266,10 @@ export default function Sidebar({
                     aria-expanded={isOpen}
                     onClick={() => toggleGroup(index)}
                     title={item.label}
-                    className="flex items-center w-full p-2 sm:min-w-0 text-base text-gray-900 transition duration-75 rounded-lg hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 group"
+                    className="flex items-center w-full p-2 sm:min-w-0 text-base text-white transition duration-75 rounded-lg hover:bg-gray-700 group"
                   >
                     {item.icon && (
-                      <span className="text-gray-500 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white">
+                      <span className="text-gray-400 group-hover:text-white">
                         <item.icon className="w-5 h-5" />
                       </span>
                     )}
@@ -284,14 +279,13 @@ export default function Sidebar({
                     <DropDownIcon
                       className={`w-3 h-3 transition-transform ${
                         isOpen ? "rotate-180" : "rotate-0"
-                      } text-gray-500 dark:text-gray-400 sm:opacity-0 group-hover/sidebar:sm:opacity-100`}
+                      } text-gray-400 sm:opacity-0 group-hover/sidebar:sm:opacity-100`}
                     />
                   </button>
 
-                  {/* Panel colapsable */}
                   <ul
                     id={`${groupId}-panel`}
-                    className={`ml-2 pl-2 border-l border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-200 sm:pointer-events-none group-hover/sidebar:sm:pointer-events-auto ${
+                    className={`ml-2 pl-2 border-l border-gray-700 overflow-hidden transition-all duration-200 sm:pointer-events-none group-hover/sidebar:sm:pointer-events-auto ${
                       isOpen ? "max-h-96 mt-2" : "max-h-0"
                     } space-y-2`}
                   >
@@ -300,7 +294,7 @@ export default function Sidebar({
                         <a
                           href={link.href || "#"}
                           title={link.label}
-                          className="flex items-center w-full p-2 text-gray-900 rounded-lg pl-8 sm:pl-2 group-hover/sidebar:sm:pl-8 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 transition-[padding] duration-200"
+                          className="flex items-center w-full p-2 text-gray-300 rounded-lg pl-8 sm:pl-2 group-hover/sidebar:sm:pl-8 hover:bg-gray-700 hover:text-white transition-[padding] duration-200"
                         >
                           <span className="sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-none group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,opacity] duration-200">
                             {link.label}
@@ -315,7 +309,8 @@ export default function Sidebar({
           </ul>
         </div>
       </aside>
-      {/* OVERLAY para mobile: cierra al hacer click */}
+
+      {/* OVERLAY para mobile */}
       {openSidebar && (
         <button
           aria-label="Cerrar menú"
@@ -323,9 +318,12 @@ export default function Sidebar({
           className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] sm:hidden"
         />
       )}
-      {/* Content */}
-      <main className="p-4 sm:ml-16">
-        <div className="mt-14 w-full">{children}</div>
+
+      {/* Content con efecto Google Drive */}
+      <main className="pt-16 sm:ml-16 bg-zinc-800 min-h-screen h-full">
+        <div className="bg-zinc-950 md:rounded-tl-3xl h-full p-6 min-h-screen">
+          {children}
+        </div>
       </main>
     </div>
   );
