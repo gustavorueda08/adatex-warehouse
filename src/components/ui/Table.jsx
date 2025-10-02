@@ -230,7 +230,7 @@ export default function Table({
   }
 
   return (
-    <div className="bg-black">
+    <div className="bg-black rounded-lg">
       {/* VISTA MÓVIL - TARJETAS */}
       <div className="block md:hidden">
         {onRowSelect && selectableRows.length > 0 && (
@@ -402,7 +402,7 @@ export default function Table({
       </div>
 
       {/* VISTA DESKTOP - TABLA */}
-      <div className="hidden md:block relative overflow-x-auto shadow-md sm:rounded-lg">
+      <div className="hidden md:block relative overflow-x-auto shadow-md sm:rounded-lg rounded-md">
         <table className="w-full text-sm text-left">
           <thead className="text-xs uppercase">
             <tr className="bg-neutral-900">
