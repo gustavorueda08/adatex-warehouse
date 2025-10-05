@@ -1,6 +1,5 @@
-// src/components/ui/DataTable.js
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, memo } from "react";
 import Link from "next/link";
 import {
   ChevronRightIcon,
@@ -11,13 +10,183 @@ import {
 import { Checkbox } from "flowbite-react";
 import IconButton from "./IconButton";
 
+// Componente memoizado para las filas individuales
+const TableRow = memo(
+  ({
+    row,
+    rowIndex,
+    rowId,
+    columns,
+    isSelected,
+    isExpanded,
+    detailPath,
+    canSelect,
+    canView,
+    canExpand,
+    canDelete,
+    disabledMessage,
+    onRowClick,
+    onRowSelect,
+    onRowDelete,
+    onToggleExpand,
+    renderCell,
+    renderExpandedContent,
+  }) => {
+    return (
+      <>
+        <tr
+          onClick={(e) => onRowClick(e, row, rowId)}
+          className="bg-neutral-900 border-b border-neutral-800 hover:bg-neutral-800 transition-colors"
+        >
+          {onRowSelect !== undefined && (
+            <td className="w-4 p-4">
+              <div className="flex items-center ml-4">
+                {canSelect ? (
+                  <Checkbox
+                    checked={isSelected}
+                    onChange={(e) => onRowSelect(rowId, e.target.checked)}
+                  />
+                ) : (
+                  <input
+                    type="checkbox"
+                    disabled
+                    className="w-4 h-4 text-gray-400 bg-gray-100 border-gray-300 rounded cursor-not-allowed opacity-50"
+                    title={disabledMessage || "No se puede seleccionar"}
+                  />
+                )}
+              </div>
+            </td>
+          )}
+
+          {renderExpandedContent && (
+            <td className="w-8 p-4">
+              {canExpand ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleExpand(rowId);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
+                >
+                  <ChevronRightIcon
+                    className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
+                      isExpanded ? "rotate-90" : "rotate-0"
+                    }`}
+                  />
+                </button>
+              ) : (
+                <div
+                  className="w-4 h-4 opacity-30"
+                  title={disabledMessage || "No se puede expandir"}
+                >
+                  <ChevronRightIcon className="w-4 h-4 text-gray-300" />
+                </div>
+              )}
+            </td>
+          )}
+
+          {columns.map((column, colIndex) => (
+            <td
+              key={column.key}
+              className={`p-4 ${column.className || ""} ${
+                colIndex === 0
+                  ? "font-medium text-gray-900 whitespace-nowrap dark:text-white"
+                  : ""
+              }`}
+            >
+              {detailPath && colIndex === 0 ? (
+                <Link
+                  href={detailPath}
+                  className={`hover:underline ${
+                    canView
+                      ? "text-white font-bold"
+                      : "text-white cursor-not-allowed"
+                  } ${!renderExpandedContent && colIndex === 0 ? "ml-10" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!canView) e.preventDefault();
+                  }}
+                  title={
+                    !canView ? disabledMessage || "No se puede ver" : undefined
+                  }
+                >
+                  {renderCell(column, row, rowIndex)}
+                </Link>
+              ) : (
+                <div className={row.className}>
+                  {renderCell(column, row, rowIndex)}
+                </div>
+              )}
+            </td>
+          ))}
+
+          {(onRowDelete || detailPath) && (
+            <td className="p-4">
+              <div className="flex flex-row gap-3 justify-between align-middle">
+                {detailPath && canView && (
+                  <Link
+                    href={detailPath}
+                    className="font-medium dark:text-blue-500 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-800" />
+                  </Link>
+                )}
+                {onRowDelete && canDelete && (
+                  <IconButton
+                    onClick={() => onRowDelete(row.id, rowIndex)}
+                    variant="red"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </IconButton>
+                )}
+              </div>
+            </td>
+          )}
+        </tr>
+
+        {renderExpandedContent && isExpanded && canExpand && (
+          <tr className="bg-gray-50 dark:bg-neutral-700 delay-75 ease-in-out">
+            <td
+              colSpan={
+                columns.length +
+                (onRowSelect !== undefined ? 1 : 0) +
+                1 +
+                (onRowDelete || detailPath ? 1 : 0)
+              }
+              className="p-0"
+            >
+              <div
+                className={[
+                  "grid overflow-hidden",
+                  "transition-[grid-template-rows,opacity,transform] duration-300 ease-out",
+                  !isExpanded &&
+                    "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none",
+                  isExpanded &&
+                    "grid-rows-[1fr] opacity-100 translate-y-0 pointer-events-auto",
+                ].join(" ")}
+                aria-hidden={!isExpanded}
+              >
+                <div className="min-h-0 px-6 py-4">
+                  {renderExpandedContent(row, rowIndex)}
+                </div>
+              </div>
+            </td>
+          </tr>
+        )}
+      </>
+    );
+  }
+);
+TableRow.displayName = "TableRow";
+
 export default function Table({
   data = [],
   columns = [],
   getRowId = (row) => row.id,
   onRowSelect,
   onRowEdit,
-  onRowDelete = (row) => row.id,
+  onRowDelete,
   getDetailPath,
   renderExpandedContent,
   pagination,
@@ -38,8 +207,15 @@ export default function Table({
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [allSelected, setAllSelected] = useState(false);
 
-  const selectableRows = data.filter(canSelectRow);
-  const selectableRowIds = selectableRows.map(getRowId);
+  // Memoizar filas seleccionables
+  const selectableRows = useMemo(
+    () => data.filter(canSelectRow),
+    [data, canSelectRow]
+  );
+  const selectableRowIds = useMemo(
+    () => selectableRows.map(getRowId),
+    [selectableRows, getRowId]
+  );
 
   const handleSelectAll = useCallback(
     (checked) => {
@@ -72,18 +248,17 @@ export default function Table({
     [selectedRows, onRowSelect]
   );
 
-  const toggleRowExpansion = useCallback(
-    (rowId) => {
-      const newExpanded = new Set(expandedRows);
+  const toggleRowExpansion = useCallback((rowId) => {
+    setExpandedRows((prev) => {
+      const newExpanded = new Set(prev);
       if (newExpanded.has(rowId)) {
         newExpanded.delete(rowId);
       } else {
         newExpanded.add(rowId);
       }
-      setExpandedRows(newExpanded);
-    },
-    [expandedRows]
-  );
+      return newExpanded;
+    });
+  }, []);
 
   const handleRowClick = useCallback(
     (e, row, rowId) => {
@@ -106,6 +281,7 @@ export default function Table({
     [renderExpandedContent, canExpandRow, toggleRowExpansion]
   );
 
+  // Memoizar renderCell
   const renderCell = useCallback((column, row, rowIndex) => {
     if (column.render) {
       return column.render(row[column.key], row, rowIndex);
@@ -113,33 +289,33 @@ export default function Table({
     return row[column.key] || "-";
   }, []);
 
-  // Función para renderizar el footer de una columna
+  // Memoizar renderFooterCell
   const renderFooterCell = useCallback(
     (column) => {
       if (!column.footer) return "";
-
-      // Si es función, ejecutarla
       if (typeof column.footer === "function") {
         return column.footer(data);
       }
-
-      // Si es string u otro valor, retornarlo directamente
       return column.footer;
     },
     [data]
   );
 
-  // Verificar si hay algún footer definido
-  const hasFooter = footer || columns.some((col) => col.footer !== undefined);
+  const hasFooter = useMemo(
+    () => footer || columns.some((col) => col.footer !== undefined),
+    [footer, columns]
+  );
 
-  const areAllSelectableSelected =
-    selectableRowIds.length > 0 &&
-    selectableRowIds.every((id) => selectedRows.has(id));
+  const areAllSelectableSelected = useMemo(
+    () =>
+      selectableRowIds.length > 0 &&
+      selectableRowIds.every((id) => selectedRows.has(id)),
+    [selectableRowIds, selectedRows]
+  );
 
   if (loading) {
     return (
       <div className="bg-black">
-        {/* Loading para móvil */}
         <div className="block md:hidden space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div
@@ -153,26 +329,16 @@ export default function Table({
                   <div className="w-8 h-8 bg-neutral-700 rounded"></div>
                 </div>
               </div>
-
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <div className="w-20 h-3 bg-neutral-700 rounded"></div>
                   <div className="w-32 h-3 bg-neutral-600 rounded"></div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="w-24 h-3 bg-neutral-700 rounded"></div>
-                  <div className="w-24 h-3 bg-neutral-600 rounded"></div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="w-16 h-3 bg-neutral-700 rounded"></div>
-                  <div className="w-40 h-3 bg-neutral-600 rounded"></div>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Loading para desktop */}
         <div className="hidden md:block relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left">
             <thead className="text-xs uppercase">
@@ -231,7 +397,7 @@ export default function Table({
 
   return (
     <div className="bg-black rounded-lg">
-      {/* VISTA MÓVIL - TARJETAS */}
+      {/* VISTA MÓVIL */}
       <div className="block md:hidden">
         {onRowSelect && selectableRows.length > 0 && (
           <div className="bg-neutral-800 rounded-lg p-4 mb-4 flex items-center justify-between shadow-lg">
@@ -262,146 +428,141 @@ export default function Table({
             {emptyMessage}
           </div>
         ) : (
-          <>
-            {data.map((row, rowIndex) => {
-              const rowId = getRowId(row);
-              const isSelected = selectedRows.has(rowId);
-              const isExpanded = expandedRows.has(rowId);
-              const canSelect = canSelectRow(row);
-              const canView = canViewRow(row);
-              const canDelete = canDeleteRow(row);
-              const canExpand = canExpandRow(row);
-              const detailPath =
-                getDetailPath && canView ? getDetailPath(row) : null;
-              const disabledMessage = getDisabledMessage(row);
+          data.map((row, rowIndex) => {
+            const rowId = getRowId(row);
+            const isSelected = selectedRows.has(rowId);
+            const isExpanded = expandedRows.has(rowId);
+            const canSelect = canSelectRow(row);
+            const canView = canViewRow(row);
+            const canDelete = canDeleteRow(row);
+            const canExpand = canExpandRow(row);
+            const detailPath =
+              getDetailPath && canView ? getDetailPath(row) : null;
+            const disabledMessage = getDisabledMessage(row);
 
-              return (
-                <div
-                  key={rowId}
-                  className="bg-zinc-900 rounded-lg p-4 mb-4 shadow-lg"
-                >
-                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-neutral-700">
-                    <div className="flex items-center gap-2">
-                      {onRowSelect &&
-                        (canSelect ? (
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={(e) =>
-                              handleRowSelect(rowId, e.target.checked)
-                            }
-                          />
-                        ) : (
-                          <input
-                            type="checkbox"
-                            disabled
-                            className="w-4 h-4 text-gray-400 bg-gray-100 border-gray-300 rounded cursor-not-allowed opacity-50"
-                            title={disabledMessage || "No se puede seleccionar"}
-                          />
-                        ))}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {getDetailPath && canView && (
-                        <Link
-                          href={getDetailPath(row)}
-                          className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
-                        >
-                          <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-600" />
-                        </Link>
-                      )}
-
-                      {onRowDelete && canDelete && (
-                        <IconButton
-                          onClick={() => onRowDelete(row.id, rowIndex)}
-                          variant="red"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </IconButton>
-                      )}
-
-                      {renderExpandedContent && canExpand && (
-                        <button
-                          onClick={() => toggleRowExpansion(rowId)}
-                          className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
-                        >
-                          <ChevronDownIcon
-                            className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
-                              isExpanded ? "rotate-180" : "rotate-0"
-                            }`}
-                          />
-                        </button>
-                      )}
-                    </div>
+            return (
+              <div
+                key={rowId}
+                className="bg-zinc-900 rounded-lg p-4 mb-4 shadow-lg"
+              >
+                <div className="flex items-center justify-between mb-3 pb-3 border-b border-neutral-700">
+                  <div className="flex items-center gap-2">
+                    {onRowSelect &&
+                      (canSelect ? (
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={(e) =>
+                            handleRowSelect(rowId, e.target.checked)
+                          }
+                        />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          disabled
+                          className="w-4 h-4 text-gray-400 bg-gray-100 border-gray-300 rounded cursor-not-allowed opacity-50"
+                          title={disabledMessage || "No se puede seleccionar"}
+                        />
+                      ))}
                   </div>
 
-                  <div className="space-y-2.5">
-                    {columns.map((column, index) => (
-                      <div
-                        key={`${rowId}-${column.key}`}
-                        className="inline-block sm:flex sm:flex-row justify-between w-full items-start sm:gap-3 align-middle"
+                  <div className="flex items-center gap-3">
+                    {getDetailPath && canView && (
+                      <Link
+                        href={getDetailPath(row)}
+                        className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
                       >
-                        <h3 className="text-gray-400 text-sm self-center font-bold mb-1 md:mb-0 sm:flex-1/5">
-                          {column.label}:
-                        </h3>
-                        <span className="text-sm text-right w-full sm:flex-4/5">
-                          {detailPath && index === 0 ? (
-                            <Link
-                              href={detailPath}
-                              className="hover:underline text-white font-bold"
-                              onClick={(e) => {
-                                if (!canView) {
-                                  e.preventDefault();
-                                }
-                              }}
-                            >
-                              {renderCell(column, row, rowIndex)}
-                            </Link>
-                          ) : (
-                            <div className={row.className}>
-                              {renderCell(column, row, rowIndex)}
-                            </div>
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                        <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-600" />
+                      </Link>
+                    )}
 
-                  {renderExpandedContent && isExpanded && canExpand && (
-                    <div className="mt-4 pt-4 border-t border-neutral-700 animate-in fade-in slide-in-from-top-2 duration-300">
-                      {renderExpandedContent(row, rowIndex)}
-                    </div>
-                  )}
+                    {onRowDelete && canDelete && (
+                      <IconButton
+                        onClick={() => onRowDelete(row.id, rowIndex)}
+                        variant="red"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </IconButton>
+                    )}
+
+                    {renderExpandedContent && canExpand && (
+                      <button
+                        onClick={() => toggleRowExpansion(rowId)}
+                        className="p-1.5 rounded hover:bg-neutral-700 transition-colors"
+                      >
+                        <ChevronDownIcon
+                          className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
+                            isExpanded ? "rotate-180" : "rotate-0"
+                          }`}
+                        />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
 
-            {/* Footer móvil */}
-            {hasFooter && (
-              <div className="bg-zinc-800 rounded-lg p-4 mt-4 shadow-lg">
-                {footer || (
-                  <div className="space-y-2.5">
-                    {columns.map((column) => (
-                      <div
-                        key={`footer-mobile-${column.key}`}
-                        className="inline-block sm:flex sm:flex-row justify-between w-full items-start sm:gap-3 align-middle"
-                      >
-                        <h3 className="text-gray-400 text-sm self-center font-bold mb-1 md:mb-0 sm:flex-1/5">
-                          {column.label}:
-                        </h3>
-                        <span className="text-sm text-right w-full sm:flex-4/5 text-white font-medium">
-                          {renderFooterCell(column)}
-                        </span>
-                      </div>
-                    ))}
+                <div className="space-y-2.5">
+                  {columns.map((column, index) => (
+                    <div
+                      key={`${rowId}-${column.key}`}
+                      className="inline-block sm:flex sm:flex-row justify-between w-full items-start sm:gap-3 align-middle"
+                    >
+                      <h3 className="text-gray-400 text-sm self-center font-bold mb-1 md:mb-0 sm:flex-1/5">
+                        {column.label}:
+                      </h3>
+                      <span className="text-sm text-right w-full sm:flex-4/5">
+                        {detailPath && index === 0 ? (
+                          <Link
+                            href={detailPath}
+                            className="hover:underline text-white font-bold"
+                            onClick={(e) => {
+                              if (!canView) e.preventDefault();
+                            }}
+                          >
+                            {renderCell(column, row, rowIndex)}
+                          </Link>
+                        ) : (
+                          <div className={row.className}>
+                            {renderCell(column, row, rowIndex)}
+                          </div>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {renderExpandedContent && isExpanded && canExpand && (
+                  <div className="mt-4 pt-4 border-t border-neutral-700 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {renderExpandedContent(row, rowIndex)}
                   </div>
                 )}
               </div>
+            );
+          })
+        )}
+
+        {hasFooter && (
+          <div className="bg-zinc-800 rounded-lg p-4 mt-4 shadow-lg">
+            {footer || (
+              <div className="space-y-2.5">
+                {columns.map((column) => (
+                  <div
+                    key={`footer-mobile-${column.key}`}
+                    className="inline-block sm:flex sm:flex-row justify-between w-full items-start sm:gap-3 align-middle"
+                  >
+                    <h3 className="text-gray-400 text-sm self-center font-bold mb-1 md:mb-0 sm:flex-1/5">
+                      {column.label}:
+                    </h3>
+                    <span className="text-sm text-right w-full sm:flex-4/5 text-white font-medium">
+                      {renderFooterCell(column)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* VISTA DESKTOP - TABLA */}
+      {/* VISTA DESKTOP */}
       <div className="hidden md:block relative overflow-x-auto shadow-md sm:rounded-lg rounded-md">
         <table className="w-full text-sm text-left">
           <thead className="text-xs uppercase">
@@ -413,18 +574,13 @@ export default function Table({
                       checked={areAllSelectableSelected}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                     />
-                    <label className="sr-only">Seleccionar todos</label>
                   </div>
                 </th>
               )}
 
               {renderExpandedContent && data.length > 0 && (
                 <th scope="col">
-                  <div
-                    className={`${
-                      data.length === 0 ? "rounded-l ml-4" : ""
-                    } my-4 p-6 bg-neutral-600 h-full w-full shadow-xl`}
-                  ></div>
+                  <div className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></div>
                 </th>
               )}
 
@@ -482,168 +638,36 @@ export default function Table({
                 const canSelect = canSelectRow(row);
                 const canView = canViewRow(row);
                 const canExpand = canExpandRow(row);
+                const canDelete = canDeleteRow(row);
                 const disabledMessage = getDisabledMessage(row);
 
                 return (
-                  <React.Fragment key={rowId}>
-                    <tr
-                      onClick={(e) => handleRowClick(e, row, rowId)}
-                      className="bg-neutral-900 border-b border-neutral-800 hover:bg-neutral-800 transition-colors"
-                    >
-                      {onRowSelect && (
-                        <td className="w-4 p-4">
-                          <div className="flex items-center ml-4">
-                            {canSelect ? (
-                              <Checkbox
-                                checked={isSelected}
-                                onChange={(e) =>
-                                  handleRowSelect(rowId, e.target.checked)
-                                }
-                              />
-                            ) : (
-                              <input
-                                type="checkbox"
-                                disabled
-                                className="w-4 h-4 text-gray-400 bg-gray-100 border-gray-300 rounded cursor-not-allowed opacity-50"
-                                title={
-                                  disabledMessage || "No se puede seleccionar"
-                                }
-                              />
-                            )}
-                            <label className="sr-only">Seleccionar fila</label>
-                          </div>
-                        </td>
-                      )}
-
-                      {renderExpandedContent && (
-                        <td className="w-8 p-4">
-                          {canExpand ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleRowExpansion(rowId);
-                              }}
-                              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
-                            >
-                              <ChevronRightIcon
-                                className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
-                                  isExpanded ? "rotate-90" : "rotate-0"
-                                }`}
-                              />
-                            </button>
-                          ) : (
-                            <div
-                              className="w-4 h-4 opacity-30"
-                              title={disabledMessage || "No se puede expandir"}
-                            >
-                              <ChevronRightIcon className="w-4 h-4 text-gray-300" />
-                            </div>
-                          )}
-                        </td>
-                      )}
-
-                      {columns.map((column, colIndex) => (
-                        <td
-                          key={column.key}
-                          className={`p-4 ${column.className || ""} ${
-                            colIndex === 0
-                              ? "font-medium text-gray-900 whitespace-nowrap dark:text-white"
-                              : ""
-                          }`}
-                        >
-                          {detailPath && colIndex === 0 ? (
-                            <Link
-                              href={detailPath}
-                              className={`hover:underline ${
-                                canView
-                                  ? "text-white font-bold"
-                                  : "text-white cursor-not-allowed"
-                              } ${
-                                !renderExpandedContent && colIndex === 0
-                                  ? "ml-10"
-                                  : ""
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!canView) e.preventDefault();
-                              }}
-                              title={
-                                !canView
-                                  ? disabledMessage || "No se puede ver"
-                                  : undefined
-                              }
-                            >
-                              {renderCell(column, row, rowIndex)}
-                            </Link>
-                          ) : (
-                            <div className={`${row.className}`}>
-                              {renderCell(column, row, rowIndex)}
-                            </div>
-                          )}
-                        </td>
-                      ))}
-
-                      {(onRowEdit || getDetailPath) && (
-                        <td className="p-4">
-                          <div className="flex flex-row gap-3 justify-between align-middle">
-                            {getDetailPath && canView && (
-                              <Link
-                                href={getDetailPath(row)}
-                                className="font-medium dark:text-blue-500 hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <DocumentMagnifyingGlassIcon className="w-5 h-5 text-emerald-700 hover:text-emerald-800" />
-                              </Link>
-                            )}
-                            {onRowDelete && canDeleteRow(row) && (
-                              <IconButton
-                                onClick={() => onRowDelete(row.id, rowIndex)}
-                                variant="red"
-                              >
-                                <TrashIcon className="w-5 h-5" />
-                              </IconButton>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-
-                    {renderExpandedContent && isExpanded && canExpand && (
-                      <tr className="bg-gray-50 dark:bg-neutral-700 delay-75 ease-in-out">
-                        <td
-                          colSpan={
-                            columns.length +
-                            (onRowSelect ? 1 : 0) +
-                            1 +
-                            (onRowEdit || getDetailPath ? 1 : 0)
-                          }
-                          className="p-0"
-                        >
-                          <div
-                            className={[
-                              "grid overflow-hidden",
-                              "transition-[grid-template-rows,opacity,transform] duration-300 ease-out",
-                              !isExpanded &&
-                                "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none",
-                              isExpanded &&
-                                "grid-rows-[1fr] opacity-100 translate-y-0 pointer-events-auto",
-                            ].join(" ")}
-                            aria-hidden={!isExpanded}
-                          >
-                            <div className="min-h-0 px-6 py-4">
-                              {renderExpandedContent(row, rowIndex)}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                  <TableRow
+                    key={rowId}
+                    row={row}
+                    rowIndex={rowIndex}
+                    rowId={rowId}
+                    columns={columns}
+                    isSelected={isSelected}
+                    isExpanded={isExpanded}
+                    detailPath={detailPath}
+                    canSelect={canSelect}
+                    canView={canView}
+                    canExpand={canExpand}
+                    canDelete={canDelete}
+                    disabledMessage={disabledMessage}
+                    onRowClick={handleRowClick}
+                    onRowSelect={onRowSelect ? handleRowSelect : undefined}
+                    onRowDelete={onRowDelete}
+                    onToggleExpand={toggleRowExpansion}
+                    renderCell={renderCell}
+                    renderExpandedContent={renderExpandedContent}
+                  />
                 );
               })
             )}
           </tbody>
 
-          {/* Footer desktop */}
           {hasFooter && data.length > 0 && (
             <tfoot>
               <tr className="bg-neutral-900">
@@ -658,7 +682,7 @@ export default function Table({
                 {columns.map((column, index) => (
                   <td key={`footer-${column.key}`}>
                     <div
-                      className={`shadow-xl  font-bold my-4 p-4 ${
+                      className={`shadow-xl font-bold my-4 p-4 ${
                         index + 1 === columns.length &&
                         !(onRowEdit || getDetailPath)
                           ? "mr-4 rounded-r"
@@ -676,7 +700,7 @@ export default function Table({
 
                 {(onRowEdit || getDetailPath) && (
                   <td>
-                    <div className="font-bold shadow-xl my-4 p-4 bg-neutral-600 whitespace-nowrap mr-4 rounded-r text-white  text-xs uppercase">
+                    <div className="font-bold shadow-xl my-4 p-4 bg-neutral-600 whitespace-nowrap mr-4 rounded-r text-white text-xs uppercase">
                       -
                     </div>
                   </td>

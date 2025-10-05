@@ -107,8 +107,6 @@ export async function POST(request) {
       Authorization: `Bearer ${token}`,
     };
 
-    console.log(body, "CUERPO");
-
     // Realizar la petición POST a Strapi
     const response = await fetch(strapiUrl.toString(), {
       method: "POST",

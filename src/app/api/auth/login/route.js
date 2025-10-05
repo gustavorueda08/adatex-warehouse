@@ -1,22 +1,74 @@
 import { NextResponse } from "next/server";
-import { httpFetch, ApiError } from "@/lib/api/http";
-import { strapiUrl, jsonHeaders } from "@/lib/api/strapiClient";
 import { setSessionCookie } from "@/lib/auth/session";
+const STRAPI_URL = process.env.STRAPI_URL;
 
-export async function POST(req) {
-  const { identifier, password } = await req.json();
+export async function POST(request) {
   try {
-    const data = await httpFetch(strapiUrl("/api/auth/local"), {
+    // Obtener el body de la petición
+    const body = await request.json();
+
+    // Validar que se envió data
+    if (!body || !body.identifier || !body.password) {
+      return NextResponse.json(
+        { error: "Datos inválidos. Se requiere un objeto 'data'" },
+        { status: 400 }
+      );
+    }
+
+    // Construir la URL de Strapi
+    const strapiUrl = new URL("/api/auth/local", STRAPI_URL.toString());
+    console.log("PASO");
+    // Configurar headers para la petición a Strapi
+    const headers = {
+      "Content-Type": "application/json",
+    };
+
+    // Realizar la petición POST a Strapi
+    const response = await fetch(strapiUrl.toString(), {
       method: "POST",
-      headers: jsonHeaders(),
-      body: { identifier, password },
-      nextOpts: { cache: "no-store" },
+      headers,
+      body: JSON.stringify(body),
     });
-    // Strapi responde: { jwt, user }
-    setSessionCookie(data.jwt);
-    return NextResponse.json({ user: data.user });
-  } catch (e) {
-    const status = e instanceof ApiError && e.status ? e.status : 500;
-    return NextResponse.json({ error: e.message, details: e.data }, { status });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Strapi Error:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url: strapiUrl.toString(),
+      });
+
+      return NextResponse.json(
+        {
+          error: "Error autenticar el usuario",
+          details: errorText,
+          status: response.status,
+        },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    console.log(data);
+
+    // Validar estructura de respuesta
+    if (!data || typeof data !== "object") {
+      return NextResponse.json(
+        { error: "Respuesta inválida de Strapi" },
+        { status: 500 }
+      );
+    }
+    await setSessionCookie(data.jwt);
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    console.error("API Route Error:", error);
+    return NextResponse.json(
+      {
+        error: "Error interno del servidor",
+        message: error.message,
+      },
+      { status: 500 }
+    );
   }
 }

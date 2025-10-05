@@ -17,6 +17,7 @@ import {
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "@heroicons/react/24/solid";
 import { createPortal } from "react-dom";
+import classNames from "classnames";
 
 export default function DatePicker({
   value, // Date | null (single) o { from: Date|null, to: Date|null } (range)
@@ -28,6 +29,7 @@ export default function DatePicker({
   placeholder = "Seleccionar fecha",
   locale = es,
   className = "",
+  isDisabled = false,
 }) {
   const [internalValue, setInternalValue] = useState(
     mode === "range" ? { from: null, to: null } : null
@@ -327,10 +329,14 @@ export default function DatePicker({
   return (
     <div className={`relative inline-block w-full ${className}`}>
       <button
+        disabled={isDisabled}
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full text-center bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500"
+        className={classNames(
+          "w-full text-center bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500",
+          { "bg-zinc-900 cursor-not-allowed": isDisabled }
+        )}
       >
         <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3 text-zinc-400">
           <CalendarIcon className="w-5 h-5" />

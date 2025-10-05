@@ -35,6 +35,8 @@ import Textarea from "@/components/ui/Textarea";
 import { generateLabels } from "@/lib/utils/generateLabels";
 import { List } from "react-window";
 import useDebouncedCallback from "@/lib/hooks/useDebounceCallback";
+import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useSocketContext } from "@/lib/contexts/SocketContext";
 
 // ============================================================================
 // COMPONENTES MEMOIZADOS CON DEBOUNCE
@@ -127,7 +129,7 @@ const VirtualizedRow = memo(
         {!disabled && (
           <div className="w-10">
             <IconButton
-              onClick={() => handleDeleteItemRow(productIndex, index)}
+              onClick={() => handleDeleteItemRow(productId, item.id)}
               variant="red"
               size="sm"
             >
@@ -220,6 +222,8 @@ const PackingListProduct = memo(
     updateItemField,
     handleDeleteItemRow,
     disabled,
+    onEnter = () => {},
+    loading = false,
   }) => {
     const stats = useMemo(() => {
       const totalQuantity =
@@ -236,7 +240,7 @@ const PackingListProduct = memo(
       <div className="rounded-md flex flex-col justify-center align-middle gap-3">
         <div
           onClick={onToggle}
-          className="flex flex-row justify-between align-middle bg-zinc-800 rounded-md px-2 py-3 hover:bg-zinc-700 transition-colors cursor-pointer"
+          className="flex flex-row justify-between align-middle bg-zinc-700 rounded-md px-2 py-3 hover:bg-zinc-700 transition-colors cursor-pointer"
         >
           <div className="flex flex-col flex-1">
             <h4 className="text-sm font-semibold">
@@ -247,6 +251,12 @@ const PackingListProduct = memo(
               {format(stats.totalQuantity)} {product?.product?.unit || ""}
             </p>
           </div>
+          <Input
+            placeholder="Escanea o introduce un codigo o cantidad"
+            className="w-3/5 px-3"
+            onEnter={(data) => onEnter(data)}
+            loading={loading}
+          />
           <IconButton onClick={onToggle}>
             <ChevronUpIcon
               className={`w-5 h-5 ${
@@ -345,18 +355,33 @@ const calculateRowTotal = (items, price) => {
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
-export default function PurchaseDetailPage({ params }) {
+export default function SaleDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
 
-  const { orders, updateOrder, updating, deleteOrder, deleting } = useOrders({
+  const {
+    orders,
+    updateOrder,
+    updating,
+    deleteOrder,
+    deleting,
+    addItem,
+    addingItem,
+    removeItem,
+  } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
       "orderProducts.product",
       "orderProducts.items",
-      "supplier",
-      "destinationWarehouse",
+      "customer",
+      "customerForInvoice",
+      "customerForInvoice.prices",
+      "customerForInvoice.taxes",
+      "customer.prices",
+      "customer.parties",
+      "customer.taxes",
+      "sourceWarehouse",
     ],
   });
 
@@ -371,7 +396,9 @@ export default function PurchaseDetailPage({ params }) {
   const [dateCompleted, setDateCompleted] = useState(null);
   const [currency, setCurrency] = useState("$");
   const [code, setCode] = useState("");
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomerForInvoice, setSelectedCustomerForInvoice] =
+    useState(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [products, setProducts] = useState([]);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -384,9 +411,11 @@ export default function PurchaseDetailPage({ params }) {
 
   const { warehouses } = useWarehouses({});
   const { products: productsData = [] } = useProducts({});
-  const { suppliers } = useSuppliers({
-    populate: ["prices", "prices.product"],
+  const { customers } = useCustomers({
+    populate: ["prices", "prices.product", "parties"],
   });
+  const [parties, setParties] = useState([]);
+  const { isConnected, joinOrder, on, leaveOrder } = useSocketContext();
 
   useEffect(() => {
     if (order) {
@@ -423,11 +452,14 @@ export default function PurchaseDetailPage({ params }) {
           product: null,
           key: v4(),
           total: "",
+          ivaIncluded: false,
+          invoicePercentage: 100,
         },
       ]);
-      setCode(order.containerCode || order.code);
-      setSelectedSupplier(order.supplier);
-      setSelectedWarehouse(order.destinationWarehouse);
+      setSelectedCustomer(order.customer);
+      setSelectedCustomerForInvoice(order.customerForInvoice);
+      setParties([...order.customer.parties, order.customer]);
+      setSelectedWarehouse(order.sourceWarehouse);
       setNotes(order.notes);
       setDateCreated(order?.createdDate || null);
       setDateTransit(order?.actualDispatchDate || null);
@@ -435,6 +467,125 @@ export default function PurchaseDetailPage({ params }) {
       setDateCompleted(order?.completedDate || null);
     }
   }, [order]);
+
+  useEffect(() => {
+    if (
+      selectedCustomer &&
+      order &&
+      selectedCustomer.id !== order.customer.id
+    ) {
+      const parties = selectedCustomer.parties;
+      setParties([...parties, selectedCustomer]);
+      if (parties.length === 0) {
+        setSelectedCustomerForInvoice(selectedCustomer);
+      } else {
+        const defaultParty = parties.find((party) => party.isDefault);
+        if (defaultParty) {
+          setSelectedCustomerForInvoice(defaultParty);
+        }
+      }
+    }
+  }, [selectedCustomer]);
+
+  useEffect(() => {
+    if (!isConnected || !order?.id) return;
+
+    console.log(`Uniéndose a orden:${order.id}`);
+    joinOrder(order.id);
+
+    // ✅Escuchar "order:item-added" en lugar de "item:added"
+    const unsubscribeItemAdded = on("order:item-added", (item) => {
+      // Actualizar el producto específico en el estado local
+      setProducts((currentProducts) => {
+        return currentProducts.map((product) => {
+          if (product.product?.id === item.product?.id) {
+            return {
+              ...product,
+              items: [
+                {
+                  ...item,
+                  id: item.id || v4(),
+                  key: item.id || v4(),
+                  quantity: item.currentQuantity,
+                  lotNumber: item.lotNumber,
+                  itemNumber: item.itemNumber,
+                },
+                ...product.items.filter((i) => i.quantity), // Remover items vacíos
+                // Nueva fila vacía
+                {
+                  quantity: "",
+                  lotNumber: "",
+                  itemNumber: "",
+                  id: v4(),
+                  key: v4(),
+                },
+              ],
+            };
+          }
+          return product;
+        });
+      });
+
+      toast.success(
+        `${item.product?.name || "Item"}: ${format(item.currentQuantity)} ${
+          item.product?.unit || ""
+        } agregado`,
+        { id: `item-${item.id}` } // Evita toasts duplicados
+      );
+    });
+
+    // ✅ Escuchar item eliminado
+    const unsubscribeItemRemoved = on("order:item-removed", (removedItem) => {
+      console.log("Item eliminado vía socket:", removedItem);
+
+      setProducts((currentProducts) => {
+        return currentProducts.map((product) => {
+          if (product.product?.id === removedItem.product?.id) {
+            // Filtrar el item eliminado
+            const updatedItems = product.items.filter(
+              (item) => item.id !== removedItem.id
+            );
+
+            // Si no quedan items, agregar uno vacío
+            if (
+              updatedItems.length === 0 ||
+              !updatedItems.some((i) => !i.quantity)
+            ) {
+              updatedItems.push({
+                quantity: "",
+                lotNumber: "",
+                itemNumber: "",
+                id: v4(),
+                key: v4(),
+              });
+            }
+            return {
+              ...product,
+              items: updatedItems,
+            };
+          }
+          return product;
+        });
+      });
+
+      toast.success(`${removedItem.product?.name || "Item"} eliminado`, {
+        id: `item-removed-${removedItem.id}`,
+      });
+    });
+
+    // Escuchar otros eventos si los tienes
+    const unsubscribeOrderUpdated = on("order:updated", (updatedOrder) => {
+      console.log("Orden actualizada vía socket:", updatedOrder);
+    });
+
+    return () => {
+      console.log(`Saliendo de orden:${order.id}`);
+      leaveOrder(order.id);
+      unsubscribeItemAdded?.();
+      unsubscribeOrderUpdated?.();
+      unsubscribeItemRemoved?.();
+    };
+  }, [isConnected, order?.id, joinOrder, leaveOrder, on]);
 
   const getAvailableProductsForRow = useCallback(
     (currentIndex) => {
@@ -469,31 +620,28 @@ export default function PurchaseDetailPage({ params }) {
     });
   }, []);
 
-  const handleDeleteItemRow = useCallback((productIndex, itemIndex) => {
-    setProducts((currentProducts) => {
-      const updatedProducts = [...currentProducts];
-      const product = updatedProducts[productIndex];
-      const items = product.items.filter((_, iIndex) => itemIndex !== iIndex);
-
-      updatedProducts[productIndex] = {
-        ...product,
-        items:
-          items.length === 0
-            ? [
-                {
-                  quantity: "",
-                  lotNumber: "",
-                  itemNumber: "",
-                  id: v4(),
-                  key: v4(),
-                },
-              ]
-            : items,
-      };
-
-      return updatedProducts;
-    });
-  }, []);
+  const handleDeleteItemRow = useCallback(
+    async (productId, itemId) => {
+      const loadingToast = toast.loading("Eliminando Item");
+      try {
+        const response = await removeItem(order.id, itemId);
+        toast.dismiss(loadingToast);
+        if (!response.success) {
+          const product = products.find((product) => product.id === productId);
+          toast.error(
+            `No se pudo removerl el item ${product.product.name} ${format(
+              item.quantity
+            )}`
+          );
+        }
+        return;
+      } catch (error) {
+        toast.dismiss(loadingToast);
+        console.error(error);
+      }
+    },
+    [order, products]
+  );
 
   const updateProductField = useCallback((productId, field, value) => {
     setProducts((currentProducts) => {
@@ -533,6 +681,70 @@ export default function PurchaseDetailPage({ params }) {
       return newProducts;
     });
   }, []);
+
+  const handleAddItem = useCallback(
+    async (productId, data = "") => {
+      const loadingToast = toast.loading("Agregando Item");
+      try {
+        // Función para detectar si es barcode o cantidad
+        const parseData = (input) => {
+          if (!input || input === "") {
+            return { barcode: null, quantity: null };
+          }
+
+          const cleanInput = String(input).trim();
+
+          // Reemplazar coma por punto para números decimales
+          const normalizedInput = cleanInput.replace(",", ".");
+
+          // Intentar convertir a número
+          const asNumber = Number(normalizedInput);
+
+          // Es cantidad si:
+          // - Se puede convertir a número válido
+          // - No tiene letras
+          // - No tiene guiones (excepto negativo al inicio)
+          const isQuantity =
+            !isNaN(asNumber) &&
+            isFinite(asNumber) &&
+            /^-?\d+([.,]\d+)?$/.test(cleanInput);
+
+          if (isQuantity) {
+            return { barcode: null, quantity: asNumber };
+          } else {
+            // Es barcode si tiene letras, guiones, o es alfanumérico largo
+            return { barcode: cleanInput, quantity: null };
+          }
+        };
+
+        const { barcode, quantity } = parseData(data);
+        const response = await addItem(order.id, {
+          product: productId,
+          item: {
+            barcode,
+            quantity,
+            product: productId,
+            warehouse: order.sourceWarehouse.id,
+          },
+        });
+        toast.dismiss(loadingToast);
+
+        if (!response.success) {
+          const product = products.find((p) => p?.product?.id == productId);
+          toast.error(
+            `No se encontró ningun Item de ${product.product.name} con ${
+              barcode ? `código ${barcode}` : `cantidad ${quantity}`
+            }`
+          );
+          console.log(response.data);
+        }
+        return;
+      } catch (error) {
+        toast.error(error.message);
+      }
+    },
+    [order?.id, addItem]
+  );
 
   const handleProductSelect = useCallback(
     (selectedProduct, index) => {
@@ -588,7 +800,7 @@ export default function PurchaseDetailPage({ params }) {
         return updatedProducts;
       });
     },
-    [selectedSupplier]
+    [selectedCustomer, selectedCustomerForInvoice]
   );
 
   const handleSetProductItemsFromFile = useCallback((data, remove) => {
@@ -715,16 +927,15 @@ export default function PurchaseDetailPage({ params }) {
                     ...item
                   }) => ({
                     ...item,
-                    id,
-                    containerCode: convertCode(order.containerCode),
+                    containerCode: order.containerCode,
                     lot: lotNumber,
-                    warehouse: destinationWarehouse.id,
+                    warehouse: warehouse?.id,
                   })
                 ),
             })),
           state: complete ? "completed" : "confirmed",
           destinationWarehouse: destinationWarehouse.id,
-          supplier: selectedSupplier.id,
+          customer: selectedCustomer.id,
           containerCode: code,
           notes,
           createdDate: dateCreated,
@@ -762,7 +973,8 @@ export default function PurchaseDetailPage({ params }) {
       order,
       products,
       selectedWarehouse,
-      selectedSupplier,
+      selectedCustomer,
+      selectedCustomerForInvoice,
       code,
       notes,
       dateCreated,
@@ -1006,27 +1218,37 @@ export default function PurchaseDetailPage({ params }) {
       </div>
 
       <div className="w-full md:flex md:flex-row md:gap-3">
-        <div className="flex flex-col md:flex-1/2 gap-1">
-          <h2 className="font-medium">Codigo de la orden</h2>
-          <Input
-            type="text"
-            placeholder="Código"
-            input={code}
-            setInput={setCode}
+        <div className="flex flex-col md:flex-1/2 gap-1 mt-3 md:mt-0">
+          <h2 className="font-medium">Cliente</h2>
+          <Select
             disabled={isCompleted}
+            options={customers.map((customer) => ({
+              label: customer.name,
+              value: customer.id,
+            }))}
+            value={selectedCustomer?.id}
+            onChange={(id) => {
+              const customer = customers.find((c) => id === c.id);
+              setSelectedCustomer(customer);
+            }}
+            searchable
+            size="md"
           />
         </div>
         <div className="flex flex-col md:flex-1/2 gap-1 mt-3 md:mt-0">
-          <h2 className="font-medium">Proveedor</h2>
+          <h2 className="font-medium">Cliente para la factura</h2>
           <Select
             disabled={isCompleted}
-            options={suppliers.map((s) => ({ label: s.name, value: s.id }))}
-            searchable
-            onChange={(selectedId) => {
-              const supplier = suppliers.find((s) => s.id === selectedId);
-              setSelectedSupplier(supplier);
+            options={parties.map((customer) => ({
+              label: customer.name,
+              value: customer.id,
+            }))}
+            value={selectedCustomerForInvoice?.id}
+            onChange={(id) => {
+              const customer = parties.find((c) => c.id === id);
+              setSelectedCustomerForInvoice(customer);
             }}
-            value={selectedSupplier?.id}
+            searchable
             size="md"
           />
         </div>
@@ -1106,6 +1328,8 @@ export default function PurchaseDetailPage({ params }) {
               updateItemField={updateItemField}
               handleDeleteItemRow={handleDeleteItemRow}
               disabled={isCompleted}
+              loading={addingItem}
+              onEnter={(input) => handleAddItem(product.product.id, input)}
             />
           ))}
       </div>

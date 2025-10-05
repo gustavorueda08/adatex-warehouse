@@ -1,13 +1,15 @@
 "use client";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@/lib/hooks/useUser";
 
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const router = useRouter();
-  const next = useSearchParams().get("next") || "/dashboard";
+  const next = useSearchParams().get("next") || "/";
+  const { setUser } = useUser();
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -17,8 +19,11 @@ export default function LoginPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier, password }),
     });
-    if (res.ok) router.replace(next);
-    else setErr("Credenciales inválidas");
+    if (res.ok) {
+      const data = await res.json();
+      setUser(data.user);
+      router.replace(next);
+    } else setErr("Credenciales inválidas");
   };
 
   return (

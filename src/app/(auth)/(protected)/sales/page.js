@@ -311,11 +311,11 @@ export default function SalesPage() {
       <Filters
         search={search}
         setSearch={setSearch}
-        dropdownOptions={[{ key: "purchase", value: "Compra" }]}
         range={range}
         setRange={setRange}
         options={states}
         setSelectedOptions={setSelectedStates}
+        linkPath={"/new-sale"}
       />
       <Table
         columns={orderColumns}

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { getTokenFromCookies } from "@/lib/auth/session";
+import { NextResponse } from "next/server";
 const STRAPI_URL = process.env.STRAPI_URL;
 
 export async function GET(request) {
@@ -11,7 +11,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
 
     // Construir la URL de Strapi
-    const strapiUrl = new URL("/api/users/me", STRAPI_URL.toString());
+    const strapiUrl = new URL("/api/customers", STRAPI_URL.toString());
 
     // Pasar todos los parámetros de búsqueda a Strapi
     searchParams.forEach((value, key) => {

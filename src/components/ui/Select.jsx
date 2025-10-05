@@ -1,4 +1,3 @@
-// src/components/ui/Select.js
 "use client";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -28,7 +27,7 @@ export default function Select({
   renderOption,
   renderValue,
   emptyMessage = "No hay opciones disponibles",
-  maxHeight = 200,
+  maxHeight = 300,
   hasMenu = true,
   menuTitle = "Agregar",
   onClickMenu = () => {},
@@ -40,6 +39,9 @@ export default function Select({
     top: 0,
     left: 0,
     width: 0,
+    minWidth: 0,
+    openUpwards: false,
+    maxHeight: maxHeight,
   });
 
   const selectRef = useRef(null);
@@ -70,15 +72,70 @@ export default function Select({
     [options, normalizedValue]
   );
 
-  // 👇 Mejorado: cálculo de posición más preciso
+  // CORREGIDO: Mejor cálculo de posición
   const updateDropdownPosition = () => {
     if (!selectRef.current) return;
     const rect = selectRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    // Constantes
+    const PADDING = 8;
+    const SEARCH_BAR_HEIGHT = searchable ? 56 : 0; // altura aproximada del searchbar
+    const MIN_DROPDOWN_HEIGHT = 150;
+
+    // Calcular espacio disponible
+    const spaceBelow = viewportHeight - rect.bottom - PADDING;
+    const spaceAbove = rect.top - PADDING;
+
+    // Calcular altura estimada del dropdown
+    const estimatedContentHeight = Math.min(
+      filteredOptions.length * 40 + SEARCH_BAR_HEIGHT + 20,
+      maxHeight + SEARCH_BAR_HEIGHT
+    );
+
+    // Decidir dirección: solo abrir hacia arriba si realmente no cabe abajo
+    // Y hay significativamente más espacio arriba
+    const shouldOpenUpwards =
+      spaceBelow < MIN_DROPDOWN_HEIGHT &&
+      spaceAbove > spaceBelow &&
+      spaceAbove > MIN_DROPDOWN_HEIGHT;
+
+    // Calcular altura máxima disponible
+    let availableHeight;
+    let topPosition;
+
+    if (shouldOpenUpwards) {
+      // Abrir hacia arriba: el dropdown crece hacia arriba desde el select
+      availableHeight = Math.min(spaceAbove, maxHeight + SEARCH_BAR_HEIGHT);
+      // Posicionar justo arriba del select, y el dropdown crecerá hacia arriba
+      topPosition = Math.max(PADDING, rect.top - availableHeight);
+    } else {
+      // Abrir hacia abajo (comportamiento normal)
+      availableHeight = Math.min(spaceBelow, maxHeight + SEARCH_BAR_HEIGHT);
+      topPosition = rect.bottom + 4;
+    }
+
+    // Calcular ancho mínimo basado en contenido
+    const longestLabel = options.reduce((max, opt) => {
+      const len = String(opt.label).length;
+      return len > max ? len : max;
+    }, 0);
+    const estimatedMinWidth = Math.max(
+      rect.width,
+      Math.min(longestLabel * 8 + 60, viewportWidth - rect.left - 16)
+    );
 
     setDropdownPosition({
-      top: rect.bottom + 4, // 👈 Usar coordenadas viewport directamente
-      left: rect.left,
+      top: topPosition,
+      left: Math.max(
+        PADDING,
+        Math.min(rect.left, viewportWidth - estimatedMinWidth - PADDING)
+      ),
       width: rect.width,
+      minWidth: estimatedMinWidth,
+      openUpwards: shouldOpenUpwards,
+      maxHeight: availableHeight - SEARCH_BAR_HEIGHT - 20, // Restar altura del searchbar
     });
   };
 
@@ -92,7 +149,6 @@ export default function Select({
       setSearchTerm("");
     };
 
-    // 👇 Actualizar posición en scroll y resize
     const handleScrollOrResize = () => {
       if (isOpen) updateDropdownPosition();
     };
@@ -109,12 +165,14 @@ export default function Select({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && searchable && searchRef.current) searchRef.current.focus();
+    if (isOpen && searchable && searchRef.current) {
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
   }, [isOpen, searchable]);
 
   useEffect(() => {
     if (isOpen) updateDropdownPosition();
-  }, [isOpen]);
+  }, [isOpen, filteredOptions.length]); // Actualizar cuando cambien opciones filtradas
 
   const commitValue = (next) => {
     if (!isControlled) setInternalValue(next);
@@ -181,12 +239,18 @@ export default function Select({
     const isSelected = normalizedValue.includes(option.value);
     if (renderOption) return renderOption(option, isSelected, multiple);
     return (
-      <div className="flex items-center justify-between w-full">
-        <span className={option.disabled ? "text-gray-400" : ""}>
+      <div className="flex items-center justify-between w-full gap-2">
+        <span
+          className={classNames(
+            "flex-1 truncate",
+            option.disabled ? "text-gray-400" : ""
+          )}
+          title={option.label}
+        >
           {option.label}
         </span>
         {multiple && isSelected && (
-          <CheckIcon className="w-4 h-4 text-blue-600" />
+          <CheckIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
         )}
       </div>
     );
@@ -202,7 +266,7 @@ export default function Select({
         className={classNames(
           "w-full flex items-center justify-between rounded-md bg-zinc-800 text-white",
           sizeStyles[size],
-          { "bg-zinc-600 cursor-not-allowed": disabled }
+          { "bg-zinc-900 cursor-not-allowed": disabled }
         )}
       >
         <div className="flex items-center flex-1 min-w-0 py-0.5">
@@ -213,12 +277,12 @@ export default function Select({
                   key={`SPAN-${option.value}-${i}`}
                   className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-md"
                 >
-                  {option.label}
+                  <span className="max-w-[150px] truncate">{option.label}</span>
                   {!disabled && (
                     <button
                       type="button"
                       onClick={(e) => handleRemoveOption(option.value, e)}
-                      className="ml-1 hover:text-blue-600"
+                      className="ml-1 hover:text-blue-600 flex-shrink-0"
                     >
                       <XMarkIcon className="w-3 h-3" />
                     </button>
@@ -232,11 +296,16 @@ export default function Select({
               )}
             </div>
           ) : (
-            <div className="md:truncate text-left">{renderSelectedValue()}</div>
+            <div
+              className="truncate text-left w-full"
+              title={String(renderSelectedValue())}
+            >
+              {renderSelectedValue()}
+            </div>
           )}
         </div>
 
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-1 flex-shrink-0">
           {clearable && selectedOptions.length > 0 && !disabled && (
             <button
               type="button"
@@ -254,34 +323,36 @@ export default function Select({
         </div>
       </button>
 
-      {/* Portal - 👇 Cambio clave aquí */}
+      {/* Portal */}
       {isOpen &&
         typeof window !== "undefined" &&
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed bg-zinc-900 rounded-md shadow-2xl z-[9999]"
+            className={classNames(
+              "fixed bg-zinc-900 rounded-md shadow-2xl z-[9999] border border-zinc-700",
+              dropdownPosition.openUpwards ? "origin-bottom" : "origin-top"
+            )}
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
-              width: `${dropdownPosition.width}px`,
+              minWidth: `${dropdownPosition.minWidth}px`,
+              maxWidth: "90vw",
             }}
           >
             {searchable && (
-              <div className="flex flex-row gap-2 p-2 w-full justify-between">
-                <div className="flex-1">
+              <div className="flex flex-row gap-2 p-2 w-full justify-between border-b border-zinc-700">
+                <div className="flex-1 min-w-0">
                   <Searchbar
-                    className=""
                     ref={searchRef}
                     search={searchTerm}
                     setSearch={setSearchTerm}
                   />
                 </div>
                 {hasMenu && (
-                  <div className="flex align-middle justify-center">
+                  <div className="flex align-middle justify-center flex-shrink-0">
                     <IconButton
                       variant={menuVariant}
-                      className=""
                       onClick={() => onClickMenu()}
                     >
                       <PlusCircleIcon className="w-6 h-6" />
@@ -291,9 +362,12 @@ export default function Select({
               </div>
             )}
 
-            <div className="max-h-60 overflow-y-auto" style={{ maxHeight }}>
+            <div
+              className="overflow-y-auto overflow-x-hidden"
+              style={{ maxHeight: `${dropdownPosition.maxHeight}px` }}
+            >
               {filteredOptions.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                <div className="px-3 py-4 text-sm text-gray-400 text-center">
                   {searchTerm ? "No se encontraron resultados" : emptyMessage}
                 </div>
               ) : (
@@ -306,20 +380,20 @@ export default function Select({
                         type="button"
                         onClick={() => handleOptionSelect(option)}
                         disabled={option.disabled}
-                        className={[
-                          "w-full p-4 text-left text-sm flex items-center",
+                        className={classNames(
+                          "w-full px-3 py-2.5 text-left text-sm flex items-center transition-colors",
                           "hover:bg-zinc-800",
-                          isSelected ? "bg-zinc-700" : "",
+                          isSelected && "bg-zinc-700",
                           option.disabled
                             ? "text-gray-600 cursor-not-allowed"
-                            : "cursor-pointer",
-                        ].join(" ")}
+                            : "cursor-pointer"
+                        )}
                       >
                         {renderSingleOption(option, index)}
                       </button>
                     );
                   })}
-                  <div className="bg-zinc-900 h-10 rounded-b-md"></div>
+                  <div className="h-2"></div>
                 </>
               )}
             </div>

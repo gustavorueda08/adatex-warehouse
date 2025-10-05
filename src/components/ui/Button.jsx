@@ -25,20 +25,25 @@ export default function Button({
           // Estados normales
           "bg-red-600 hover:bg-red-500 active:bg-red-700":
             variant === "red" && !isDisabled,
-          "bg-zinc-400 hover:bg-zinc-700 active:bg-zinc-900":
+          "bg-zinc-600 hover:bg-zinc-500 active:bg-zinc-700":
             variant === "zinc" && !isDisabled,
           "bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700":
             variant === "emerald" && !isDisabled,
-
+          "bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700":
+            variant === "cyan" && !isDisabled,
+          "bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500":
+            variant === "yellow" && !isDisabled,
           // Estados deshabilitados
-          "bg-red-400 cursor-not-allowed opacity-60":
-            variant === "red" && isDisabled,
-          "bg-zinc-300 cursor-not-allowed opacity-60":
-            variant === "zinc" && isDisabled,
-          "bg-emerald-400 cursor-not-allowed opacity-60":
+          "bg-red-800 cursor-not-allowed": variant === "red" && isDisabled,
+          "bg-zinc-800 cursor-not-allowed": variant === "zinc" && isDisabled,
+          "bg-emerald-800 cursor-not-allowed":
             variant === "emerald" && isDisabled,
-
+          "bg-cyan-800 cursor-not-allowed": variant === "cyan" && isDisabled,
+          "bg-yellow-600 cursor-not-allowed":
+            variant === "yellow" && isDisabled,
+          // Bold
           "font-bold": bold,
+          // Ancho Full
           "w-full": fullWidth,
         },
         className

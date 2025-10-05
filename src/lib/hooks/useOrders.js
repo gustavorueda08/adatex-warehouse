@@ -3,18 +3,109 @@
 
 import { normalizeFilters } from "@/lib/api/strapiQueryBuilder";
 import { useStrapi } from "./useStrapi";
+import { useCallback, useState } from "react";
 
-/**
- * Hook unificado para todas las operaciones CRUD de órdenes
- * @param {Object} queryParams - Parámetros para la consulta GET
- * @param {Object} options - Opciones del hook
- * @returns {Object} Estado y funciones del hook
- */
 export function useOrders(queryParams = {}, options = {}) {
-  return useStrapi("orders", queryParams, {
+  const strapiResult = useStrapi("orders", queryParams, {
     ...options,
     singularName: "order",
     pluralName: "orders",
     customNormalizer: normalizeFilters,
   });
+
+  const [addingItem, setAddingItem] = useState(false);
+  const [removingItem, setRemovingItem] = useState(false);
+
+  const addItem = useCallback(
+    async (orderId, itemData, refetch = false) => {
+      if (!orderId || !itemData) {
+        const error = new Error("Order ID e item data son requeridos");
+        return { success: false, error };
+      }
+
+      setAddingItem(true);
+
+      try {
+        const response = await fetch(`/api/strapi/orders/${orderId}/add`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: itemData }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error?.message ||
+              result.message ||
+              `Error ${response.status}: ${response.statusText}`
+          );
+        }
+
+        // Refrescar la lista después de agregar
+        if (refetch) {
+          await strapiResult.refetch();
+        }
+
+        return { success: true, data: result.data };
+      } catch (err) {
+        console.error("Error adding item:", err);
+        return { success: false, error: err };
+      } finally {
+        setAddingItem(false);
+      }
+    },
+    [strapiResult.refetch]
+  );
+
+  const removeItem = useCallback(
+    async (orderId, itemId, refetch = false) => {
+      if (!orderId || !itemId) {
+        const error = new Error("Order ID e item ID son requeridos");
+        return { success: false, error };
+      }
+      setRemovingItem(true);
+      try {
+        const response = await fetch(`/api/strapi/orders/${orderId}/remove`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: {
+              item: itemId,
+            },
+          }),
+        });
+        const result = await response.json();
+        console.log(result, "RESULTADO");
+        if (!response.ok) {
+          throw new Error(
+            result.error?.message ||
+              result.message ||
+              `Error ${response.status}: ${response.statusText}`
+          );
+        }
+
+        // Refrescar la lista después de remover
+        if (refetch) {
+          await strapiResult.refetch();
+        }
+
+        return { success: true, data: result.data };
+      } catch (err) {
+        console.error("Error removing item:", err);
+        return { success: false, error: err };
+      } finally {
+        setRemovingItem(false);
+      }
+    },
+    [strapiResult.refetch]
+  );
+
+  return {
+    ...strapiResult,
+    addItem,
+    removeItem,
+    addingItem,
+    removingItem,
+  };
 }
