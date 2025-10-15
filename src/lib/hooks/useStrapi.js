@@ -47,6 +47,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
+  const [lastSuccessTime, setLastSuccessTime] = useState(null);
 
   // Estados para operaciones CRUD
   const [creating, setCreating] = useState(false);
@@ -86,21 +87,22 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
   // Función genérica para realizar petición GET
   const fetchEntities = useCallback(
-    async (showLoading = false) => {
+    async (showLoading = true) => {
       if (!enabled) return;
+      console.log("🔄 fetchEntities iniciando para:", apiUrl);
 
-      if (currentUrlRef.current === apiUrl && (loading || isFetching)) {
-        return;
-      }
-
+      // Actualizar URL actual
       currentUrlRef.current = apiUrl;
 
+      // Cancelar fetch anterior si existe
       if (abortControllerRef.current) {
+        console.log("⚠️ Abortando fetch anterior");
         abortControllerRef.current.abort();
       }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
+      console.log("🆕 Nuevo AbortController creado");
 
       try {
         if (showLoading) {
@@ -110,12 +112,13 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         }
 
         setError(null);
-
+        console.log("📡 Haciendo fetch a:", apiUrl);
         const response = await fetch(apiUrl, {
           signal: controller.signal,
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
+        console.log("📬 Response recibida:", response.status, response.ok);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -125,20 +128,25 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
               `Error ${response.status}: ${response.statusText}`
           );
         }
-
         const result = await response.json();
+        console.log("RESULTADO", result);
 
         if (!result || typeof result !== "object") {
           throw new Error("Respuesta inválida del servidor");
         }
 
         setData(result);
-        lastSuccessRef.current = new Date();
+        const now = new Date();
+        lastSuccessRef.current = now;
+        setLastSuccessTime(now.getTime());
 
         if (onSuccess) onSuccess(result);
       } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error(`Error fetching ${entityPlural}:`, err);
+        if (err.name === "AbortError") {
+          console.log("🛑 Petición abortada (esperado):", apiUrl);
+          // No hacer nada, es un comportamiento esperado
+        } else {
+          console.error(`❌ Error fetching ${entityPlural}:`, err);
           setError(err);
           if (onError) onError(err);
         }
@@ -149,7 +157,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         }
       }
     },
-    [enabled, apiUrl, onSuccess, onError, loading, isFetching, entityPlural]
+    [enabled, apiUrl, onSuccess, onError, entityPlural]
   );
 
   // Función genérica para crear entidad
@@ -333,11 +341,12 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
   // Función para refetch
   const refetch = useCallback(() => {
     return fetchEntities(true);
-  }, [fetchEntities]);
+  }, []);
 
   // Función para invalidar y refetch
   const invalidateAndRefetch = useCallback(() => {
     lastSuccessRef.current = null;
+    setLastSuccessTime(null);
     return fetchEntities(true);
   }, [fetchEntities]);
 
@@ -349,36 +358,37 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
   // Verificar si los datos están obsoletos
   const isDataStale = useMemo(() => {
     if (staleTime === 0) return true;
-    if (!lastSuccessRef.current) return true;
-    return Date.now() - lastSuccessRef.current.getTime() > staleTime;
-  }, [staleTime, lastSuccessRef.current]);
+    if (!lastSuccessTime) return true;
+    return Date.now() - lastSuccessTime > staleTime;
+  }, [staleTime, lastSuccessTime]);
 
-  // Efecto principal para GET
+  // Efecto principal para GET - Simplificado para evitar loops
   useEffect(() => {
     if (!enabled) return;
 
-    const shouldFetch =
-      !data || currentUrlRef.current !== apiUrl || isDataStale;
-
-    if (shouldFetch) {
-      fetchEntities(!data);
+    // Detectar si la URL cambió
+    const urlChanged = currentUrlRef.current !== apiUrl;
+    // Solo hacer fetch si la URL cambió o es la primera carga (currentUrl vacío)
+    if (urlChanged || currentUrlRef.current === "") {
+      // Mostrar loading solo en primera carga (cuando no hay datos)
+      const showLoading = !data;
+      fetchEntities(showLoading);
     }
-
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+    // NO hacer cleanup aquí - fetchEntities ya maneja el abort de requests anteriores
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiUrl, enabled]);
 
-  // Limpieza
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
+  // Limpieza solo al desmontar el componente
+  // NOTA: Comentado porque causa AbortErrors en desarrollo
+  // El abort de peticiones anteriores ya se maneja en fetchEntities (líneas 98-100)
+  // useEffect(() => {
+  //   return () => {
+  //     console.log("🗑️ Componente desmontándose, abortando fetch");
+  //     if (abortControllerRef.current) {
+  //       abortControllerRef.current.abort();
+  //     }
+  //   };
+  // }, []);
 
   // Refetch en window focus
   useEffect(() => {
@@ -405,8 +415,9 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
     };
   }, [refetchOnWindowFocus, enabled, isDataStale, fetchEntities]);
 
-  // Datos derivados
-  const entities = data?.data ?? [];
+  // Datos derivados - Maneja tanto arrays como objetos en data.data
+  const rawData = data?.data;
+  const entities = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
   const meta = data?.meta ?? {};
   const pagination = meta.pagination ?? {};
 

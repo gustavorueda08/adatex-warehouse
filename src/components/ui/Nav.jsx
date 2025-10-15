@@ -10,10 +10,94 @@ import {
   ReportsIcon,
   SettingsIcon,
 } from "@/components/ui/icons";
-import React, { useEffect, useRef, useState } from "react";
+import { useUser } from "@/lib/hooks/useUser";
+import {
+  BuildingStorefrontIcon,
+  WrenchIcon,
+} from "@heroicons/react/24/outline";
+import { ArrowsRightLeftIcon } from "@heroicons/react/24/solid";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+} from "react";
 
-export default function Sidebar({
-  logo = { src: "https://flowbite.com/docs/images/logo.svg", alt: "Logo" },
+// Componente memoizado para el menú de usuario
+const UserMenu = memo(function UserMenu({ user, loading, initials, openUserMenu, setOpenUserMenu, onSignOut }) {
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (
+        openUserMenu &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target)
+      ) {
+        setOpenUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [openUserMenu, setOpenUserMenu]);
+
+  // Mostrar las iniciales si hay usuario, independientemente del estado de carga
+  const showInitials = user && initials;
+
+  return (
+    <div className="flex items-center ms-3 relative" ref={userMenuRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={openUserMenu}
+        onClick={() => setOpenUserMenu((v) => !v)}
+        className="flex text-sm bg-gray-700 rounded-full focus:ring-4 focus:ring-gray-600"
+      >
+        <div className="w-10 h-10  items-center self-center flex justify-center align-middle">
+          {showInitials ? initials : ""}
+        </div>
+        <span className="sr-only">Open user menu</span>
+      </button>
+
+      {user && (
+        <div
+          role="menu"
+          className={`${
+            openUserMenu ? "block" : "hidden"
+          } z-50 absolute right-0 top-12 my-4 min-w-56 text-base list-none bg-gray-700 divide-y divide-gray-600 rounded shadow-lg`}
+        >
+          <div className="px-4 py-3">
+            <p className="text-sm text-white">{user?.name}</p>
+            <p className="text-sm font-medium text-gray-300 truncate">
+              {user?.email}
+            </p>
+          </div>
+          <ul className="py-1">
+            <li>
+              <a
+                href={`/users/${user?.id}`}
+                className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
+              >
+                Dashboard
+              </a>
+            </li>
+            <li>
+              <button
+                onClick={onSignOut}
+                className="w-full text-left block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
+              >
+                Cerrar sesión
+              </button>
+            </li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+});
+
+function Sidebar({
   brand = "Adatex",
   links = [
     { label: "Dashboard", href: "/", icon: ChartIcon },
@@ -22,7 +106,7 @@ export default function Sidebar({
       icon: ArrowDownIcon,
       links: [
         { label: "Compras", href: "/purchases" },
-        { label: "Entradas", href: "/entries" },
+        { label: "Entradas", href: "/inflows" },
         { label: "Devoluciones", href: "/returns" },
       ],
     },
@@ -31,16 +115,26 @@ export default function Sidebar({
       icon: ArrowUpIcon,
       links: [
         { label: "Ventas", href: "/sales" },
-        { label: "Salidas", href: "/exits" },
+        { label: "Salidas", href: "/outflows" },
       ],
     },
     {
       label: "Inventario",
-      icon: TransferIcon,
+      icon: BuildingStorefrontIcon,
       links: [
         { label: "Bodegas", href: "/warehouses" },
         { label: "Productos", href: "/products" },
       ],
+    },
+    {
+      label: "Transferencias",
+      icon: ArrowsRightLeftIcon,
+      href: "/transfers",
+    },
+    {
+      label: "Transformaciones",
+      icon: WrenchIcon,
+      href: "/transformations",
     },
     {
       label: "Terceros",
@@ -48,6 +142,7 @@ export default function Sidebar({
       links: [
         { label: "Clientes", href: "/customers" },
         { label: "Proveedores", href: "/suppliers" },
+        { label: "Vendedores", href: "/sellers" },
       ],
     },
     {
@@ -64,18 +159,13 @@ export default function Sidebar({
       href: "/settings",
     },
   ],
-  user = {
-    name: "Neil Sims",
-    email: "neil.sims@flowbite.com",
-    avatar: "https://flowbite.com/docs/images/people/profile-picture-5.jpg",
-  },
   onSignOut,
   children,
 }) {
   const [openSidebar, setOpenSidebar] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => new Set());
-  const userMenuRef = useRef(null);
+  const { user, loading } = useUser();
 
   useEffect(() => {
     const onKey = (e) => {
@@ -88,20 +178,6 @@ export default function Sidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {
-    const onClickOutside = (e) => {
-      if (
-        openUserMenu &&
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target)
-      ) {
-        setOpenUserMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [openUserMenu]);
-
   const toggleGroup = (idx) => {
     setOpenGroups((prev) => {
       const next = new Set(prev);
@@ -110,6 +186,18 @@ export default function Sidebar({
       return next;
     });
   };
+
+  const initials = useMemo(
+    () =>
+      user?.name
+        ? user.name
+            .split(" ")
+            .map((word) => word[0])
+            .join("")
+            .toUpperCase()
+        : "",
+    [user]
+  );
 
   return (
     <div className="min-h-screen dark bg-zinc-800">
@@ -130,11 +218,6 @@ export default function Sidebar({
                 <DefaultIconMenu className="w-6 h-6" />
               </button>
               <a href="#" className="flex ms-2 md:me-24">
-                <img
-                  src={logo.src}
-                  className="h-8 me-3"
-                  alt={logo.alt || "Logo"}
-                />
                 <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap text-white">
                   {brand}
                 </span>
@@ -142,70 +225,14 @@ export default function Sidebar({
             </div>
 
             {/* Menú usuario */}
-            <div className="flex items-center ms-3 relative" ref={userMenuRef}>
-              <button
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={openUserMenu}
-                onClick={() => setOpenUserMenu((v) => !v)}
-                className="flex text-sm bg-gray-700 rounded-full focus:ring-4 focus:ring-gray-600"
-              >
-                <span className="sr-only">Open user menu</span>
-                <img
-                  className="w-8 h-8 rounded-full"
-                  src={user.avatar}
-                  alt="user photo"
-                />
-              </button>
-
-              <div
-                role="menu"
-                className={`${
-                  openUserMenu ? "block" : "hidden"
-                } z-50 absolute right-0 top-12 my-4 min-w-56 text-base list-none bg-gray-700 divide-y divide-gray-600 rounded shadow-lg`}
-              >
-                <div className="px-4 py-3">
-                  <p className="text-sm text-white">{user.name}</p>
-                  <p className="text-sm font-medium text-gray-300 truncate">
-                    {user.email}
-                  </p>
-                </div>
-                <ul className="py-1">
-                  <li>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
-                    >
-                      Dashboard
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
-                    >
-                      Settings
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
-                    >
-                      Earnings
-                    </a>
-                  </li>
-                  <li>
-                    <button
-                      onClick={onSignOut}
-                      className="w-full text-left block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
-                    >
-                      Sign out
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
+            <UserMenu
+              user={user}
+              loading={loading}
+              initials={initials}
+              openUserMenu={openUserMenu}
+              setOpenUserMenu={setOpenUserMenu}
+              onSignOut={onSignOut}
+            />
           </div>
         </div>
       </nav>
@@ -214,6 +241,7 @@ export default function Sidebar({
       <aside
         id="logo-sidebar"
         aria-label="Sidebar"
+        onMouseLeave={() => setOpenGroups(new Set())}
         className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-zinc-800 transition-[transform,width] duration-200 ease-in-out w-64 ${
           openSidebar ? "translate-x-0" : "-translate-x-full"
         } sm:translate-x-0 sm:w-16 sm:hover:w-64`}
@@ -319,7 +347,6 @@ export default function Sidebar({
         />
       )}
 
-      {/* Content con efecto Google Drive */}
       <main className="pt-16 sm:ml-16 bg-zinc-800 min-h-screen h-full">
         <div className="bg-zinc-950 md:rounded-tl-3xl h-full p-6 min-h-screen">
           {children}
@@ -328,3 +355,14 @@ export default function Sidebar({
     </div>
   );
 }
+
+// Memoizar el componente Sidebar con una función de comparación personalizada
+export default memo(Sidebar, (prevProps, nextProps) => {
+  // Solo re-renderizar si las props esenciales cambian
+  return (
+    prevProps.brand === nextProps.brand &&
+    prevProps.onSignOut === nextProps.onSignOut &&
+    prevProps.children === nextProps.children &&
+    JSON.stringify(prevProps.links) === JSON.stringify(nextProps.links)
+  );
+});

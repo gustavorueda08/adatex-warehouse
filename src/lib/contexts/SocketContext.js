@@ -1,37 +1,19 @@
 // src/providers/SocketProvider.js
 "use client";
 
-import { createContext, useContext, useEffect } from "react";
-import { useSocket } from "@/lib/hooks/useSocket";
-import toast from "react-hot-toast";
+import { createContext, useContext } from "react";
 
 export const SocketContext = createContext(null);
 
+/**
+ * SocketProvider ligero que NO conecta automáticamente.
+ * Ahora solo provee el contexto. La conexión real se hace bajo demanda
+ * usando el hook useSocketOptional en componentes específicos.
+ */
 export function SocketProvider({ children }) {
-  const socket = useSocket({
-    autoConnect: true,
-    onConnect: () => {
-      console.log("Conectado a Strapi WebSocket");
-    },
-    onDisconnect: (reason) => {
-      console.log("Desconectado:", reason);
-      if (reason === "io server disconnect") {
-        toast.error("Desconectado del servidor", { id: "socket-disconnect" });
-      }
-    },
-    onError: (error) => {
-      console.error("Error Socket:", error.message);
-      if (
-        error.message === "No authenticated" ||
-        error.message === "Unauthorized"
-      ) {
-        console.warn("Sin autenticación para socket");
-      }
-    },
-  });
-
+  // No conectar automáticamente - solo proveer el contexto
   return (
-    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={null}>{children}</SocketContext.Provider>
   );
 }
 

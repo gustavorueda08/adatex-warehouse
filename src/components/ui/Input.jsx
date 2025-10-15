@@ -43,7 +43,7 @@ const Input = memo(function Input({
           )}
           placeholder={loading ? loadingPlaceholder : placeholder}
           required
-          value={setInput ? input : internalInput}
+          value={setInput ? input || "" : internalInput}
           onChange={(e) =>
             setInput
               ? setInput(e.target.value)

@@ -52,6 +52,8 @@ export default function Select({
   const [internalValue, setInternalValue] = useState(multiple ? [] : null);
   const currentValue = isControlled ? value : internalValue;
 
+  console.log(options);
+
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm.trim()) return options;
     const q = searchTerm.toLowerCase();

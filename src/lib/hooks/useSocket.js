@@ -19,32 +19,45 @@ export function useSocket(options = {}) {
   const [error, setError] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const socketRef = useRef(null);
+  const callbacksRef = useRef({ onConnect, onDisconnect, onError });
+
+  // Mantener callbacks actualizados sin causar re-renders
+  useEffect(() => {
+    callbacksRef.current = { onConnect, onDisconnect, onError };
+  }, [onConnect, onDisconnect, onError]);
+
+  // Función para obtener token fresco
+  const getToken = useCallback(async () => {
+    const response = await fetch("/api/auth/token", {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new Error("No authenticated");
+    }
+
+    const { token } = await response.json();
+
+    if (!token) {
+      throw new Error("No token received");
+    }
+
+    return token;
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     let cancelled = false;
+    let reconnectTimeout = null;
 
     async function initializeSocket() {
       try {
         setIsAuthenticating(true);
 
-        // Obtener token de la cookie vía API
-        const response = await fetch("/api/auth/token", {
-          credentials: "include", // Importante para enviar cookies
-        });
-
-        if (!response.ok) {
-          throw new Error("No authenticated");
-        }
-
-        const { token } = await response.json();
+        const token = await getToken();
 
         if (cancelled) return;
-
-        if (!token) {
-          throw new Error("No token received");
-        }
 
         const socketUrl =
           process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337";
@@ -75,28 +88,74 @@ export function useSocket(options = {}) {
           setIsConnected(true);
           setError(null);
           setIsAuthenticating(false);
-          onConnect?.();
+          callbacksRef.current.onConnect?.();
         });
 
         socket.on("disconnect", (reason) => {
           console.log("Socket desconectado:", reason);
           setIsConnected(false);
-          onDisconnect?.(reason);
+          callbacksRef.current.onDisconnect?.(reason);
+
+          // Si la desconexión es por el servidor, intentar reconectar con token fresco
+          if (reason === "io server disconnect" || reason === "transport close") {
+            reconnectTimeout = setTimeout(async () => {
+              if (!cancelled && socketRef.current) {
+                try {
+                  const newToken = await getToken();
+                  socket.auth = { token: newToken };
+                  socket.io.opts.extraHeaders = {
+                    Authorization: `Bearer ${newToken}`,
+                  };
+                  socket.connect();
+                } catch (err) {
+                  console.error("Error al renovar token:", err);
+                  setError(err);
+                  callbacksRef.current.onError?.(err);
+                }
+              }
+            }, 1000);
+          }
         });
 
-        socket.on("connect_error", (err) => {
+        socket.on("connect_error", async (err) => {
           console.error("Error de conexión:", err.message);
-          setError(err);
           setIsConnected(false);
           setIsAuthenticating(false);
-          onError?.(err);
+
+          // Si es error de autenticación, intentar renovar token
+          if (err.message.includes("auth") || err.message.includes("token") || err.message.includes("jwt")) {
+            try {
+              const newToken = await getToken();
+              if (!cancelled && socketRef.current) {
+                socket.auth = { token: newToken };
+                socket.io.opts.extraHeaders = {
+                  Authorization: `Bearer ${newToken}`,
+                };
+              }
+            } catch (tokenErr) {
+              setError(tokenErr);
+              callbacksRef.current.onError?.(tokenErr);
+              return;
+            }
+          }
+
+          setError(err);
+          callbacksRef.current.onError?.(err);
         });
+
+        // Manejar errores de autenticación del servidor
+        socket.on("error", (err) => {
+          console.error("Socket error:", err);
+          setError(err);
+          callbacksRef.current.onError?.(err);
+        });
+
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al obtener token:", err.message);
+          console.error("Error al inicializar socket:", err.message);
           setError(err);
           setIsAuthenticating(false);
-          onError?.(err);
+          callbacksRef.current.onError?.(err);
         }
       }
     }
@@ -105,12 +164,16 @@ export function useSocket(options = {}) {
 
     return () => {
       cancelled = true;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current.removeAllListeners();
+        socketRef.current = null;
       }
     };
-  }, [autoConnect, reconnection, reconnectionDelay, reconnectionAttempts]);
+  }, [autoConnect, reconnection, reconnectionDelay, reconnectionAttempts, getToken]);
 
   const emit = useCallback((event, data) => {
     if (socketRef.current?.connected) {

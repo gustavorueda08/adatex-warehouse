@@ -42,6 +42,7 @@ export default function DatePicker({
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [isPositioned, setIsPositioned] = useState(false);
   const popRef = useRef(null);
   const btnRef = useRef(null);
 
@@ -63,6 +64,11 @@ export default function DatePicker({
         left: rect.left + scrollX,
         width: rect.width,
       });
+      // Marcar como posicionado después de calcular
+      requestAnimationFrame(() => setIsPositioned(true));
+    } else if (!open) {
+      // Reset cuando se cierra
+      setIsPositioned(false);
     }
   }, [open, isMobile]);
 
@@ -253,7 +259,7 @@ export default function DatePicker({
               placeholder="dd/mm/aaaa"
               value={fmt(current)}
               onChange={(e) => onInputChange(null, e.target.value)}
-              className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-500"
             />
           </div>
         ) : (
@@ -266,7 +272,7 @@ export default function DatePicker({
                 placeholder="dd/mm/aaaa"
                 value={fmt(current.from)}
                 onChange={(e) => onInputChange("from", e.target.value)}
-                className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-500"
               />
             </div>
             <div className="space-y-2">
@@ -277,7 +283,7 @@ export default function DatePicker({
                 placeholder="dd/mm/aaaa"
                 value={fmt(current.to)}
                 onChange={(e) => onInputChange("to", e.target.value)}
-                className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                className="w-full rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-500"
               />
             </div>
 
@@ -401,7 +407,7 @@ export default function DatePicker({
             : createPortal(
                 <div
                   ref={popRef}
-                  className="fixed z-[9999] bg-zinc-900 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden"
+                  className="fixed z-[9999] bg-zinc-900 rounded-lg shadow-2xl border border-zinc-700 overflow-hidden transition-opacity duration-150"
                   style={{
                     top: `${position.top}px`,
                     left: `${position.left}px`,
@@ -410,6 +416,8 @@ export default function DatePicker({
                       mode === "range"
                         ? "min(90vw, 680px)"
                         : "min(90vw, 500px)",
+                    opacity: isPositioned ? 1 : 0,
+                    pointerEvents: isPositioned ? "auto" : "none",
                   }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_auto]">

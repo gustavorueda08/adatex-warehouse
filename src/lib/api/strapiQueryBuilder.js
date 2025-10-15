@@ -11,6 +11,18 @@ function buildFilters(filters) {
   function processFilter(key, value, prefix = "filters") {
     if (value === null || value === undefined) return;
 
+    // Operadores lógicos especiales ($or, $and, $not)
+    if (key === "$or" || key === "$and") {
+      if (Array.isArray(value)) {
+        value.forEach((condition, index) => {
+          Object.entries(condition).forEach(([condKey, condValue]) => {
+            processFilter(condKey, condValue, `${prefix}[${key}][${index}]`);
+          });
+        });
+      }
+      return;
+    }
+
     if (typeof value === "object" && !Array.isArray(value)) {
       // Verificar si es un operador de Strapi ($eq, $in, $contains, etc.)
       const operators = [
@@ -52,8 +64,9 @@ function buildFilters(filters) {
         });
       }
     } else if (Array.isArray(value)) {
+      // Si es un array directo (ej: state: ['draft', 'confirmed']), convertir a $in
       value.forEach((item, index) => {
-        result[`${prefix}[${key}][${index}]`] = String(item);
+        result[`${prefix}[${key}][$in][${index}]`] = String(item);
       });
     } else {
       // Valor simple, usar $eq implícito
@@ -88,9 +101,46 @@ function buildPopulate(populate) {
     }
 
     if (Array.isArray(config)) {
-      config.forEach((item, index) => {
-        result[`${basePath}[${index}]`] = String(item);
-      });
+      // Convertir array a objeto para manejar populate anidado correctamente
+      const hasNestedPopulate = config.some(
+        (item) => typeof item === "string" && item.includes(".")
+      );
+
+      if (hasNestedPopulate) {
+        // Usar formato de objeto para populate anidado
+        const populateObj = {};
+
+        config.forEach((item) => {
+          if (typeof item === "string" && item.includes(".")) {
+            const parts = item.split(".");
+            // Construir objeto anidado: { orderProducts: { populate: { product: true } } }
+            let current = populateObj;
+            for (let i = 0; i < parts.length; i++) {
+              const part = parts[i];
+              if (i === parts.length - 1) {
+                // Última parte
+                if (!current[part]) current[part] = true;
+              } else {
+                // Partes intermedias
+                if (!current[part]) current[part] = { populate: {} };
+                else if (current[part] === true)
+                  current[part] = { populate: {} };
+                current = current[part].populate;
+              }
+            }
+          } else if (typeof item === "string") {
+            populateObj[item] = true;
+          }
+        });
+
+        // Procesar el objeto populate
+        processPopulate(populateObj, basePath);
+      } else {
+        // Sin populate anidado, usar índices simples
+        config.forEach((item, index) => {
+          result[`${basePath}[${index}]`] = String(item);
+        });
+      }
       return;
     }
 
@@ -287,6 +337,8 @@ export function normalizeOrderTypes(types) {
     "return",
     "transfer",
     "cut",
+    "by-warehouse",
+    "by-product",
   ];
 
   if (Array.isArray(types)) {
@@ -358,10 +410,10 @@ export function normalizeFilters(filters) {
         delete normalized.type.$in;
       }
     } else if (typeof normalized.type === "string") {
-      // 👇 Convertir string directo a $eq
+      // Mantener como string simple (Strapi usa $eq implícito)
       const normalizedType = normalizeOrderTypes([normalized.type])[0];
       if (normalizedType) {
-        normalized.type = { $eq: normalizedType };
+        normalized.type = normalizedType;
       } else {
         delete normalized.type;
       }

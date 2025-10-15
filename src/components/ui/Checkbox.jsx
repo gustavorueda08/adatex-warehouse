@@ -1,3 +1,5 @@
+"use client";
+
 import classNames from "classnames";
 import React, { useState, useId } from "react";
 import { CheckIcon } from "@heroicons/react/24/solid";
@@ -12,6 +14,7 @@ export default function Checkbox({
   disabled = false,
   id,
   defaultChecked = false,
+  indeterminate = false,
 }) {
   const [internalChecked, setInternalChecked] = useState(defaultChecked);
   const generatedId = useId();
@@ -91,11 +94,22 @@ export default function Checkbox({
           disabled={disabled}
           className="sr-only"
         />
-        {isChecked && (
+        {isChecked && !indeterminate && (
           <CheckIcon
             className={classNames(iconSizeClasses[size], {
               "text-white": variant !== "yellow",
               "text-yellow-900": variant === "yellow",
+            })}
+          />
+        )}
+        {indeterminate && (
+          <div
+            className={classNames("rounded", {
+              "w-2.5 h-0.5": size === "sm",
+              "w-3 h-0.5": size === "md",
+              "w-3.5 h-1": size === "lg",
+              "bg-white": variant !== "yellow",
+              "bg-yellow-900": variant === "yellow",
             })}
           />
         )}

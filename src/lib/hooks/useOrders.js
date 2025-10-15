@@ -7,6 +7,7 @@ import { useCallback, useState } from "react";
 
 export function useOrders(queryParams = {}, options = {}) {
   const strapiResult = useStrapi("orders", queryParams, {
+    staleTime: 60000, // 1 minuto de caché por defecto
     ...options,
     singularName: "order",
     pluralName: "orders",
