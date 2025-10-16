@@ -221,7 +221,7 @@ export function useDocumentDetail(config) {
             .filter((p) => p.product)
             .map((p) => ({
               product: p.product.id,
-              quantity: p.requestedQuantity,
+              requestedQuantity: p.requestedQuantity,
               price: p.price,
               ivaIncluded: p.ivaIncluded,
               invoicePercentage: p.invoicePercentage,

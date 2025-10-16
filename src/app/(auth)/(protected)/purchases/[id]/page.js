@@ -35,6 +35,9 @@ import Textarea from "@/components/ui/Textarea";
 import { generateLabels } from "@/lib/utils/generateLabels";
 import { List } from "react-window";
 import useDebouncedCallback from "@/lib/hooks/useDebounceCallback";
+import { useUser } from "@/lib/hooks/useUser";
+import { purchaseDocumentConfig } from "@/lib/config/documentConfigs";
+import DocumentDetailBase from "@/components/documents/DocumentDetailBase";
 
 // ============================================================================
 // COMPONENTES MEMOIZADOS CON DEBOUNCE
@@ -346,6 +349,91 @@ const calculateRowTotal = (items, price) => {
 // ============================================================================
 
 export default function PurchaseDetailPage({ params }) {
+  const { id } = use(params);
+  const router = useRouter();
+  const { orders, updateOrder, deleteOrder, addItem, removeItem } = useOrders({
+    filters: { id: [id] },
+    populate: [
+      "orderProducts",
+      "orderProducts.product",
+      "orderProducts.items",
+      "supplier",
+      "supplier.prices",
+      "destinationWarehouse",
+    ],
+  });
+  const { products: productsData = [] } = useProducts({});
+  const { suppliers } = useSuppliers({
+    populate: ["prices", "prices.product"],
+  });
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const { warehouses } = useWarehouses({});
+  const { user } = useUser({});
+  const order = orders[0] || null;
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+
+  // Fechas
+  const [createdDate, setCreatedDate] = useState(
+    moment().tz("America/Bogota").toDate()
+  );
+  const [actualDispatchDate, setActualDispatchDate] = useState(null);
+  const [dateArrived, setDateArrived] = useState(null);
+  useEffect(() => {
+    if (order && suppliers) {
+      setSelectedSupplier(order.supplier);
+      setSelectedWarehouse(order.destinationWarehouse);
+      setCreatedDate(order.createdDate || null);
+      setActualDispatchDate(order.actualDispatchDate || null);
+      setDateArrived(order.actualWarehouseDate || null);
+    }
+  }, [order, suppliers]);
+
+  const handleComplete = useCallback(async () => {}, []);
+
+  const handleUpdateSuccess = useCallback(async () => {}, []);
+  const config = purchaseDocumentConfig;
+  const isReadOnly =
+    order?.state === "completed" || order?.state === "canceled";
+  if (!order) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-xl">Cargando orden...</div>
+      </div>
+    );
+  }
+  return (
+    <DocumentDetailBase
+      document={order}
+      user={user}
+      updateDocument={updateOrder}
+      deleteDocument={deleteOrder}
+      allowManualEntry={true}
+      availableProducts={productsData}
+      documentType={config.documentType}
+      title={`${order.code || ""} ${
+        order.containerCode ? ` | ${order.containerCode}` : ""
+      }`}
+      redirectPath={config.redirectPath}
+      headerFields={config.getHeaderFields({
+        suppliers,
+        warehouses,
+        selectedSupplier,
+        setSelectedSupplier,
+        selectedWarehouse,
+        setSelectedWarehouse,
+        createdDate,
+        actualDispatchDate,
+        setActualDispatchDate,
+        dateArrived,
+      })}
+      productColumns={config.getProductColumns}
+      onUpdate={handleUpdateSuccess}
+      isReadOnly={isReadOnly}
+    />
+  );
+}
+
+export function PurchaseDetailPageOld({ params }) {
   const { id } = use(params);
   const router = useRouter();
 

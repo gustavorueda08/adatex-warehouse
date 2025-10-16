@@ -3,7 +3,12 @@
 import Filters from "@/components/ui/Filters";
 import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
-import Card, { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/Card";
 import { useOrders } from "@/lib/hooks/useOrders";
 import format from "@/lib/utils/format";
 import { orderStatesArray } from "@/lib/utils/orderStates";
@@ -393,7 +398,9 @@ function DocumentListPage({
           <div className="col-span-1 md:col-span-5">
             <Card className="bg-zinc-900 border-zinc-700">
               <CardHeader>
-                <CardTitle className="text-base">Resumen de productos</CardTitle>
+                <CardTitle className="text-base">
+                  Resumen de productos
+                </CardTitle>
                 <CardDescription className="text-xs">
                   Listado completo de productos en esta orden
                 </CardDescription>
@@ -636,32 +643,6 @@ function DocumentListPage({
     }
   };
 
-  // Calcular estadísticas de los datos actuales
-  const getStats = useCallback(() => {
-    const total = meta?.pagination?.total || 0;
-    const statesCounts = {
-      draft: 0,
-      confirmed: 0,
-      completed: 0,
-      canceled: 0,
-    };
-
-    // Contar por estado en los datos actuales
-    orders.forEach(order => {
-      if (statesCounts[order.state] !== undefined) {
-        statesCounts[order.state]++;
-      }
-    });
-
-    return {
-      total,
-      byState: statesCounts,
-      isFiltered: debouncedSearch !== "" || range.from !== null || range.to !== null || selectedStates.size !== states.length,
-    };
-  }, [orders, meta, debouncedSearch, range, selectedStates, states]);
-
-  const stats = getStats();
-
   return (
     <div className="w-full px-4 pb-6">
       {/* Header con título */}
@@ -670,62 +651,6 @@ function DocumentListPage({
         <p className="text-gray-400 text-sm">
           Gestiona y visualiza {title.toLowerCase()}
         </p>
-      </div>
-
-      {/* Estadísticas rápidas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6">
-        <Card className="bg-gradient-to-br from-zinc-800 to-zinc-900 border-zinc-700 hover:from-zinc-700 hover:to-zinc-800 transition-all">
-          <CardContent className="p-4">
-            <div className="flex flex-col">
-              <span className="text-xs text-gray-400 uppercase tracking-wide mb-1">Total</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">{format(stats.total)}</span>
-                {stats.isFiltered && (
-                  <span className="text-xs text-emerald-400">filtradas</span>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {states.slice(0, 4).map((state) => {
-          const count = stats.byState[state.key] || 0;
-          let colorClass = "from-zinc-700 to-zinc-800";
-          let hoverClass = "hover:from-zinc-600 hover:to-zinc-700";
-
-          if (state.key === "draft") {
-            colorClass = "from-zinc-700 to-zinc-800";
-            hoverClass = "hover:from-zinc-600 hover:to-zinc-700";
-          }
-          if (state.key === "confirmed") {
-            colorClass = "from-yellow-900/40 to-yellow-800/20";
-            hoverClass = "hover:from-yellow-900/50 hover:to-yellow-800/30";
-          }
-          if (state.key === "completed") {
-            colorClass = "from-emerald-900/40 to-emerald-800/20";
-            hoverClass = "hover:from-emerald-900/50 hover:to-emerald-800/30";
-          }
-          if (state.key === "canceled") {
-            colorClass = "from-red-900/40 to-red-800/20";
-            hoverClass = "hover:from-red-900/50 hover:to-red-800/30";
-          }
-
-          return (
-            <Card key={state.key} className={`bg-gradient-to-br ${colorClass} ${hoverClass} border-zinc-700 transition-all`}>
-              <CardContent className="p-4">
-                <div className="flex flex-col">
-                  <span className="text-xs text-gray-400 uppercase tracking-wide mb-1">{state.value}</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-white">{count}</span>
-                    {stats.isFiltered && count > 0 && (
-                      <span className="text-xs text-gray-500">en página</span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
       </div>
 
       {/* Card principal con filtros y tabla */}
@@ -757,7 +682,13 @@ function DocumentListPage({
             <div>
               <CardTitle>Listado de órdenes</CardTitle>
               <CardDescription>
-                {loading ? 'Cargando...' : `${meta?.pagination?.total || 0} ${(meta?.pagination?.total || 0) === 1 ? 'orden encontrada' : 'órdenes encontradas'}`}
+                {loading
+                  ? "Cargando..."
+                  : `${meta?.pagination?.total || 0} ${
+                      (meta?.pagination?.total || 0) === 1
+                        ? "orden encontrada"
+                        : "órdenes encontradas"
+                    }`}
               </CardDescription>
             </div>
             {!loading && orders.length > 0 && (
@@ -768,7 +699,7 @@ function DocumentListPage({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="p-4">
+          <div className="py-4">
             <Table
               columns={orderColumns}
               data={orders}
@@ -804,7 +735,10 @@ function DocumentListPage({
                 </div>
                 <div>
                   <p className="text-white font-semibold">
-                    {selectedOrders.length} {selectedOrders.length === 1 ? 'orden seleccionada' : 'órdenes seleccionadas'}
+                    {selectedOrders.length}{" "}
+                    {selectedOrders.length === 1
+                      ? "orden seleccionada"
+                      : "órdenes seleccionadas"}
                   </p>
                   <p className="text-gray-400 text-sm">
                     Selecciona una acción para aplicar

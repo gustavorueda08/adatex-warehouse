@@ -5,6 +5,7 @@ import Checkbox from "@/components/ui/Checkbox";
 import format from "@/lib/utils/format";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import unitsAreConsistent from "@/lib/utils/unitsConsistency";
+import moment from "moment-timezone";
 
 /**
  * ============================================================================
@@ -285,9 +286,9 @@ export const purchaseDocumentConfig = {
     setSelectedSupplier,
     selectedWarehouse,
     setSelectedWarehouse,
-    dateCreated,
-    expectedArrival,
-    setExpectedArrival,
+    createdDate,
+    actualDispatchDate,
+    setActualDispatchDate,
   }) => [
     {
       label: "Proveedor",
@@ -309,14 +310,15 @@ export const purchaseDocumentConfig = {
     {
       label: "Fecha de Creación",
       type: "date",
-      value: dateCreated,
+      value: createdDate,
+      onChange: () => {},
       disabled: true,
     },
     {
       label: "Fecha de despacho",
       type: "date",
-      value: expectedArrival,
-      onChange: setExpectedArrival,
+      value: actualDispatchDate,
+      onChange: setActualDispatchDate,
     },
   ],
 
@@ -329,19 +331,28 @@ export const purchaseDocumentConfig = {
     {
       key: "name",
       label: "Producto",
-      render: (_, row, index) => (
-        <Select
-          className="md:min-w-80"
-          options={getAvailableProducts(index).map((p) => ({
-            label: p.name,
-            value: p,
-          }))}
-          value={row.product || null}
-          onChange={(product) => handleProductSelect(product, index)}
-          searchable
-          disabled={isReadOnly}
-        />
-      ),
+      render: (_, row, index) => {
+        const availableProducts = getAvailableProducts(index);
+        const selectOptions = row.product
+          ? [
+              { label: row.product.name, value: row.product },
+              ...availableProducts
+                .filter((p) => p.id !== row.product.id)
+                .map((p) => ({ label: p.name, value: p })),
+            ]
+          : availableProducts.map((p) => ({ label: p.name, value: p }));
+
+        return (
+          <Select
+            className="md:min-w-80"
+            options={selectOptions}
+            value={row.product || null}
+            onChange={(product) => handleProductSelect(product, index)}
+            searchable
+            disabled={isReadOnly}
+          />
+        );
+      },
       footer: "Total",
     },
     {
@@ -359,12 +370,14 @@ export const purchaseDocumentConfig = {
       footer: "-",
     },
     {
-      key: "quantity",
+      key: "requestedQuantity",
       label: "Cantidad Solicitada",
       render: (_, row) => (
         <Input
-          input={row.quantity}
-          setInput={(value) => updateProductField(row.id, "quantity", value)}
+          input={row.requestedQuantity}
+          setInput={(value) =>
+            updateProductField(row.id, "requestedQuantity", value)
+          }
           placeholder="Cantidad"
           className="md:max-w-28"
           disabled={isReadOnly}
@@ -376,16 +389,13 @@ export const purchaseDocumentConfig = {
     {
       key: "items",
       label: "Cantidad Recibida",
-      render: (_, row) => (
-        <p>
-          {format(
-            row.items?.reduce(
-              (acc, item) => acc + Number(item?.quantity || 0),
-              0
-            ) || 0
-          ) || "-"}
-        </p>
-      ),
+      render: (_, row) =>
+        format(
+          row.items?.reduce(
+            (acc, item) => acc + Number(item?.quantity || 0),
+            0
+          ) || 0
+        ) || "-",
       footer: (data) => {
         const total =
           data
@@ -395,9 +405,14 @@ export const purchaseDocumentConfig = {
       },
     },
     {
-      key: "total",
       label: "Total",
-      render: (_, row) => format((row.price || 0) * (row.quantity || 0), "$"),
+      render: (_, row) =>
+        format(
+          row.price *
+            row.items?.reduce((acc, item) => acc + item.currentQuantity, 0) ||
+            0,
+          "$"
+        ),
       footer: (data) =>
         format(
           data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
@@ -1150,6 +1165,12 @@ export function createPurchaseFormConfig({
           searchable: true,
           options: suppliers.map((s) => ({ label: s.name, value: s })),
         },
+        {
+          key: "containerCode",
+          label: "Codigo de la orden",
+          type: "input",
+          placeholder: "Escribe el codigo unico de la orden",
+        },
       ],
       [
         {
@@ -1200,6 +1221,7 @@ export function createPurchaseFormConfig({
       supplier: formState.selectedSupplier.id,
       createdDate: formState.dateCreated,
       generatedBy: user.id,
+      containerCode: formState.containerCode,
     }),
 
     initialState: {
@@ -1513,7 +1535,10 @@ export function createTransformFormConfig({
           type: "select",
           searchable: false,
           options: [
-            { label: "Transformación (producto diferente)", value: "transformation" },
+            {
+              label: "Transformación (producto diferente)",
+              value: "transformation",
+            },
             { label: "Partición/Corte (mismo producto)", value: "partition" },
           ],
         },
@@ -1620,7 +1645,10 @@ export const transformDocumentConfig = {
       label: "Tipo de transformación",
       type: "select",
       options: [
-        { label: "Transformación (producto diferente)", value: "transformation" },
+        {
+          label: "Transformación (producto diferente)",
+          value: "transformation",
+        },
         { label: "Partición/Corte (mismo producto)", value: "partition" },
       ],
       value: transformationType,
@@ -1769,7 +1797,9 @@ export const partialInvoiceDocumentConfig = {
     {
       label: "Fecha de creación",
       type: "input",
-      value: order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-",
+      value: order?.createdAt
+        ? new Date(order.createdAt).toLocaleDateString()
+        : "-",
       disabled: true,
       render: (field) => (
         <div className="px-3 py-2 bg-zinc-700 rounded-md border border-zinc-600">
@@ -1780,11 +1810,17 @@ export const partialInvoiceDocumentConfig = {
     {
       label: "Estado de facturación",
       type: "input",
-      value: order?.siigoId ? `Facturado - ${order.invoiceNumber || order.siigoId}` : "Pendiente",
+      value: order?.siigoId
+        ? `Facturado - ${order.invoiceNumber || order.siigoId}`
+        : "Pendiente",
       disabled: true,
       render: (field) => (
         <div className="px-3 py-2 bg-zinc-700 rounded-md border border-zinc-600">
-          <p className={`font-bold ${order?.siigoId ? "text-emerald-400" : "text-yellow-400"}`}>
+          <p
+            className={`font-bold ${
+              order?.siigoId ? "text-emerald-400" : "text-yellow-400"
+            }`}
+          >
             {field.value}
           </p>
         </div>
@@ -1853,7 +1889,10 @@ export const partialInvoiceDocumentConfig = {
   // Acciones que se pueden realizar
   getActions: ({ handleComplete, loadingComplete, document }) => [
     {
-      label: document?.state === "completed" ? "Factura completada" : "Completar y facturar",
+      label:
+        document?.state === "completed"
+          ? "Factura completada"
+          : "Completar y facturar",
       variant: "emerald",
       loading: loadingComplete,
       onClick: handleComplete,

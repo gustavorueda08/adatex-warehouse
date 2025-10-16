@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import {
-  addDays,
   endOfDay,
   endOfMonth,
   format,
@@ -56,12 +55,40 @@ export default function DatePicker({
   useEffect(() => {
     if (open && btnRef.current && !isMobile) {
       const rect = btnRef.current.getBoundingClientRect();
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+
+      // Calcular el ancho del popup basado en el modo
+      const popupWidth = mode === "range" ? Math.min(window.innerWidth * 0.9, 680) : Math.min(window.innerWidth * 0.9, 500);
+      const popupHeight = 450; // Altura aproximada del calendario
+
+      // Posición inicial (relativa al viewport porque usamos position: fixed)
+      let top = rect.bottom + 8;
+      let left = rect.left;
+
+      // Ajustar si se sale por la derecha
+      if (left + popupWidth > window.innerWidth) {
+        left = window.innerWidth - popupWidth - 16; // 16px de margen
+      }
+
+      // Ajustar si se sale por la izquierda
+      if (left < 16) {
+        left = 16;
+      }
+
+      // Ajustar si se sale por abajo
+      if (top + popupHeight > window.innerHeight) {
+        // Mostrar arriba del botón si hay espacio
+        const spaceAbove = rect.top;
+        if (spaceAbove > popupHeight) {
+          top = rect.top - popupHeight - 8;
+        } else {
+          // Si no hay espacio arriba, alinear al borde inferior de la ventana
+          top = window.innerHeight - popupHeight - 16;
+        }
+      }
 
       setPosition({
-        top: rect.bottom + scrollY + 8,
-        left: rect.left + scrollX,
+        top,
+        left,
         width: rect.width,
       });
       // Marcar como posicionado después de calcular
@@ -70,7 +97,7 @@ export default function DatePicker({
       // Reset cuando se cierra
       setIsPositioned(false);
     }
-  }, [open, isMobile]);
+  }, [open, isMobile, mode]);
 
   useEffect(() => {
     if (!open || isMobile) return;
@@ -78,12 +105,40 @@ export default function DatePicker({
     const handleScroll = () => {
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
-        const scrollY = window.scrollY || document.documentElement.scrollTop;
-        const scrollX = window.scrollX || document.documentElement.scrollLeft;
+
+        // Calcular el ancho del popup basado en el modo
+        const popupWidth = mode === "range" ? Math.min(window.innerWidth * 0.9, 680) : Math.min(window.innerWidth * 0.9, 500);
+        const popupHeight = 450; // Altura aproximada del calendario
+
+        // Posición inicial (relativa al viewport porque usamos position: fixed)
+        let top = rect.bottom + 8;
+        let left = rect.left;
+
+        // Ajustar si se sale por la derecha
+        if (left + popupWidth > window.innerWidth) {
+          left = window.innerWidth - popupWidth - 16; // 16px de margen
+        }
+
+        // Ajustar si se sale por la izquierda
+        if (left < 16) {
+          left = 16;
+        }
+
+        // Ajustar si se sale por abajo
+        if (top + popupHeight > window.innerHeight) {
+          // Mostrar arriba del botón si hay espacio
+          const spaceAbove = rect.top;
+          if (spaceAbove > popupHeight) {
+            top = rect.top - popupHeight - 8;
+          } else {
+            // Si no hay espacio arriba, alinear al borde inferior de la ventana
+            top = window.innerHeight - popupHeight - 16;
+          }
+        }
 
         setPosition({
-          top: rect.bottom + scrollY + 8,
-          left: rect.left + scrollX,
+          top,
+          left,
           width: rect.width,
         });
       }
@@ -96,7 +151,7 @@ export default function DatePicker({
       window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", handleScroll);
     };
-  }, [open, isMobile]);
+  }, [open, isMobile, mode]);
 
   useEffect(() => {
     if (open && isMobile) {

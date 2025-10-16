@@ -9,6 +9,7 @@ import moment from "moment-timezone";
 import { useRouter } from "next/navigation";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { v4 } from "uuid";
+import Input from "../ui/Input";
 
 /**
  * Componente genérico para crear documentos (sales, purchases, inflows, outflows, returns, etc.)
@@ -253,9 +254,10 @@ function renderField(field, formState, updateField) {
 
   switch (field.type) {
     case "select":
-      const options = typeof field.options === 'function'
-        ? field.options(formState)
-        : (field.options || []);
+      const options =
+        typeof field.options === "function"
+          ? field.options(formState)
+          : field.options || [];
 
       return (
         <Select
@@ -281,10 +283,17 @@ function renderField(field, formState, updateField) {
           onChange={(date) => updateField(field.key, date)}
         />
       );
+    case "input":
+      return (
+        <Input
+          input={value}
+          setInput={(value) => updateField(field.key, value)}
+          placeholder={field.placeholder}
+        />
+      );
 
     case "custom":
       return field.render({ value, formState, updateField });
-
     default:
       return null;
   }
