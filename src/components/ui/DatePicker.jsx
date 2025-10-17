@@ -57,7 +57,10 @@ export default function DatePicker({
       const rect = btnRef.current.getBoundingClientRect();
 
       // Calcular el ancho del popup basado en el modo
-      const popupWidth = mode === "range" ? Math.min(window.innerWidth * 0.9, 680) : Math.min(window.innerWidth * 0.9, 500);
+      const popupWidth =
+        mode === "range"
+          ? Math.min(window.innerWidth * 0.9, 680)
+          : Math.min(window.innerWidth * 0.9, 500);
       const popupHeight = 450; // Altura aproximada del calendario
 
       // Posición inicial (relativa al viewport porque usamos position: fixed)
@@ -107,7 +110,10 @@ export default function DatePicker({
         const rect = btnRef.current.getBoundingClientRect();
 
         // Calcular el ancho del popup basado en el modo
-        const popupWidth = mode === "range" ? Math.min(window.innerWidth * 0.9, 680) : Math.min(window.innerWidth * 0.9, 500);
+        const popupWidth =
+          mode === "range"
+            ? Math.min(window.innerWidth * 0.9, 680)
+            : Math.min(window.innerWidth * 0.9, 500);
         const popupHeight = 450; // Altura aproximada del calendario
 
         // Posición inicial (relativa al viewport porque usamos position: fixed)
@@ -395,7 +401,7 @@ export default function DatePicker({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={classNames(
-          "w-full text-center bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500",
+          "w-full text-center bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500",
           { "bg-zinc-900 cursor-not-allowed": isDisabled }
         )}
       >

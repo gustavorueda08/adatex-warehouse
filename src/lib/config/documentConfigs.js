@@ -6,6 +6,8 @@ import format from "@/lib/utils/format";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import unitsAreConsistent from "@/lib/utils/unitsConsistency";
 import moment from "moment-timezone";
+import LabelGenerator from "@/components/documents/LabelGenerator";
+import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
 
 /**
  * ============================================================================
@@ -370,6 +372,19 @@ export const purchaseDocumentConfig = {
       footer: "-",
     },
     {
+      key: "ivaIncluded",
+      label: "IVA Incluido",
+      render: (_, row) => (
+        <Checkbox
+          variant="cyan"
+          checked={row.ivaIncluded}
+          onCheck={(value) => updateProductField(row.id, "ivaIncluded", value)}
+          disabled={isReadOnly}
+        />
+      ),
+      footer: "-",
+    },
+    {
       key: "requestedQuantity",
       label: "Cantidad Solicitada",
       render: (_, row) => (
@@ -422,12 +437,22 @@ export const purchaseDocumentConfig = {
     },
   ],
 
-  getActions: ({ handleReceive, loadingReceive, document }) => [
+  // TODO: Terminar acciones
+  getActions: ({ document, loadingComplete, setLoadingComplete }) => [
     {
-      label: "Recibir orden",
+      label: "Completar Orden",
       variant: "emerald",
-      loading: loadingReceive,
-      onClick: handleReceive,
+      loading: loadingComplete,
+      onClick: async ({ handleUpdateDocument }) => {
+        try {
+          setLoadingComplete(true);
+          await handleUpdateDocument({ state: "completed" }, false);
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setLoadingComplete(false);
+        }
+      },
       disabled: document?.state === "completed",
     },
     {
@@ -438,22 +463,23 @@ export const purchaseDocumentConfig = {
   ],
 
   getCustomSections: ({ handleSetProductItemsFromFile, document }) => {
-    // Solo mostrar la sección de carga masiva si el documento está en draft o confirmed
-    if (document?.state !== "draft" && document?.state !== "confirmed") {
-      return [];
-    }
-
     return [
       {
-        title: "Carga de lista de empaque masiva",
-        render: ({ setProducts, products }) => {
-          const FileInput = require("@/components/ui/FileInput").default;
-          return (
-            <div className="flex flex-col gap-3">
-              <FileInput onFileLoaded={(data, remove) => handleSetProductItemsFromFile(data, remove, setProducts)} />
-            </div>
-          );
-        },
+        title: "",
+        render: ({ setProducts }) => (
+          <BulkPackingListUploader
+            onFileLoaded={(data, remove) =>
+              handleSetProductItemsFromFile(data, remove, setProducts)
+            }
+            isReadOnly={
+              document?.state === "completed" || document?.state === "canceled"
+            }
+          />
+        ),
+      },
+      {
+        title: "",
+        render: ({ products }) => <LabelGenerator products={products} />,
       },
     ];
   },
@@ -1215,7 +1241,7 @@ export function createPurchaseFormConfig({
         ...context,
         productsData,
         includePrice: true,
-        includeIVA: false,
+        includeIVA: true,
         includeInvoicePercentage: false,
       }),
 

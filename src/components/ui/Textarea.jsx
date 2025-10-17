@@ -13,7 +13,7 @@ export default function Textarea({
       placeholder={placeholder}
       className={classNames(
         className,
-        "w-full min-h-32 bg-zinc-800 rounded-md focus:border-none active:border-none px-4 py-2"
+        "w-full min-h-32 bg-zinc-900 rounded-md focus:border-none active:border-none px-4 py-2"
       )}
     />
   );

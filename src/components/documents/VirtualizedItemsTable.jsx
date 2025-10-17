@@ -4,6 +4,7 @@ import { List } from "react-window";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import { TrashIcon } from "@heroicons/react/24/solid";
+import { InboxIcon } from "@heroicons/react/24/outline";
 
 /**
  * Input con debounce para items
@@ -111,8 +112,12 @@ export const VirtualizedItemsTable = memo(
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return (
-        <div className="bg-neutral-900 rounded-md overflow-hidden p-8 text-center text-gray-400">
-          No hay items para mostrar
+        <div className="bg-neutral-900 p-12 text-center">
+          <InboxIcon className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+          <p className="text-gray-400 font-medium">No hay items para mostrar</p>
+          <p className="text-gray-500 text-sm mt-2">
+            Agrega items usando el campo de entrada o carga masiva
+          </p>
         </div>
       );
     }
@@ -154,10 +159,29 @@ export const VirtualizedItemsTable = memo(
           rowProps={itemData}
         />
 
-        {/* Footer con estadísticas */}
-        <div className="px-4 py-2 bg-neutral-800 border-t border-neutral-700 text-xs text-gray-400">
-          Total de items: {items.length} | Items con cantidad:{" "}
-          {items.filter((i) => i.quantity > 0).length}
+        {/* Footer con estadísticas mejorado */}
+        <div className="px-4 py-3 bg-neutral-800 border-t border-neutral-700">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-4">
+              <span className="text-gray-400">
+                Total de items:{" "}
+                <span className="font-semibold text-white">{items.length}</span>
+              </span>
+              <span className="text-gray-600">•</span>
+              <span className="text-gray-400">
+                Items con cantidad:{" "}
+                <span className="font-semibold text-emerald-400">
+                  {items.filter((i) => i.quantity > 0).length}
+                </span>
+              </span>
+            </div>
+            {items.filter((i) => i.quantity > 0).length < items.length && (
+              <span className="text-yellow-400 text-xs">
+                {items.length - items.filter((i) => i.quantity > 0).length} items
+                pendientes
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );

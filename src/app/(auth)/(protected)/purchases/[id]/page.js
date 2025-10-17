@@ -61,6 +61,7 @@ export default function PurchaseDetailPage({ params }) {
   const { user } = useUser({});
   const order = orders[0] || null;
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [loadingComplete, setLoadingComplete] = useState(false);
 
   // Fechas
   const [createdDate, setCreatedDate] = useState(
@@ -83,14 +84,34 @@ export default function PurchaseDetailPage({ params }) {
   const handleUpdateSuccess = useCallback(async () => {}, []);
 
   // Función que prepara los datos adicionales del header para la actualización
-  const prepareUpdateData = useCallback(() => {
-    return {
-      supplier: selectedSupplier?.id,
-      destinationWarehouse: selectedWarehouse?.id,
-      createdDate,
-      actualDispatchDate,
-    };
-  }, [selectedSupplier, selectedWarehouse, createdDate, actualDispatchDate]);
+  const prepareUpdateData = useCallback(
+    (document, products = []) => {
+      const confirmed = products
+        .filter((p) => p.product)
+        .map((p) => ({
+          ...p,
+          items: p.items.filter((i) => i.quantity !== 0 && i.quantity !== ""),
+        }))
+        .every(
+          (product) =>
+            Array.isArray(product.items) &&
+            product.items.every((item) => {
+              const q = item.quantity;
+              return (
+                q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
+              );
+            })
+        );
+      return {
+        supplier: selectedSupplier?.id,
+        destinationWarehouse: selectedWarehouse?.id,
+        createdDate,
+        actualDispatchDate,
+        state: confirmed ? "confirmed" : document.state,
+      };
+    },
+    [selectedSupplier, selectedWarehouse, createdDate, actualDispatchDate]
+  );
 
   // Función para cargar items desde archivo
   const handleSetProductItemsFromFile = useCallback(
@@ -181,6 +202,11 @@ export default function PurchaseDetailPage({ params }) {
       onUpdate={handleUpdateSuccess}
       prepareUpdateData={prepareUpdateData}
       isReadOnly={isReadOnly}
+      actions={config.getActions({
+        document: order,
+        loadingComplete,
+        setLoadingComplete,
+      })}
     />
   );
 }

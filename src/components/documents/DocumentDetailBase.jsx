@@ -5,6 +5,20 @@ import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
 import Textarea from "@/components/ui/Textarea";
 import Badge from "@/components/ui/Bagde";
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/Card";
+import {
+  DocumentTextIcon,
+  ClipboardDocumentListIcon,
+  BanknotesIcon,
+  ChatBubbleLeftIcon,
+  BoltIcon,
+} from "@heroicons/react/24/outline";
 import { useDocumentDetail } from "@/lib/hooks/useDocumentDetail";
 import { PackingListProduct } from "./PackingListProduct";
 import { useMemo } from "react";
@@ -309,143 +323,321 @@ export default function DocumentDetailBase({
 
   const canAddItems = !(documentType === "purchase" || documentType === "in");
 
-  return (
-    <div className="">
-      {/* Header */}
-      <div className="flex flex-row gap-4 items-center">
-        <h1 className="font-bold text-3xl py-4">{title || document?.code}</h1>
-        {document?.state && (
-          <Badge variant={getStateVariant(document.state)}>
-            {getStateLabel(document.state)}
-          </Badge>
-        )}
-      </div>
+  // Calcular estadísticas globales de la lista de empaque
+  const packingListStats = useMemo(() => {
+    const productsWithItems = products.filter((p) => p.product);
+    const totalItems = productsWithItems.reduce(
+      (acc, p) => acc + (p.items?.length || 0),
+      0
+    );
+    const totalQuantity = productsWithItems.reduce(
+      (acc, p) =>
+        acc +
+        (p.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) ||
+          0),
+      0
+    );
+    const totalRequested = productsWithItems.reduce(
+      (acc, p) => acc + Number(p.requestedQuantity || 0),
+      0
+    );
+    const itemsWithQuantity = productsWithItems.reduce(
+      (acc, p) =>
+        acc + (p.items?.filter((item) => item.quantity > 0).length || 0),
+      0
+    );
 
-      {/* Campos del header */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
-        {renderHeaderFields}
-      </div>
+    return {
+      productsCount: productsWithItems.length,
+      totalItems,
+      itemsWithQuantity,
+      totalQuantity,
+      totalRequested,
+      percentComplete:
+        totalRequested > 0
+          ? Math.round((totalQuantity / totalRequested) * 100)
+          : 0,
+    };
+  }, [products]);
+
+  return (
+    <div className="space-y-6 pb-8">
+      {/* Header Card */}
+      <Card>
+        <CardContent className="pt-6">
+          {/* Título y Badge de estado */}
+          <div className="flex flex-row gap-4 items-center mb-6">
+            <h1 className="font-bold text-3xl">{title || document?.code}</h1>
+            {document?.state && (
+              <Badge variant={getStateVariant(document.state)}>
+                {getStateLabel(document.state)}
+              </Badge>
+            )}
+          </div>
+
+          {/* Campos del header */}
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+            {renderHeaderFields}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Slot: Antes de productos */}
       {beforeProducts}
 
-      {/* Tabla de productos */}
-      <div className="py-4 w-full">
-        <h3 className="text-xl pb-2">Productos</h3>
-        <Table
-          columns={enhancedProductColumns}
-          data={products}
-          mobileBlock
-          getRowId={(row) => row.id}
-          canDeleteRow={() => !isReadOnly}
-          onRowDelete={(id, index) => handleDeleteProductRow(index)}
-        />
-      </div>
+      {/* Productos Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <DocumentTextIcon className="w-6 h-6 text-cyan-400" />
+              <div>
+                <CardTitle>Productos</CardTitle>
+                <CardDescription>
+                  Gestiona los productos de este documento
+                </CardDescription>
+              </div>
+            </div>
+            <Badge variant="cyan">
+              {products.filter((p) => p.product).length} productos
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table
+            columns={enhancedProductColumns}
+            data={products}
+            mobileBlock
+            getRowId={(row) => row.id}
+            canDeleteRow={() => !isReadOnly}
+            onRowDelete={(id, index) => handleDeleteProductRow(index)}
+          />
+        </CardContent>
+      </Card>
 
       {/* Slot: Después de productos */}
       {afterProducts}
 
-      {/* Lista de empaque */}
-      <h3 className="text-xl py-4">Lista de empaque por producto</h3>
-      <div className="p-4 bg-zinc-600 rounded-md flex flex-col gap-3">
-        {products
-          .filter((product) => product.product)
-          .map((product, productIndex) => (
-            <PackingListProduct
-              key={product.id}
-              product={product}
-              productIndex={productIndex}
-              isExpanded={expandedRows.has(product.id)}
-              onToggle={() => toggleExpanded(product.id)}
-              updateItemField={updateItemField}
-              handleDeleteItemRow={handleDeleteItemRow}
-              disabled={isReadOnly}
-              onEnter={(input, setInput) =>
-                handleAddItemRow(product.product.id, input, setInput)
-              }
-              showMainInput={showMainInput}
-              canAddItems={canAddItems}
-              allowManualEntry={allowManualEntry}
-            />
-          ))}
-      </div>
+      {/* Lista de empaque Card */}
+      {products.filter((p) => p.product).length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-4">
+              <ClipboardDocumentListIcon className="w-6 h-6 text-emerald-400" />
+              <div className="flex-1">
+                <CardTitle>Lista de Empaque</CardTitle>
+                <CardDescription>Detalle de items por producto</CardDescription>
+              </div>
+            </div>
 
-      {/* Factura */}
-      {showInvoice && (
-        <>
-          <h3 className="text-xl py-4">{invoiceTitle}</h3>
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-12 md:col-span-8">
-              <Table
-                columns={invoiceColumns}
-                data={products.filter((p) => p.product)}
-              />
+            {/* Estadísticas globales */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                <p className="text-xs text-gray-400">Productos</p>
+                <p className="text-lg font-semibold text-white">
+                  {packingListStats.productsCount}
+                </p>
+              </div>
+              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                <p className="text-xs text-gray-400">Items totales</p>
+                <p className="text-lg font-semibold text-white">
+                  {packingListStats.totalItems}
+                </p>
+              </div>
+              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                <p className="text-xs text-gray-400">Cantidad procesada</p>
+                <p className="text-lg font-semibold text-emerald-400">
+                  {format(packingListStats.totalQuantity)}
+                </p>
+              </div>
+              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                <p className="text-xs text-gray-400">Cantidad solicitada</p>
+                <p className="text-lg font-semibold text-cyan-400">
+                  {format(packingListStats.totalRequested)}
+                </p>
+              </div>
             </div>
-            <div className="col-span-12 md:col-span-4">
-              <Table
-                columns={invoiceResumeColumns}
-                data={invoiceData}
-                hiddenHeader
-              />
+
+            {/* Progress bar global */}
+            {packingListStats.totalRequested > 0 && (
+              <div className="mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-400">Progreso global</span>
+                  <span className="text-sm font-semibold text-white">
+                    {packingListStats.percentComplete}%
+                  </span>
+                </div>
+                <div className="w-full bg-neutral-700 rounded-full h-3">
+                  <div
+                    className={`h-3 rounded-full transition-all duration-500 ${
+                      packingListStats.percentComplete >= 100
+                        ? "bg-emerald-500"
+                        : packingListStats.percentComplete > 0
+                        ? "bg-yellow-500"
+                        : "bg-zinc-600"
+                    }`}
+                    style={{
+                      width: `${Math.min(
+                        packingListStats.percentComplete,
+                        100
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent>
+            <div className="space-y-3">
+              {products
+                .filter((product) => product.product)
+                .map((product, productIndex) => (
+                  <PackingListProduct
+                    key={product.id}
+                    product={product}
+                    productIndex={productIndex}
+                    isExpanded={expandedRows.has(product.id)}
+                    onToggle={() => toggleExpanded(product.id)}
+                    updateItemField={updateItemField}
+                    handleDeleteItemRow={handleDeleteItemRow}
+                    disabled={isReadOnly}
+                    onEnter={(input, setInput) =>
+                      handleAddItemRow(product.product.id, input, setInput)
+                    }
+                    showMainInput={showMainInput}
+                    canAddItems={canAddItems}
+                    allowManualEntry={allowManualEntry}
+                  />
+                ))}
             </div>
-          </div>
-        </>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Secciones personalizadas */}
+      {/* Factura Card */}
+      {showInvoice && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <BanknotesIcon className="w-6 h-6 text-yellow-400" />
+              <div>
+                <CardTitle>{invoiceTitle}</CardTitle>
+                <CardDescription>
+                  Resumen financiero del documento
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-12 md:col-span-8">
+                <Table
+                  columns={invoiceColumns}
+                  data={products.filter((p) => p.product)}
+                />
+              </div>
+              <div className="col-span-12 md:col-span-4">
+                <Table
+                  columns={invoiceResumeColumns}
+                  data={invoiceData}
+                  hiddenHeader
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Secciones personalizadas - cada una en su Card */}
       {customSections.map((section, index) => (
-        <div key={index} className="py-4">
-          <h3 className="text-xl pb-2">{section.title}</h3>
-          {section.render({ setProducts, products })}
-        </div>
+        <div key={index}>{section.render({ setProducts, products })}</div>
       ))}
 
-      {/* Comentarios */}
-      <h3 className="text-xl py-4">Comentarios</h3>
-      <div>
-        <Textarea
-          placeholder="Agrega comentarios al documento"
-          setValue={setNotes}
-          value={notes}
-          disabled={isReadOnly}
-        />
-      </div>
+      {/* Comentarios Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <ChatBubbleLeftIcon className="w-6 h-6 text-purple-400" />
+            <div>
+              <CardTitle>Comentarios</CardTitle>
+              <CardDescription>
+                Agrega notas o información adicional sobre este documento
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="Escribe tus comentarios aquí..."
+            setValue={setNotes}
+            value={notes}
+            disabled={isReadOnly}
+          />
+        </CardContent>
+      </Card>
 
       {/* Slot: Antes de acciones */}
       {beforeActions}
 
-      {/* Acciones */}
-      <h3 className="text-xl py-4">Acciones del documento</h3>
-      <div className="flex flex-col w-full md:flex-row md:w-auto gap-4">
-        <Button
-          loading={loading}
-          onClick={() => handleUpdateDocument()}
-          disabled={isReadOnly}
-        >
-          Actualizar
-        </Button>
-
-        <Button
-          variant="red"
-          onClick={handleDeleteDocument}
-          disabled={isReadOnly}
-        >
-          Eliminar
-        </Button>
-
-        {/* Acciones personalizadas */}
-        {actions.map((action, index) => (
+      {/* Acciones Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <BoltIcon className="w-6 h-6 text-orange-400" />
+            <div>
+              <CardTitle>Acciones del documento</CardTitle>
+              <CardDescription>
+                Gestiona y completa las acciones disponibles
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardFooter className="flex flex-col md:flex-row gap-3">
+          {/* Acción principal: Actualizar */}
           <Button
-            key={index}
-            variant={action.variant}
-            loading={action.loading}
-            onClick={action.onClick}
-            disabled={action.disabled || isReadOnly}
+            loading={loading}
+            onClick={() => handleUpdateDocument()}
+            disabled={isReadOnly}
+            className="flex-1 md:flex-initial"
           >
-            {action.label}
+            Actualizar
           </Button>
-        ))}
-      </div>
+
+          {/* Acciones personalizadas */}
+          {actions.map((action, index) => (
+            <Button
+              key={index}
+              variant={action.variant}
+              loading={action.loading}
+              onClick={() =>
+                action.onClick({
+                  products,
+                  setProducts,
+                  handleAddItemRow,
+                  handleDeleteItemRow,
+                  handleDeleteDocument,
+                  handleUpdateDocument,
+                })
+              }
+              disabled={action.disabled || isReadOnly}
+              className="flex-1 md:flex-initial"
+            >
+              {action.label}
+            </Button>
+          ))}
+
+          {/* Acción destructiva: Eliminar (al final) */}
+          <Button
+            variant="red"
+            onClick={handleDeleteDocument}
+            disabled={isReadOnly}
+            className="flex-1 md:flex-initial md:ml-auto"
+          >
+            Eliminar
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

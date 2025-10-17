@@ -24,7 +24,7 @@ export default function Searchbar({
         <input
           type="text"
           id="simple-search"
-          className=" bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-lg  block w-full ps-10 p-2.5 focus:outline-none focus:ring-0 focus:border-transparent"
+          className=" bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-lg  block w-full ps-10 p-2.5 focus:outline-none focus:ring-0 focus:border-transparent"
           placeholder={placeHolder}
           required
           value={search ?? search}

@@ -35,7 +35,7 @@ const Input = memo(function Input({
           type="text"
           id="simple-search"
           className={classNames(
-            "bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm rounded-md block w-full p-2.5 focus:outline-none focus:ring-0 focus:border-transparent",
+            "bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-md block w-full p-2.5 focus:outline-none focus:ring-0 focus:border-transparent",
             {
               "bg-zinc-900 hover:bg-zinc-800 cursor-not-allowed": disabled,
               "animate-pulse": bounce,

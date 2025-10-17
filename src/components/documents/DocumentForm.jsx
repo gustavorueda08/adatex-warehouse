@@ -4,6 +4,25 @@ import Button from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
 import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
+import Badge from "@/components/ui/Bagde";
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/Card";
+import {
+  ShoppingCartIcon,
+  DocumentCheckIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ShoppingBagIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ArrowUturnLeftIcon,
+  ArrowsRightLeftIcon,
+} from "@heroicons/react/24/outline";
 import { useUser } from "@/lib/hooks/useUser";
 import moment from "moment-timezone";
 import { useRouter } from "next/navigation";
@@ -170,78 +189,229 @@ export default function DocumentForm({ config, onFormStateChange }) {
     user,
   ]);
 
-  return (
-    <div>
-      <h1 className="font-bold text-3xl py-4">{config.title}</h1>
+  // Calcular estadísticas de productos
+  const productStats = useMemo(() => {
+    const productsWithProduct = formState.products.filter((p) => p.product);
+    const validProducts = productsWithProduct.filter(
+      (p) => p.quantity && Number(p.quantity) > 0
+    );
 
-      {/* Header Fields */}
-      <div className="space-y-3">
-        {config.headerFields &&
-          config.headerFields.map((fieldGroup, groupIndex) => (
-            <div
-              key={groupIndex}
-              className="w-full md:flex md:flex-row md:gap-3"
-            >
-              {fieldGroup.map((field) => (
+    return {
+      totalProducts: productsWithProduct.length,
+      validProducts: validProducts.length,
+      allValid:
+        productsWithProduct.length > 0 &&
+        productsWithProduct.length === validProducts.length,
+    };
+  }, [formState.products]);
+
+  // Obtener label del tipo de documento
+  const documentTypeLabel = getDocumentTypeLabel(config.type);
+  const documentColor = getDocumentColor(config.type);
+  const DocumentIcon = getDocumentIcon(config.type);
+
+  return (
+    <div className="space-y-6 pb-8">
+      {/* Header Card */}
+      <Card>
+        <CardContent className="pt-6">
+          {/* Título y badge */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">{config.title}</h1>
+              <p className="text-gray-400 text-sm mt-1">
+                Completa los campos para crear el documento
+              </p>
+            </div>
+            <Badge variant={documentColor}>{documentTypeLabel}</Badge>
+          </div>
+
+          {/* Campos del header */}
+          <div className="space-y-4">
+            {config.headerFields &&
+              config.headerFields.map((fieldGroup, groupIndex) => (
                 <div
-                  key={field.key}
-                  className={`flex flex-col gap-1 ${
-                    groupIndex > 0 ? "mt-3 md:mt-0" : ""
-                  } ${field.className || "md:flex-1"}`}
+                  key={groupIndex}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
                 >
-                  <h2 className="font-medium">{field.label}</h2>
-                  {renderField(field, formState, updateField)}
+                  {fieldGroup.map((field) => (
+                    <div key={field.key} className={field.className || ""}>
+                      <h2 className="font-medium mb-2">{field.label}</h2>
+                      {renderField(field, formState, updateField)}
+                    </div>
+                  ))}
                 </div>
               ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Productos Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <DocumentIcon className="w-6 h-6 text-emerald-400" />
+              <div>
+                <CardTitle>Productos</CardTitle>
+                <CardDescription>
+                  Agrega los productos para este documento
+                </CardDescription>
+              </div>
             </div>
-          ))}
-      </div>
 
-      {/* Botón crear (móvil - arriba) */}
-      <div className="block w-full pt-4 md:hidden">
-        <Button
-          className="w-full"
-          variant="emerald"
-          onClick={handleSubmit}
-          disabled={!isFormValid}
-          loading={config.loading}
-        >
-          Crear
-        </Button>
-      </div>
+            {/* Contador de productos válidos */}
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={
+                  productStats.validProducts > 0 ? "emerald" : "zinc"
+                }
+              >
+                {productStats.validProducts}{" "}
+                {productStats.validProducts === 1 ? "producto" : "productos"}
+              </Badge>
+              {productStats.allValid && productStats.validProducts > 0 && (
+                <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
+              )}
+            </div>
+          </div>
+        </CardHeader>
 
-      {/* Tabla de productos */}
-      <div className="py-4">
-        <Table
-          columns={productColumns}
-          data={formState.products}
-          mobileBlock
-          getRowId={(row) => row.id}
-          canDeleteRow={() => true}
-          onRowDelete={(id, index) => handleDeleteProductRow(index)}
-          canSelectRow={() => true}
-          onRowEdit={() => true}
-        />
-      </div>
+        <CardContent>
+          <Table
+            columns={productColumns}
+            data={formState.products}
+            mobileBlock
+            getRowId={(row) => row.id}
+            canDeleteRow={() => true}
+            onRowDelete={(id, index) => handleDeleteProductRow(index)}
+            canSelectRow={() => true}
+            onRowEdit={() => true}
+          />
+
+          {/* Mensaje de ayuda si no hay productos */}
+          {productStats.totalProducts === 0 && (
+            <div className="mt-4 p-4 bg-cyan-900/20 border border-cyan-500/30 rounded-lg">
+              <p className="text-sm text-cyan-300">
+                💡 Selecciona un producto en la tabla para comenzar
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Campos adicionales */}
       {config.additionalFields && (
-        <div className="py-4">
-          {config.additionalFields({ formState, updateField })}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Información adicional</CardTitle>
+            <CardDescription>
+              Completa los campos adicionales si es necesario
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {config.additionalFields({ formState, updateField })}
+          </CardContent>
+        </Card>
       )}
 
-      {/* Botón crear (desktop - abajo) */}
-      <div className="hidden w-full pt-4 md:block">
-        <Button
-          variant="emerald"
-          onClick={handleSubmit}
-          disabled={!isFormValid}
-          loading={config.loading}
-        >
-          Crear
-        </Button>
-      </div>
+      {/* Crear Documento Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <DocumentCheckIcon className="w-6 h-6 text-emerald-400" />
+            <div>
+              <CardTitle>Crear Documento</CardTitle>
+              <CardDescription>
+                Revisa que todo esté correcto antes de crear
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          {/* Lista de validación visual */}
+          <div className="space-y-3 mb-6">
+            <ValidationItem
+              label="Campos requeridos completados"
+              valid={
+                config.headerFields
+                  ? config.headerFields.every((group) =>
+                      group.every((field) => {
+                        if (field.required === false) return true;
+                        return formState[field.key] !== null &&
+                               formState[field.key] !== undefined;
+                      })
+                    )
+                  : true
+              }
+            />
+            <ValidationItem
+              label="Al menos un producto agregado"
+              valid={productStats.totalProducts > 0}
+            />
+            <ValidationItem
+              label="Todos los productos son válidos"
+              valid={productStats.allValid}
+            />
+          </div>
+
+          {/* Resumen si es válido */}
+          {isFormValid && (
+            <div className="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs text-gray-400">Productos</p>
+                  <p className="text-lg font-semibold text-white">
+                    {productStats.validProducts}
+                  </p>
+                </div>
+                {config.type === "sale" || config.type === "purchase" ? (
+                  <div>
+                    <p className="text-xs text-gray-400">Total estimado</p>
+                    <p className="text-lg font-semibold text-emerald-400">
+                      $
+                      {formState.products
+                        .filter((p) => p.product && p.quantity)
+                        .reduce((acc, p) => acc + (p.total || 0), 0)
+                        .toLocaleString()}
+                    </p>
+                  </div>
+                ) : null}
+                <div>
+                  <p className="text-xs text-gray-400">Cantidad total</p>
+                  <p className="text-lg font-semibold text-white">
+                    {formState.products
+                      .filter((p) => p.product)
+                      .reduce((acc, p) => acc + Number(p.quantity || 0), 0)
+                      .toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex flex-col md:flex-row gap-3">
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="flex-1 md:flex-initial"
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            variant="emerald"
+            onClick={handleSubmit}
+            disabled={!isFormValid}
+            loading={config.loading}
+            className="flex-1 md:flex-grow"
+          >
+            {config.loading ? "Creando..." : "Crear Documento"}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
@@ -310,4 +480,59 @@ function createEmptyProduct() {
     key: v4(),
     total: "",
   };
+}
+
+// Helper para obtener label del tipo de documento
+function getDocumentTypeLabel(type) {
+  const labels = {
+    sale: "Venta",
+    purchase: "Compra",
+    in: "Entrada",
+    out: "Salida",
+    return: "Devolución",
+    transform: "Transformación",
+  };
+  return labels[type] || type;
+}
+
+// Helper para obtener color del tipo de documento
+function getDocumentColor(type) {
+  const colors = {
+    sale: "cyan",
+    purchase: "purple",
+    in: "emerald",
+    out: "orange",
+    return: "yellow",
+    transform: "blue",
+  };
+  return colors[type] || "zinc";
+}
+
+// Helper para obtener icono del tipo de documento
+function getDocumentIcon(type) {
+  const icons = {
+    sale: ShoppingCartIcon,
+    purchase: ShoppingBagIcon,
+    in: ArrowDownTrayIcon,
+    out: ArrowUpTrayIcon,
+    return: ArrowUturnLeftIcon,
+    transform: ArrowsRightLeftIcon,
+  };
+  return icons[type] || DocumentCheckIcon;
+}
+
+// Componente para item de validación
+function ValidationItem({ label, valid }) {
+  return (
+    <div className="flex items-center gap-3">
+      {valid ? (
+        <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+      ) : (
+        <XCircleIcon className="w-5 h-5 text-gray-600 flex-shrink-0" />
+      )}
+      <span className={`text-sm ${valid ? "text-white" : "text-gray-500"}`}>
+        {label}
+      </span>
+    </div>
+  );
 }

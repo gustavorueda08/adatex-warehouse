@@ -266,7 +266,7 @@ export default function Select({
         onClick={toggleDropdown}
         disabled={disabled}
         className={classNames(
-          "w-full flex items-center justify-between rounded-md bg-zinc-800 text-white",
+          "w-full flex items-center justify-between rounded-md bg-zinc-900 text-white",
           sizeStyles[size],
           { "bg-zinc-900 cursor-not-allowed": disabled }
         )}

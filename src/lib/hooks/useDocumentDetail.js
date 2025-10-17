@@ -212,12 +212,12 @@ export function useDocumentDetail(config) {
 
   // Actualizar documento
   const handleUpdateDocument = useCallback(
-    async (additionalData = {}) => {
+    async (additionalData = {}, loading = true) => {
       const loadingToast = toast.loading("Actualizando documento...");
-      setLoading(true);
+      setLoading(loading);
       try {
         // Obtener datos adicionales del callback si existe
-        const extraData = prepareUpdateData?.() || {};
+        const extraData = prepareUpdateData?.(document, products) || {};
 
         const { destinationWarehouse } = extraData;
 
