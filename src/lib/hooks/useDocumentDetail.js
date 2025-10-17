@@ -220,6 +220,7 @@ export function useDocumentDetail(config) {
       try {
         // Obtener datos adicionales del callback si existe
         const extraData = prepareUpdateData?.() || {};
+        console.log("PRODUCTOs", products);
 
         const result = await updateDocument(document.id, {
           products: products
@@ -231,17 +232,15 @@ export function useDocumentDetail(config) {
               ivaIncluded: p.ivaIncluded,
               invoicePercentage: p.invoicePercentage,
               items: p.items
-                .filter(
-                  (i) => typeof i.quantity === "number" && i.quantity !== 0
-                )
-                .map(({ productId, id, key, name, warehouse, ...item }) => ({
-                  ...item,
-                  id,
+                .filter((i) => i.quantity !== 0 && i.quantity !== "")
+                .map((item) => ({
+                  id: item?.documentId ? item.id : null,
                   lot: item.lotNumber,
-                  warehouse: warehouse?.id,
+                  itemNumber: item.itemNumber,
+                  warehouse: item?.warehouse?.id,
+                  quantity: Number(item.quantity),
                 })),
             })),
-          notes,
           ...extraData,
           ...additionalData,
         });
