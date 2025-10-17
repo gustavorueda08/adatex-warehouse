@@ -405,6 +405,7 @@ export const purchaseDocumentConfig = {
       },
     },
     {
+      key: "total",
       label: "Total",
       render: (_, row) =>
         format(
@@ -435,6 +436,27 @@ export const purchaseDocumentConfig = {
       onClick: () => console.log("Descargar orden"),
     },
   ],
+
+  getCustomSections: ({ handleSetProductItemsFromFile, document }) => {
+    // Solo mostrar la sección de carga masiva si el documento está en draft o confirmed
+    if (document?.state !== "draft" && document?.state !== "confirmed") {
+      return [];
+    }
+
+    return [
+      {
+        title: "Carga de lista de empaque masiva",
+        render: ({ setProducts, products }) => {
+          const FileInput = require("@/components/ui/FileInput").default;
+          return (
+            <div className="flex flex-col gap-3">
+              <FileInput onFileLoaded={(data, remove) => handleSetProductItemsFromFile(data, remove, setProducts)} />
+            </div>
+          );
+        },
+      },
+    ];
+  },
 };
 
 /**

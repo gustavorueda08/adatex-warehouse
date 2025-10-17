@@ -37,6 +37,7 @@ export default function DocumentDetailBase({
   customSections = [],
   // Callbacks
   onUpdate,
+  prepareUpdateData, // Función opcional que retorna datos adicionales para la actualización
   // Estado
   isReadOnly = false,
   allowManualEntry = true,
@@ -48,6 +49,7 @@ export default function DocumentDetailBase({
 }) {
   const {
     products,
+    setProducts,
     expandedRows,
     loading,
     notes,
@@ -72,6 +74,7 @@ export default function DocumentDetailBase({
     documentType,
     onSuccess: onUpdate,
     redirectPath,
+    prepareUpdateData,
   });
 
   // Renderizar campos del header dinámicamente
@@ -391,7 +394,7 @@ export default function DocumentDetailBase({
       {customSections.map((section, index) => (
         <div key={index} className="py-4">
           <h3 className="text-xl pb-2">{section.title}</h3>
-          {section.render()}
+          {section.render({ setProducts, products })}
         </div>
       ))}
 

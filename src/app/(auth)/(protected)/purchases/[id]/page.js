@@ -350,8 +350,7 @@ const calculateRowTotal = (items, price) => {
 
 export default function PurchaseDetailPage({ params }) {
   const { id } = use(params);
-  const router = useRouter();
-  const { orders, updateOrder, deleteOrder, addItem, removeItem } = useOrders({
+  const { orders, updateOrder, deleteOrder, removeItem } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
@@ -391,6 +390,61 @@ export default function PurchaseDetailPage({ params }) {
   const handleComplete = useCallback(async () => {}, []);
 
   const handleUpdateSuccess = useCallback(async () => {}, []);
+
+  // Función que prepara los datos adicionales del header para la actualización
+  const prepareUpdateData = useCallback(() => {
+    return {
+      supplier: selectedSupplier?.id,
+      destinationWarehouse: selectedWarehouse?.id,
+      createdDate,
+      actualDispatchDate,
+    };
+  }, [selectedSupplier, selectedWarehouse, createdDate, actualDispatchDate]);
+
+  // Función para cargar items desde archivo
+  const handleSetProductItemsFromFile = useCallback(
+    (data, remove, setProducts) => {
+      if (!Array.isArray(data)) return;
+      console.log("datos masivos", data);
+
+      const items = data.map((item) => ({
+        productId: item["id"] || item["ID"] || null,
+        name: item["NOMBRE"] || null,
+        quantity: Number(item["CANTIDAD"]) || null,
+        lotNumber: item["LOTE"] || "",
+        itemNumber: item["NUMERO"] || "",
+      }));
+
+      console.log(items);
+
+      if (items.some((item) => !item.quantity)) {
+        toast.error("El formato del archivo no es válido");
+        remove();
+        return;
+      }
+
+      // Actualizar productos localmente (sin enviar al servidor)
+      setProducts((currentProducts) => {
+        return currentProducts.map((product) => {
+          const productItems = items
+            .filter(
+              (item) =>
+                item?.productId == product.product?.id ||
+                item.name == product.product?.name
+            )
+            .map((item) => ({ ...item, id: v4(), key: v4() }));
+
+          return productItems.length > 0
+            ? { ...product, items: productItems }
+            : product;
+        });
+      });
+
+      toast.success(`Se han añadido ${items.length} items a la orden`);
+    },
+    []
+  );
+
   const config = purchaseDocumentConfig;
   const isReadOnly =
     order?.state === "completed" || order?.state === "canceled";
@@ -407,6 +461,7 @@ export default function PurchaseDetailPage({ params }) {
       user={user}
       updateDocument={updateOrder}
       deleteDocument={deleteOrder}
+      removeItem={removeItem}
       allowManualEntry={true}
       availableProducts={productsData}
       documentType={config.documentType}
@@ -427,7 +482,12 @@ export default function PurchaseDetailPage({ params }) {
         dateArrived,
       })}
       productColumns={config.getProductColumns}
+      customSections={config.getCustomSections({
+        handleSetProductItemsFromFile,
+        document: order,
+      })}
       onUpdate={handleUpdateSuccess}
+      prepareUpdateData={prepareUpdateData}
       isReadOnly={isReadOnly}
     />
   );

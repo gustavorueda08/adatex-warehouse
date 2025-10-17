@@ -15,6 +15,7 @@ import Swal from "sweetalert2";
  * @param {Function} config.removeItem - Función para remover items
  * @param {Array} config.availableProducts - Productos disponibles
  * @param {string} config.documentType - Tipo de documento (sale, purchase, return, in, out)
+ * @param {Function} config.prepareUpdateData - Función opcional que retorna datos adicionales para la actualización
  */
 export function useDocumentDetail(config) {
   const {
@@ -27,6 +28,7 @@ export function useDocumentDetail(config) {
     documentType = "generic",
     onSuccess,
     redirectPath,
+    prepareUpdateData,
   } = config;
 
   const router = useRouter();
@@ -216,6 +218,9 @@ export function useDocumentDetail(config) {
       const loadingToast = toast.loading("Actualizando documento...");
       setLoading(true);
       try {
+        // Obtener datos adicionales del callback si existe
+        const extraData = prepareUpdateData?.() || {};
+
         const result = await updateDocument(document.id, {
           products: products
             .filter((p) => p.product)
@@ -237,6 +242,7 @@ export function useDocumentDetail(config) {
                 })),
             })),
           notes,
+          ...extraData,
           ...additionalData,
         });
         toast.dismiss(loadingToast);
@@ -254,7 +260,7 @@ export function useDocumentDetail(config) {
         setLoading(false);
       }
     },
-    [document, products, notes, updateDocument, onSuccess]
+    [document, products, notes, updateDocument, onSuccess, prepareUpdateData]
   );
 
   // Eliminar documento
