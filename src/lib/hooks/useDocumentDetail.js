@@ -140,8 +140,6 @@ export function useDocumentDetail(config) {
           toast.error("No se pudo eliminar el item");
           return;
         }
-        console.log(productId, itemId);
-
         setProducts((current) =>
           current.map((product) => {
             if (product?.id === productId) {
@@ -220,7 +218,8 @@ export function useDocumentDetail(config) {
       try {
         // Obtener datos adicionales del callback si existe
         const extraData = prepareUpdateData?.() || {};
-        console.log("PRODUCTOs", products);
+
+        const { destinationWarehouse } = extraData;
 
         const result = await updateDocument(document.id, {
           products: products
@@ -237,7 +236,7 @@ export function useDocumentDetail(config) {
                   id: item?.documentId ? item.id : null,
                   lot: item.lotNumber,
                   itemNumber: item.itemNumber,
-                  warehouse: item?.warehouse?.id,
+                  warehouse: destinationWarehouse || item?.warehouse?.id,
                   quantity: Number(item.quantity),
                 })),
             })),

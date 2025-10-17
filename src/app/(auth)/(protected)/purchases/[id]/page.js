@@ -148,8 +148,10 @@ export default function PurchaseDetailPage({ params }) {
   }
   return (
     <DocumentDetailBase
+      showMainInput={false}
       document={order}
       user={user}
+      removeItem={removeItem}
       updateDocument={updateOrder}
       deleteDocument={deleteOrder}
       allowManualEntry={true}

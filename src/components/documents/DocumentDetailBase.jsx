@@ -41,6 +41,7 @@ export default function DocumentDetailBase({
   // Estado
   isReadOnly = false,
   allowManualEntry = true,
+  showMainInput = true,
   user = null,
   // Factura
   showInvoice = false,
@@ -362,6 +363,7 @@ export default function DocumentDetailBase({
               onEnter={(input, setInput) =>
                 handleAddItemRow(product.product.id, input, setInput)
               }
+              showMainInput={showMainInput}
               canAddItems={canAddItems}
               allowManualEntry={allowManualEntry}
             />

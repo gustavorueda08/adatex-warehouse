@@ -22,6 +22,7 @@ export const PackingListProduct = memo(
     loading = false,
     canScanItems = true,
     allowManualEntry = true,
+    showMainInput = true,
   }) => {
     const [input, setInput] = useState("");
 
@@ -55,16 +56,18 @@ export const PackingListProduct = memo(
           </div>
 
           {/* Input de escaneo */}
-          <div onClick={(e) => e.stopPropagation()} className="w-3/5 px-3">
-            <Input
-              input={input}
-              setInput={setInput}
-              placeholder="Escanea o introduce un código o cantidad"
-              onEnter={(data) => onEnter(data, setInput)}
-              loading={loading}
-              disabled={disabled ? disabled : !canScanItems}
-            />
-          </div>
+          {showMainInput && (
+            <div onClick={(e) => e.stopPropagation()} className="w-3/5 px-3">
+              <Input
+                input={input}
+                setInput={setInput}
+                placeholder="Escanea o introduce un código o cantidad"
+                onEnter={(data) => onEnter(data, setInput)}
+                loading={loading}
+                disabled={disabled ? disabled : !canScanItems}
+              />
+            </div>
+          )}
 
           {/* Botón de expandir/contraer */}
           <IconButton onClick={onToggle}>
