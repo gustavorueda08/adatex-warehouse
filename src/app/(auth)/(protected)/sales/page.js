@@ -11,7 +11,7 @@ export default function SalesPage() {
       relationLabel="Cliente"
       getDetailPath={(order) => `/sales/${order.id}`}
       showPricing={false}
-      bulkActions={[]}
+      bulkActions={["confirm", "complete", "delete"]}
       createPath="/new-sale"
       customColumns={[
         {

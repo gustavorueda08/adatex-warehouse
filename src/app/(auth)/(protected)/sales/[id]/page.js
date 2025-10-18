@@ -46,23 +46,13 @@ export default function SaleDetailPage({ params }) {
     useState(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [parties, setParties] = useState([]);
-  // Fechas
-  const [dateCreated, setDateCreated] = useState(
-    moment().tz("America/Bogota").toDate()
-  );
-  const [dateTransit, setDateTransit] = useState(null);
-  const [dateArrived, setDateArrived] = useState(null);
-  const [dateCompleted, setDateCompleted] = useState(null);
+  const [loadingConfirm, setLoadingConfirm] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
   useEffect(() => {
     if (order) {
       setSelectedCustomer(order.customer);
       setSelectedCustomerForInvoice(order.customerForInvoice);
       setSelectedWarehouse(order.sourceWarehouse);
-      setDateCreated(order.createdDate || null);
-      setDateTransit(order.actualDispatchDate || null);
-      setDateArrived(order.actualWarehouseDate || null);
-      setDateCompleted(order.completedDate || null);
       // Configurar parties
       if (Array.isArray(order.customer?.parties)) {
         setParties([...order.customer.parties, order.customer]);
@@ -153,7 +143,6 @@ export default function SaleDetailPage({ params }) {
       });
       if (result.success) {
         toast.success("Orden despachada exitosamente");
-        setDateCompleted(new Date());
       } else {
         toast.error("Error al despachar la orden");
       }
@@ -195,7 +184,10 @@ export default function SaleDetailPage({ params }) {
   const enhancedActions = [
     ...config.getActions({
       handleComplete,
+      loadingConfirm,
       loadingComplete,
+      setLoadingConfirm,
+      setLoadingComplete,
       document: order,
     }),
     ...(isConsignment
@@ -242,9 +234,9 @@ export default function SaleDetailPage({ params }) {
         setSelectedCustomerForInvoice,
         selectedWarehouse,
         setSelectedWarehouse,
-        dateCreated,
-        dateTransit,
-        dateArrived,
+        createdDate: order.createdDate,
+        confirmedDate: order.confirmedDate,
+        actualDispatchDate: order.actualDispatchDate,
       })}
       productColumns={config.getProductColumns}
       actions={enhancedActions}
@@ -262,11 +254,14 @@ export default function SaleDetailPage({ params }) {
                       </h4>
                     </div>
                     <p className="text-sm text-yellow-300 mb-3">
-                      Los productos han sido despachados pero aún no se han facturado. Puedes crear
-                      facturas parciales según el cliente te reporte las ventas.
+                      Los productos han sido despachados pero aún no se han
+                      facturado. Puedes crear facturas parciales según el
+                      cliente te reporte las ventas.
                     </p>
                     <button
-                      onClick={() => router.push(`/sales/${order.id}/partial-invoice`)}
+                      onClick={() =>
+                        router.push(`/sales/${order.id}/partial-invoice`)
+                      }
                       className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-md transition-colors"
                     >
                       Crear Factura Parcial

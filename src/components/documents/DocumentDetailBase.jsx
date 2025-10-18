@@ -621,7 +621,7 @@ export default function DocumentDetailBase({
                   handleUpdateDocument,
                 })
               }
-              disabled={action.disabled || isReadOnly}
+              disabled={action?.disabled || false}
               className="flex-1 md:flex-initial"
             >
               {action.label}

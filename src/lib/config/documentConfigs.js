@@ -83,9 +83,9 @@ export const saleDocumentConfig = {
     setSelectedCustomerForInvoice,
     selectedWarehouse,
     setSelectedWarehouse,
-    dateCreated,
-    dateTransit,
-    dateArrived,
+    createdDate,
+    confirmedDate,
+    actualDispatchDate,
   }) => [
     {
       label: "Cliente",
@@ -107,7 +107,8 @@ export const saleDocumentConfig = {
     {
       label: "Fecha de Creación",
       type: "date",
-      value: dateCreated,
+      value: createdDate,
+      onChange: () => {},
       disabled: true,
     },
     {
@@ -122,13 +123,15 @@ export const saleDocumentConfig = {
     {
       label: "Fecha de confirmación",
       type: "date",
-      value: dateTransit,
+      value: confirmedDate,
+      onChange: () => {},
       disabled: true,
     },
     {
       label: "Fecha de despacho",
       type: "date",
-      value: dateArrived,
+      value: actualDispatchDate,
+      onChange: () => {},
       disabled: true,
     },
   ],
@@ -305,22 +308,58 @@ export const saleDocumentConfig = {
   ],
 
   // Acciones que se pueden realizar
-  getActions: ({ handleComplete, loadingComplete, document }) => [
+  getActions: ({
+    loadingConfirm,
+    loadingComplete,
+    setLoadingConfirm,
+    setLoadingComplete,
+    document,
+  }) => [
+    {
+      label: "Confirmar Orden",
+      variant: "cyan",
+      loading: loadingConfirm,
+      onClick: async ({ handleUpdateDocument }) => {
+        try {
+          setLoadingConfirm(true);
+          await handleUpdateDocument({ state: "confirmed" }, false);
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setLoadingConfirm(false);
+        }
+      },
+      disabled: document?.state !== "draft",
+    },
+
     {
       label: "Despachar orden",
       variant: "emerald",
       loading: loadingComplete,
-      onClick: handleComplete,
+      onClick: async ({ handleUpdateDocument }) => {
+        try {
+          setLoadingComplete(true);
+          await handleUpdateDocument({ state: "completed" }, false);
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setLoadingComplete(false);
+        }
+      },
       disabled: document?.state === "completed",
     },
     {
       label: "Descargar lista de empaque",
-      variant: "cyan",
+      variant: "zinc",
       onClick: () => handleDocumentExport(document, { includeLot: false }),
+      disabled: false,
     },
     {
-      label: "Descargar factura",
-      variant: "yellow",
+      label:
+        document.siigoId || document.invoiceNumber
+          ? "Descargar factura"
+          : "Facturar Orden",
+      variant: "emerald",
       onClick: () => console.log("Descargar factura"),
     },
   ],

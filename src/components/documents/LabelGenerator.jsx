@@ -102,6 +102,7 @@ export default function LabelGenerator({ products }) {
             id: item.id,
             barcode: item.barcode,
             quantity: item.quantity || 0,
+            currentQuantity: item.currentQuantity || item.quantity || 0,
             lotNumber: item.lotNumber || item.lot,
           })),
         }));

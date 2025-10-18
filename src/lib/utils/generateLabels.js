@@ -96,7 +96,7 @@ async function generateProductPDF(product, widthPt, heightPt) {
 }
 
 /**
- * Dibuja una etiqueta individual en el PDF
+ * Dibuja una etiqueta individual en el PDF con diseño moderno y limpio
  */
 async function drawLabel(
   pdf,
@@ -107,28 +107,31 @@ async function drawLabel(
   width,
   height
 ) {
-  const margin = 20;
+  const margin = 15;
   const contentWidth = width - margin * 2;
 
-  // Fondo blanco
+  // Fondo blanco general
   pdf.setFillColor(255, 255, 255);
   pdf.rect(0, 0, width, height, "F");
 
-  // Borde
-  pdf.setDrawColor(200, 200, 200);
-  pdf.setLineWidth(1);
-  pdf.rect(margin / 2, margin / 2, width - margin, height - margin);
+  // === HEADER LIMPIO ===
+  const headerHeight = 35;
+
+  // Línea separadora superior
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(2);
+  pdf.line(margin, margin, width - margin, margin);
 
   // Título del producto
-  pdf.setFontSize(12);
+  pdf.setFontSize(14);
   pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(51, 51, 51);
+  pdf.setTextColor(0, 0, 0);
 
-  const productName = truncateText(product.name, 40);
-  const titleY = margin + 10;
+  const productName = truncateText(product.name, 45);
+  const titleY = margin + 20;
   pdf.text(productName, width / 2, titleY, { align: "center" });
 
-  // Generar código de barras
+  // === SECCIÓN CÓDIGO DE BARRAS ===
   const barcodeCanvas = document.createElement("canvas");
   try {
     JsBarcode(barcodeCanvas, item.barcode, {
@@ -136,18 +139,19 @@ async function drawLabel(
       width: 2,
       height: 60,
       displayValue: true,
-      fontSize: 12,
+      fontSize: 14,
       margin: 0,
       background: "#ffffff",
       lineColor: "#000000",
     });
 
     // Agregar código de barras al PDF
+    const barcodeSectionY = margin + headerHeight + 8;
     const barcodeImg = barcodeCanvas.toDataURL("image/png");
-    const barcodeWidth = contentWidth * 0.8;
-    const barcodeHeight = 60;
+    const barcodeWidth = contentWidth * 0.85;
+    const barcodeHeight = 65;
     const barcodeX = (width - barcodeWidth) / 2;
-    const barcodeY = titleY + 20;
+    const barcodeY = barcodeSectionY;
 
     pdf.addImage(
       barcodeImg,
@@ -158,36 +162,66 @@ async function drawLabel(
       barcodeHeight
     );
 
-    // Información del item
-    const infoY = barcodeY + barcodeHeight + 15;
+    // === LÍNEA SEPARADORA ===
+    const dividerY = barcodeY + barcodeHeight + 12;
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(1);
+    pdf.line(margin + 10, dividerY, width - margin - 10, dividerY);
 
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica", "normal");
+    // === INFORMACIÓN DEL ITEM ===
+    const infoStartY = dividerY + 16;
 
-    // Cantidad
-    const quantityText = `Cantidad: ${format(item.quantity)} ${product.unit}`;
-    pdf.text(quantityText, width / 2, infoY, { align: "center" });
+    // Nombre del item (si existe y es diferente del producto)
+    let currentY = infoStartY;
+    if (item.name && item.name !== product.name) {
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(0, 0, 0);
+      const itemName = truncateText(item.name, 50);
+      pdf.text(itemName, width / 2, currentY, { align: "center" });
+      currentY += 15;
+    }
+
+    // Cantidad del item usando currentQuantity
+    pdf.setFontSize(13);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(0, 0, 0);
+
+    const quantity = item.currentQuantity || item.quantity || 0;
+    const quantityText = `Cantidad: ${format(quantity)} ${product.unit || ''}`;
+    pdf.text(quantityText, width / 2, currentY, { align: "center" });
 
     // ID del item (si existe)
     if (item.id) {
-      pdf.setFontSize(8);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`ID: ${item.id}`, width / 2, infoY + 15, { align: "center" });
+      const idY = currentY + 15;
+
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`ID: ${item.id}`, width / 2, idY, { align: "center" });
     }
 
-    // Contador de página
+    // === CONTADOR DE PÁGINA ===
     pdf.setFontSize(8);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(51, 51, 51);
-    const pageText = `Página ${pageNum} de ${totalPages}`;
-    pdf.text(pageText, width - margin, height - margin + 5, { align: "right" });
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(0, 0, 0);
+    const pageText = `${pageNum}/${totalPages}`;
+    pdf.text(pageText, width - margin, height - margin + 3, { align: "right" });
+
   } catch (error) {
     console.error("Error generando código de barras:", error);
 
     // Fallback: mostrar el código como texto
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(0, 0, 0);
+    pdf.text("ERROR AL GENERAR CÓDIGO", width / 2, height / 2 - 10, {
+      align: "center",
+    });
+
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "normal");
-    pdf.text(`Código: ${item.barcode}`, width / 2, height / 2, {
+    pdf.text(`Código: ${item.barcode}`, width / 2, height / 2 + 5, {
       align: "center",
     });
   }

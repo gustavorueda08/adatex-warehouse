@@ -53,6 +53,7 @@ export function useDocumentDetail(config) {
                   ...item,
                   key: v4(),
                   quantity: item.currentQuantity,
+                  currentQuantity: item.currentQuantity,
                 }))
               : [createEmptyItem()],
         })),
@@ -177,11 +178,11 @@ export function useDocumentDetail(config) {
             warehouse: document.sourceWarehouse?.id,
           },
         });
-        console.log(response);
-
         toast.dismiss(loadingToast);
         if (!response.success) {
-          toast.error("No se pudo agregar el item");
+          toast.error(
+            "No se pudo agregar el item, el item no existe o ya fue vendido"
+          );
           return;
         }
         const { currentQuantity, ...item } = response.data;
