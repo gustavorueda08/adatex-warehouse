@@ -31,7 +31,9 @@ export default function LabelGenerator({ products }) {
         productId: p.product?.id,
         productName: p.product?.name || "Sin nombre",
         unit: p.product?.unit || "und",
-        items: (p.items || []).filter((item) => item.itemNumber || item.barcode),
+        items: (p.items || []).filter(
+          (item) => item.itemNumber || item.barcode
+        ),
         totalQuantity: (p.items || []).reduce(
           (acc, item) => acc + (item.quantity || 0),
           0
@@ -98,7 +100,7 @@ export default function LabelGenerator({ products }) {
           unit: p.unit,
           items: p.items.map((item) => ({
             id: item.id,
-            barcode: item.itemNumber || item.barcode,
+            barcode: item.barcode,
             quantity: item.quantity || 0,
             lotNumber: item.lotNumber || item.lot,
           })),

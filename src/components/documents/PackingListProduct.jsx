@@ -25,6 +25,7 @@ export const PackingListProduct = memo(
     canScanItems = true,
     allowManualEntry = true,
     showMainInput = true,
+    state,
   }) => {
     const [input, setInput] = useState("");
 
@@ -49,47 +50,65 @@ export const PackingListProduct = memo(
     // Determinar estado y estilo del producto
     const productStatus = useMemo(() => {
       const { totalQuantity, requestedQuantity } = stats;
-
-      if (totalQuantity === 0) {
+      if (state === "draft") {
+        if (totalQuantity === 0) {
+          return {
+            label: "Sin items",
+            variant: "zinc",
+            icon: null,
+            percent: 0,
+            borderColor: "border-neutral-700",
+            bgColor: "bg-neutral-800",
+          };
+        }
+        if (requestedQuantity > 0 && totalQuantity >= requestedQuantity) {
+          return {
+            label: "Completo",
+            variant: "emerald",
+            icon: CheckCircleIcon,
+            percent: 100,
+            borderColor: "border-emerald-500/50",
+            bgColor: "bg-emerald-900/10",
+          };
+        }
+        if (requestedQuantity > 0) {
+          return {
+            label: "En progreso",
+            variant: "yellow",
+            icon: ClockIcon,
+            percent: Math.round((totalQuantity / requestedQuantity) * 100),
+            borderColor: "border-yellow-500/50",
+            bgColor: "bg-yellow-900/10",
+          };
+        }
+      }
+      if (state === "confirmed" && requestedQuantity > 0) {
         return {
-          label: "Sin items",
-          variant: "zinc",
-          icon: null,
-          percent: 0,
-          borderColor: "border-neutral-700",
-          bgColor: "bg-neutral-800",
+          label: "Procesando",
+          variant: "cyan",
+          icon: ClockIcon,
+          percent: Math.round((totalQuantity / requestedQuantity) * 100),
+          borderColor: "border-cyan-500/50",
+          bgColor: "bg-cyan-900/10",
         };
       }
-
-      if (requestedQuantity > 0 && totalQuantity >= requestedQuantity) {
+      if (state === "completed" && requestedQuantity > 0) {
         return {
           label: "Completo",
           variant: "emerald",
           icon: CheckCircleIcon,
-          percent: 100,
+          percent: Math.round((totalQuantity / requestedQuantity) * 100),
           borderColor: "border-emerald-500/50",
           bgColor: "bg-emerald-900/10",
         };
       }
-
-      if (requestedQuantity > 0) {
-        return {
-          label: "En progreso",
-          variant: "yellow",
-          icon: ClockIcon,
-          percent: Math.round((totalQuantity / requestedQuantity) * 100),
-          borderColor: "border-yellow-500/50",
-          bgColor: "bg-yellow-900/10",
-        };
-      }
-
       return {
-        label: "Procesando",
-        variant: "cyan",
-        icon: ClockIcon,
+        label: "Sin items",
+        variant: "zinc",
+        icon: null,
         percent: 0,
-        borderColor: "border-cyan-500/50",
-        bgColor: "bg-cyan-900/10",
+        borderColor: "border-neutral-700",
+        bgColor: "bg-neutral-800",
       };
     }, [stats]);
 
@@ -122,7 +141,8 @@ export const PackingListProduct = memo(
                 <span>{stats.itemsWithQuantity} items</span>
                 <span>•</span>
                 <span>
-                  Total: {format(stats.totalQuantity)} {product?.product?.unit || ""}
+                  Total: {format(stats.totalQuantity)}{" "}
+                  {product?.product?.unit || ""}
                 </span>
                 {stats.requestedQuantity > 0 && (
                   <>
@@ -159,7 +179,10 @@ export const PackingListProduct = memo(
 
           {/* Input de escaneo */}
           {showMainInput && (
-            <div onClick={(e) => e.stopPropagation()} className="w-full md:w-2/5">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full md:w-2/5"
+            >
               <Input
                 input={input}
                 setInput={setInput}

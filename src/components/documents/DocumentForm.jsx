@@ -263,9 +263,7 @@ export default function DocumentForm({ config, onFormStateChange }) {
             {/* Contador de productos válidos */}
             <div className="flex items-center gap-2">
               <Badge
-                variant={
-                  productStats.validProducts > 0 ? "emerald" : "zinc"
-                }
+                variant={productStats.validProducts > 0 ? "emerald" : "zinc"}
               >
                 {productStats.validProducts}{" "}
                 {productStats.validProducts === 1 ? "producto" : "productos"}
@@ -339,8 +337,10 @@ export default function DocumentForm({ config, onFormStateChange }) {
                   ? config.headerFields.every((group) =>
                       group.every((field) => {
                         if (field.required === false) return true;
-                        return formState[field.key] !== null &&
-                               formState[field.key] !== undefined;
+                        return (
+                          formState[field.key] !== null &&
+                          formState[field.key] !== undefined
+                        );
                       })
                     )
                   : true
@@ -392,7 +392,7 @@ export default function DocumentForm({ config, onFormStateChange }) {
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-col md:flex-row gap-3">
+        <CardFooter className="flex flex-col md:flex-row  gap-3">
           <Button
             variant="outline"
             onClick={() => router.back()}
@@ -406,7 +406,6 @@ export default function DocumentForm({ config, onFormStateChange }) {
             onClick={handleSubmit}
             disabled={!isFormValid}
             loading={config.loading}
-            className="flex-1 md:flex-grow"
           >
             {config.loading ? "Creando..." : "Crear Documento"}
           </Button>

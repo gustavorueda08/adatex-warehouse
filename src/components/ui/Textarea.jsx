@@ -9,6 +9,7 @@ export default function Textarea({
 }) {
   return (
     <textarea
+      value={value}
       onChange={(e) => setValue(e.target.value)}
       placeholder={placeholder}
       className={classNames(

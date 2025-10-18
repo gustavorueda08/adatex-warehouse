@@ -508,6 +508,7 @@ export default function DocumentDetailBase({
                     showMainInput={showMainInput}
                     canAddItems={canAddItems}
                     allowManualEntry={allowManualEntry}
+                    state={document.state}
                   />
                 ))}
             </div>

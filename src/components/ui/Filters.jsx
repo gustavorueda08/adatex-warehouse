@@ -6,6 +6,7 @@ import DropdownSelector from "./DropdownSelector";
 import { orderStatesArray } from "@/lib/utils/orderStates";
 import { useState, memo } from "react";
 import Link from "next/link";
+import Button from "./Button";
 
 function Filters(props) {
   const {
@@ -18,6 +19,8 @@ function Filters(props) {
     setSelectedOptions = null,
     linkPath = "/new-purchase",
   } = props;
+
+  const [loading, setLoading] = useState(false);
 
   return (
     <div className="py-4 flex flex-col md:flex-row justify-between align-middle min-h-[76px]">
@@ -44,12 +47,14 @@ function Filters(props) {
           className="w-full md:min-w-[180px]"
         />
         <Link href={linkPath}>
-          <button
-            type="button"
-            className="text-sm px-5 py-2.5 min-w-30 rounded bg-emerald-700 text-white hover:bg-emerald-800 transition-colors w-full md:w-auto"
+          <Button
+            variant="emerald"
+            className="min-w-[100px]"
+            loading={loading}
+            onClick={() => setLoading(true)}
           >
             Crear
-          </button>
+          </Button>
         </Link>
       </div>
     </div>

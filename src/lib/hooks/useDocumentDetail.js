@@ -44,8 +44,6 @@ export function useDocumentDetail(config) {
     if (document) {
       const productsKey = getProductsKey(documentType);
       const documentProducts = document[productsKey] || [];
-      console.log(documentProducts);
-
       setProducts([
         ...documentProducts.map((op) => ({
           ...op,
@@ -240,6 +238,7 @@ export function useDocumentDetail(config) {
                   quantity: Number(item.quantity),
                 })),
             })),
+          notes,
           ...extraData,
           ...additionalData,
         });

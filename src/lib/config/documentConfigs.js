@@ -8,6 +8,60 @@ import unitsAreConsistent from "@/lib/utils/unitsConsistency";
 import moment from "moment-timezone";
 import LabelGenerator from "@/components/documents/LabelGenerator";
 import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
+import { exportDocumentToExcel } from "@/lib/utils/exportToExcel";
+import { exportDocumentToPDF } from "@/lib/utils/exportToPDF";
+import Swal from "sweetalert2";
+import toast from "react-hot-toast";
+
+/**
+ * ============================================================================
+ * FUNCIÓN AUXILIAR PARA EXPORTACIÓN
+ * ============================================================================
+ */
+
+/**
+ * Pregunta al usuario en qué formato desea exportar el documento
+ * @param {Object} document - Documento a exportar
+ * @param {Object} options - Opciones adicionales de exportación
+ */
+async function handleDocumentExport(document, options = {}) {
+  const result = await Swal.fire({
+    title: "Descargar Documento",
+    text: "¿En qué formato deseas descargar?",
+    icon: "question",
+    showCancelButton: true,
+    showDenyButton: true,
+    confirmButtonText: "Excel",
+    denyButtonText: "PDF",
+    cancelButtonText: "Cancelar",
+    background: "#27272a",
+    color: "#fff",
+    confirmButtonColor: "#10b981", // emerald
+    denyButtonColor: "#06b6d4", // cyan
+    cancelButtonColor: "#71717a", // zinc
+  });
+
+  if (result.isConfirmed) {
+    // Usuario seleccionó Excel
+    try {
+      await exportDocumentToExcel(document, options);
+      toast.success("Documento exportado a Excel exitosamente");
+    } catch (error) {
+      console.error("Error exportando a Excel:", error);
+      toast.error("Error al exportar el documento a Excel");
+    }
+  } else if (result.isDenied) {
+    // Usuario seleccionó PDF
+    try {
+      await exportDocumentToPDF(document, options);
+      toast.success("Documento exportado a PDF exitosamente");
+    } catch (error) {
+      console.error("Error exportando a PDF:", error);
+      toast.error("Error al exportar el documento a PDF");
+    }
+  }
+  // Si result.isDismissed, el usuario canceló, no hacemos nada
+}
 
 /**
  * ============================================================================
@@ -262,7 +316,7 @@ export const saleDocumentConfig = {
     {
       label: "Descargar lista de empaque",
       variant: "cyan",
-      onClick: () => console.log("Descargar packing list"),
+      onClick: () => handleDocumentExport(document, { includeLot: false }),
     },
     {
       label: "Descargar factura",
@@ -437,7 +491,6 @@ export const purchaseDocumentConfig = {
     },
   ],
 
-  // TODO: Terminar acciones
   getActions: ({ document, loadingComplete, setLoadingComplete }) => [
     {
       label: "Completar Orden",
@@ -458,7 +511,7 @@ export const purchaseDocumentConfig = {
     {
       label: "Descargar orden de compra",
       variant: "cyan",
-      onClick: () => console.log("Descargar orden"),
+      onClick: () => handleDocumentExport(document, { includeLot: false }),
     },
   ],
 
