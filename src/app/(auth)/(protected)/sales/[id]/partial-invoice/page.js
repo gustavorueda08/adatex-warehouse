@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Textarea from "@/components/ui/Textarea";
 import InvoiceableItemsTable from "@/components/partialInvoice/InvoiceableItemsTable";
-import { useInvoiceableItems, useCreatePartialInvoice } from "@/lib/hooks/useConsignment";
+import {
+  useInvoiceableItems,
+  useCreatePartialInvoice,
+} from "@/lib/hooks/useConsignment";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 
@@ -14,7 +17,8 @@ export default function CreatePartialInvoicePage({ params }) {
   const router = useRouter();
 
   const { items: invoiceableData, loading, error } = useInvoiceableItems(id);
-  const { creating, createByItems, createByQuantity } = useCreatePartialInvoice();
+  const { creating, createByItems, createByQuantity } =
+    useCreatePartialInvoice();
 
   const [mode, setMode] = useState("quantity"); // "items" | "quantity"
   const [selectedData, setSelectedData] = useState(null);
@@ -25,7 +29,10 @@ export default function CreatePartialInvoicePage({ params }) {
   };
 
   const handleCreate = async () => {
-    if (!selectedData || (Array.isArray(selectedData) && selectedData.length === 0)) {
+    if (
+      !selectedData ||
+      (Array.isArray(selectedData) && selectedData.length === 0)
+    ) {
       toast.error("Debes seleccionar al menos un item o ingresar una cantidad");
       return;
     }
@@ -53,10 +60,12 @@ export default function CreatePartialInvoicePage({ params }) {
 
       if (mode === "quantity") {
         // Modo cantidad (FIFO automático)
-        const products = Array.from(selectedData).map(([productId, quantity]) => ({
-          product: productId,
-          quantity,
-        }));
+        const products = Array.from(selectedData).map(
+          ([productId, quantity]) => ({
+            product: productId,
+            quantity,
+          })
+        );
 
         response = await createByQuantity({
           parentOrder: parseInt(id),
@@ -68,19 +77,27 @@ export default function CreatePartialInvoicePage({ params }) {
       } else {
         // Modo items (selección manual)
         const productsMap = new Map();
-
         selectedData.forEach((item) => {
+          const orderProduct = (invoiceableData.products || []).find(
+            (product) => product?.product?.id === item.productId
+          );
           if (!productsMap.has(item.productId)) {
             productsMap.set(item.productId, {
               product: item.productId,
               items: [],
+              requestedQuantity: 0,
+              price: orderProduct ? orderProduct.price : 0,
             });
           }
-
+          productsMap.get(item.productId).requestedQuantity += item.quantity;
           productsMap.get(item.productId).items.push({
             id: item.itemId,
+            quantity: item.quantity,
+            price: item.price,
           });
         });
+
+        console.log(invoiceableData, "DATOS");
 
         const products = Array.from(productsMap.values());
 
@@ -134,7 +151,11 @@ export default function CreatePartialInvoicePage({ params }) {
     );
   }
 
-  if (!invoiceableData || !invoiceableData.products || invoiceableData.products.length === 0) {
+  if (
+    !invoiceableData ||
+    !invoiceableData.products ||
+    invoiceableData.products.length === 0
+  ) {
     return (
       <div className="px-4 py-8">
         <div className="p-4 bg-zinc-700 rounded-md">
@@ -155,10 +176,14 @@ export default function CreatePartialInvoicePage({ params }) {
       <div>
         <h1 className="text-3xl font-bold">Crear Factura Parcial</h1>
         <p className="text-zinc-400 mt-2">
-          Orden de venta: <span className="font-mono">{invoiceableData.order?.code}</span>
+          Orden de venta:{" "}
+          <span className="font-mono">{invoiceableData.order?.code}</span>
         </p>
         <p className="text-zinc-400">
-          Cliente: <span className="font-medium">{invoiceableData.order?.customer?.name}</span>
+          Cliente:{" "}
+          <span className="font-medium">
+            {invoiceableData.order?.customer?.name}
+          </span>
         </p>
         <p className="text-zinc-400">
           Fecha de despacho:{" "}
@@ -221,7 +246,10 @@ export default function CreatePartialInvoicePage({ params }) {
           variant="cyan"
           onClick={handleCreate}
           loading={creating}
-          disabled={!selectedData || (Array.isArray(selectedData) && selectedData.length === 0)}
+          disabled={
+            !selectedData ||
+            (Array.isArray(selectedData) && selectedData.length === 0)
+          }
         >
           Crear factura parcial
         </Button>
@@ -241,11 +269,15 @@ export default function CreatePartialInvoicePage({ params }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
             <p>
               <span className="text-zinc-400">Total productos:</span>{" "}
-              <span className="font-medium">{invoiceableData.summary.totalProducts}</span>
+              <span className="font-medium">
+                {invoiceableData.summary.totalProducts}
+              </span>
             </p>
             <p>
               <span className="text-zinc-400">Total items:</span>{" "}
-              <span className="font-medium">{invoiceableData.summary.totalItems}</span>
+              <span className="font-medium">
+                {invoiceableData.summary.totalItems}
+              </span>
             </p>
           </div>
         </div>

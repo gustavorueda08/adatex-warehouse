@@ -45,6 +45,7 @@ export function useConsignmentBalance(customerId, options = {}) {
 
   useEffect(() => {
     fetchBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId, productId, enabled]);
 
   return {
@@ -109,6 +110,7 @@ export function useConsignmentHistory(customerId, options = {}) {
 
   useEffect(() => {
     fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId, startDate, endDate, productId, limit, enabled]);
 
   return {
@@ -130,36 +132,61 @@ export function useInvoiceableItems(orderId, options = {}) {
   const { enabled = true } = options;
 
   const [items, setItems] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchItems = async () => {
-    if (!orderId || !enabled) return;
+    if (!orderId || !enabled) {
+      console.log("⚠️ useInvoiceableItems: No se puede fetch - orderId:", orderId, "enabled:", enabled);
+      setLoading(false);
+      return;
+    }
 
+    console.log("🔄 useInvoiceableItems: Iniciando fetch para orderId:", orderId);
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/strapi/orders/${orderId}/invoiceable-items`
-      );
+      const url = `/api/strapi/orders/${orderId}/invoiceable-items`;
+      console.log("📡 useInvoiceableItems: Fetching:", url);
+
+      const response = await fetch(url);
+
+      console.log("📬 useInvoiceableItems: Response status:", response.status, response.ok);
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log("✅ useInvoiceableItems: Resultado completo:", result);
+      console.log("📦 useInvoiceableItems: result.data:", result.data);
+      console.log("📦 useInvoiceableItems: result.data.products:", result.data?.products);
+
+      // Validar estructura de datos
+      if (!result || typeof result !== "object") {
+        throw new Error("Respuesta inválida del servidor");
+      }
+
+      if (!result.data) {
+        console.warn("⚠️ useInvoiceableItems: result.data es undefined/null");
+        setItems(null);
+        return;
+      }
+
       setItems(result.data);
     } catch (err) {
-      console.error("Error fetching invoiceable items:", err);
+      console.error("❌ useInvoiceableItems: Error fetching invoiceable items:", err);
       setError(err.message);
     } finally {
       setLoading(false);
+      console.log("🏁 useInvoiceableItems: Fetch completado");
     }
   };
 
   useEffect(() => {
     fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, enabled]);
 
   return {
@@ -187,6 +214,8 @@ export function useCreatePartialInvoice() {
     setError(null);
 
     try {
+      console.log("DATOS DE INVOICE", data);
+
       const response = await fetch("/api/strapi/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -196,10 +225,10 @@ export function useCreatePartialInvoice() {
       if (!response.ok) {
         const result = await response.json();
         throw new Error(
-          result.error?.message || `Error ${response.status}: ${response.statusText}`
+          result.error?.message ||
+            `Error ${response.status}: ${response.statusText}`
         );
       }
-
       const result = await response.json();
       return { success: true, data: result.data };
     } catch (err) {
@@ -220,16 +249,20 @@ export function useCreatePartialInvoice() {
     setError(null);
 
     try {
-      const response = await fetch("/api/strapi/orders/create-partial-invoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        "/api/strapi/orders/create-partial-invoice",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!response.ok) {
         const result = await response.json();
         throw new Error(
-          result.error?.message || `Error ${response.status}: ${response.statusText}`
+          result.error?.message ||
+            `Error ${response.status}: ${response.statusText}`
         );
       }
 

@@ -27,7 +27,8 @@ export default function InvoiceableItemsTable({
     } else {
       onSelectionChange?.(Array.from(productQuantities.entries()));
     }
-  }, [selectedItems, productQuantities, mode, onSelectionChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItems, productQuantities, mode]);
 
   const handleItemToggle = (item, productId) => {
     const newSelected = new Map(selectedItems);

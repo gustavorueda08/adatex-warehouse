@@ -25,6 +25,8 @@ export default function PartialInvoiceDetailPage({ params }) {
   const { user } = useUser({});
 
   const order = orders[0] || null;
+  console.log("partial_order", order);
+
   const [loadingComplete, setLoadingComplete] = useState(false);
 
   // Función para completar y facturar
@@ -57,7 +59,8 @@ export default function PartialInvoiceDetailPage({ params }) {
   }, []);
 
   const config = partialInvoiceDocumentConfig;
-  const isReadOnly = order?.state === "completed" || order?.state === "canceled";
+  const isReadOnly =
+    order?.state === "completed" || order?.state === "canceled";
 
   if (!order) {
     return (
@@ -105,11 +108,15 @@ export default function PartialInvoiceDetailPage({ params }) {
               <div className="p-4 bg-zinc-700 rounded-md">
                 <p className="text-sm text-zinc-400">Cliente</p>
                 <p className="text-lg font-bold">
-                  {order.parentOrder?.customer?.name || order.customer?.name || "-"}
+                  {order.parentOrder?.customer?.name ||
+                    order.customer?.name ||
+                    "-"}
                 </p>
               </div>
               <div className="p-4 bg-zinc-700 rounded-md">
-                <p className="text-sm text-zinc-400">Fecha de Despacho Original</p>
+                <p className="text-sm text-zinc-400">
+                  Fecha de Despacho Original
+                </p>
                 <p className="text-lg font-bold">
                   {order.parentOrder?.completedDate
                     ? moment(order.parentOrder.completedDate)
@@ -139,10 +146,14 @@ export default function PartialInvoiceDetailPage({ params }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 bg-emerald-900/20 border border-emerald-500 rounded-md">
                       <p className="text-sm text-emerald-400">ID Siigo</p>
-                      <p className="text-lg font-bold font-mono">{order.siigoId}</p>
+                      <p className="text-lg font-bold font-mono">
+                        {order.siigoId}
+                      </p>
                     </div>
                     <div className="p-4 bg-emerald-900/20 border border-emerald-500 rounded-md">
-                      <p className="text-sm text-emerald-400">Número de Factura</p>
+                      <p className="text-sm text-emerald-400">
+                        Número de Factura
+                      </p>
                       <p className="text-lg font-bold font-mono">
                         {order.invoiceNumber || "-"}
                       </p>
