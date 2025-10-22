@@ -84,8 +84,11 @@ export const saleDocumentConfig = {
     selectedWarehouse,
     setSelectedWarehouse,
     createdDate,
+    setCreatedDate,
     confirmedDate,
+    setConfirmedDate,
     actualDispatchDate,
+    setActualDispatchDate,
   }) => [
     {
       label: "Cliente",
@@ -124,14 +127,14 @@ export const saleDocumentConfig = {
       label: "Fecha de confirmación",
       type: "date",
       value: confirmedDate,
-      onChange: () => {},
+      onChange: setConfirmedDate,
       disabled: true,
     },
     {
       label: "Fecha de despacho",
       type: "date",
       value: actualDispatchDate,
-      onChange: () => {},
+      onChange: setActualDispatchDate,
       disabled: true,
     },
   ],
@@ -322,7 +325,13 @@ export const saleDocumentConfig = {
       onClick: async ({ handleUpdateDocument }) => {
         try {
           setLoadingConfirm(true);
-          await handleUpdateDocument({ state: "confirmed" }, false);
+          await handleUpdateDocument(
+            {
+              state: "confirmed",
+              confirmedDate: moment.tz("America/Bogota").toDate(),
+            },
+            false
+          );
         } catch (error) {
           console.error(error);
         } finally {
@@ -331,7 +340,6 @@ export const saleDocumentConfig = {
       },
       disabled: document?.state !== "draft",
     },
-
     {
       label: "Despachar orden",
       variant: "emerald",
@@ -339,7 +347,13 @@ export const saleDocumentConfig = {
       onClick: async ({ handleUpdateDocument }) => {
         try {
           setLoadingComplete(true);
-          await handleUpdateDocument({ state: "completed" }, false);
+          await handleUpdateDocument(
+            {
+              state: "completed",
+              completedDate: moment.tz("America/Bogota").toDate(),
+            },
+            false
+          );
         } catch (error) {
           console.error(error);
         } finally {
@@ -360,7 +374,43 @@ export const saleDocumentConfig = {
           ? "Descargar factura"
           : "Facturar Orden",
       variant: "emerald",
-      onClick: () => console.log("Descargar factura"),
+      onClick: async ({ handleUpdateDocument }) => {
+        if (!document.siigoId && !document.invoiceNumber) {
+          const result = await Swal.fire({
+            title: "Facturar Orden",
+            text: "¿Está seguro que quiere facturar la orden? Esta acción no se puede deshacer",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Facturar",
+            cancelButtonText: "Cancelar",
+            background: "#27272a",
+            color: "#fff",
+            confirmButtonColor: "#10b981", // emerald
+            denyButtonColor: "#06b6d4", // cyan
+            cancelButtonColor: "#71717a", // zinc
+          });
+          if (result.isConfirmed) {
+            try {
+              setLoadingComplete(true);
+              await handleUpdateDocument(
+                {
+                  state: "completed",
+                  completedDate: moment.tz("America/Bogota").toDate(),
+                  emitInvoice: true,
+                },
+                false
+              );
+            } catch (error) {
+              toast.error("Error al facturar la orden");
+              console.error(error);
+            } finally {
+              setLoadingComplete(false);
+            }
+          }
+        } else {
+          // Descargar factura
+        }
+      },
     },
   ],
 };
@@ -413,7 +463,9 @@ export const purchaseDocumentConfig = {
       label: "Fecha de despacho",
       type: "date",
       value: actualDispatchDate,
-      onChange: setActualDispatchDate,
+      onChange: (date) => {
+        setActualDispatchDate(moment.tz(date, "America/Bogota").toDate());
+      },
     },
   ],
 
@@ -571,7 +623,11 @@ export const purchaseDocumentConfig = {
       },
       {
         title: "",
-        render: ({ products }) => <LabelGenerator products={products} />,
+        render: ({ products }) => (
+          <LabelGenerator
+            products={products.filter((product) => product.product)}
+          />
+        ),
       },
     ];
   },

@@ -48,14 +48,25 @@ export default function SaleDetailPage({ params }) {
   const [parties, setParties] = useState([]);
   const [loadingConfirm, setLoadingConfirm] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
+  const [createdDate, setCreatedDate] = useState(null);
+  const [actualDispatchDate, setActualDispatchDate] = useState(null);
+  const [confirmedDate, setConfirmedDate] = useState(null);
+  const [completedDate, setCompletedDate] = useState(null);
+
   useEffect(() => {
     if (order) {
       setSelectedCustomer(order.customer);
       setSelectedCustomerForInvoice(order.customerForInvoice);
       setSelectedWarehouse(order.sourceWarehouse);
+      setCreatedDate(order.createdDate || null);
+      setActualDispatchDate(order.actualDispatchDate || null);
+      setConfirmedDate(order.confirmedDate || null);
+      setCompletedDate(order.completedDate || null);
       // Configurar parties
       if (Array.isArray(order.customer?.parties)) {
         setParties([...order.customer.parties, order.customer]);
+      } else {
+        setParties([order.customer]);
       }
     }
   }, [order]);
@@ -172,6 +183,36 @@ export default function SaleDetailPage({ params }) {
   // Determinar si la orden es una remisión (completada sin facturar)
   const isConsignment = order?.state === "completed" && !order?.siigoId;
 
+  const prepareUpdateData = useCallback(
+    (document, products = []) => {
+      const confirmed = products
+        .filter((p) => p.product)
+        .map((p) => ({
+          ...p,
+          items: p.items.filter((i) => i.quantity !== 0 && i.quantity !== ""),
+        }))
+        .every(
+          (product) =>
+            Array.isArray(product.items) &&
+            product.items.every((item) => {
+              const q = item.quantity;
+              return (
+                q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
+              );
+            })
+        );
+      return {
+        customer: selectedCustomer?.id,
+        customerForInvoice: selectedCustomerForInvoice?.id,
+        sourceWarehouse: selectedWarehouse?.id,
+        createdDate,
+        actualDispatchDate,
+        state: confirmed ? "confirmed" : document.state,
+      };
+    },
+    [selectedCustomer, selectedCustomerForInvoice, selectedWarehouse]
+  );
+
   if (!order) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -224,6 +265,7 @@ export default function SaleDetailPage({ params }) {
         order.containerCode ? ` | ${order.containerCode}` : ""
       }${isConsignment ? " (Remisión)" : ""}`}
       redirectPath={config.redirectPath}
+      prepareUpdateData={prepareUpdateData}
       headerFields={config.getHeaderFields({
         customers,
         parties,
@@ -234,9 +276,12 @@ export default function SaleDetailPage({ params }) {
         setSelectedCustomerForInvoice,
         selectedWarehouse,
         setSelectedWarehouse,
-        createdDate: order.createdDate,
-        confirmedDate: order.confirmedDate,
-        actualDispatchDate: order.actualDispatchDate,
+        createdDate: createdDate,
+        setCreatedDate: setCreatedDate,
+        confirmedDate: confirmedDate,
+        setConfirmedDate: setConfirmedDate,
+        actualDispatchDate: actualDispatchDate,
+        setActualDispatchDate: setActualDispatchDate,
       })}
       productColumns={config.getProductColumns}
       actions={enhancedActions}

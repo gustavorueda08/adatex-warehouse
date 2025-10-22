@@ -3,20 +3,52 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import {
-  endOfDay,
-  endOfMonth,
-  format,
-  isValid,
-  parse,
-  startOfDay,
-  startOfMonth,
-  subDays,
-} from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "@heroicons/react/24/solid";
 import { createPortal } from "react-dom";
 import classNames from "classnames";
+import moment from "moment-timezone";
+import "moment/locale/es";
+
+// Zona horaria fija para Colombia
+const TIMEZONE = "America/Bogota";
+
+// Funciones helper para manejar fechas en zona horaria de Bogotá
+const toBogotaDate = (date) => {
+  if (!date) return null;
+  // Convertir la fecha a zona horaria de Bogotá
+  const m = moment(date).tz(TIMEZONE);
+  // Retornar como objeto Date nativo
+  return m.toDate();
+};
+
+const startOfDayBogota = (date) => {
+  if (!date) return null;
+  return moment(date).tz(TIMEZONE).startOf("day").toDate();
+};
+
+const endOfDayBogota = (date) => {
+  if (!date) return null;
+  return moment(date).tz(TIMEZONE).endOf("day").toDate();
+};
+
+const startOfMonthBogota = (date) => {
+  if (!date) return null;
+  return moment(date).tz(TIMEZONE).startOf("month").toDate();
+};
+
+const endOfMonthBogota = (date) => {
+  if (!date) return null;
+  return moment(date).tz(TIMEZONE).endOf("month").toDate();
+};
+
+const subDaysBogota = (date, days) => {
+  return moment(date).tz(TIMEZONE).subtract(days, "days").toDate();
+};
+
+const nowBogota = () => {
+  return moment().tz(TIMEZONE).toDate();
+};
 
 export default function DatePicker({
   value, // Date | null (single) o { from: Date|null, to: Date|null } (range)
@@ -190,15 +222,20 @@ export default function DatePicker({
 
   const disabled = useMemo(() => {
     const arr = [];
-    if (minDate) arr.push({ before: startOfDay(minDate) });
-    if (maxDate) arr.push({ after: endOfDay(maxDate) });
+    if (minDate) arr.push({ before: startOfDayBogota(minDate) });
+    if (maxDate) arr.push({ after: endOfDayBogota(maxDate) });
     return arr;
   }, [minDate, maxDate]);
 
-  const fmt = (d) => (d ? format(d, "dd/MM/yyyy", { locale }) : "");
+  const fmt = (d) => {
+    if (!d) return "";
+    return moment(d).tz(TIMEZONE).format("DD-MM-YYYY");
+  };
+
   const parseInput = (str) => {
-    const d = parse(str, "dd/MM/yyyy", new Date());
-    return isValid(d) ? d : null;
+    const m = moment.tz(str, "DD/MM/YYYY", TIMEZONE);
+    if (!m.isValid()) return null;
+    return m.toDate();
   };
 
   const setValueSafe = (next) => {
@@ -208,10 +245,15 @@ export default function DatePicker({
 
   const onSelect = (selected) => {
     if (mode === "single") {
-      setValueSafe(selected || null);
+      // Convertir la fecha seleccionada a zona Bogotá
+      const bogotaDate = selected ? toBogotaDate(selected) : null;
+      setValueSafe(bogotaDate);
       setOpen(false);
     } else {
-      setValueSafe(selected ?? { from: null, to: null });
+      // Convertir ambas fechas del rango a zona Bogotá
+      const fromDate = selected?.from ? toBogotaDate(selected.from) : null;
+      const toDate = selected?.to ? toBogotaDate(selected.to) : null;
+      setValueSafe({ from: fromDate, to: toDate });
     }
   };
 
@@ -237,38 +279,41 @@ export default function DatePicker({
         key: "7",
         label: "Últimos 7 días",
         get: () => ({
-          from: startOfDay(subDays(new Date(), 6)),
-          to: endOfDay(new Date()),
+          from: startOfDayBogota(subDaysBogota(nowBogota(), 6)),
+          to: endOfDayBogota(nowBogota()),
         }),
       },
       {
         key: "30",
         label: "Últimos 30 días",
         get: () => ({
-          from: startOfDay(subDays(new Date(), 29)),
-          to: endOfDay(new Date()),
+          from: startOfDayBogota(subDaysBogota(nowBogota(), 29)),
+          to: endOfDayBogota(nowBogota()),
         }),
       },
       {
         key: "tm",
         label: "Este mes",
         get: () => ({
-          from: startOfMonth(new Date()),
-          to: endOfDay(new Date()),
+          from: startOfMonthBogota(nowBogota()),
+          to: endOfDayBogota(nowBogota()),
         }),
       },
       {
         key: "lm",
         label: "Mes completo",
         get: () => ({
-          from: startOfMonth(new Date()),
-          to: endOfMonth(new Date()),
+          from: startOfMonthBogota(nowBogota()),
+          to: endOfMonthBogota(nowBogota()),
         }),
       },
       {
         key: "hoy",
         label: "Hoy",
-        get: () => ({ from: startOfDay(new Date()), to: endOfDay(new Date()) }),
+        get: () => ({
+          from: startOfDayBogota(nowBogota()),
+          to: endOfDayBogota(nowBogota()),
+        }),
       },
     ],
     []
