@@ -3,36 +3,60 @@
 import Filters from "@/components/ui/Filters";
 import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/Card";
 import moment from "moment-timezone";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 
 /**
  * Componente reutilizable para listado de entidades (customers, suppliers, sellers, etc.)
+ * Optimizado con React.memo para prevenir re-renders innecesarios
  *
  * @param {Object} props
  * @param {Function} props.useHook - Hook personalizado (useCustomers, useSuppliers, useSellers)
  * @param {string} props.title - Título de la página
+ * @param {string} props.description - Descripción de la página (opcional)
  * @param {string} props.entityName - Nombre de la entidad en singular
  * @param {string} props.entityNamePlural - Nombre de la entidad en plural
  * @param {Array} props.columns - Columnas para la tabla
  * @param {Function} props.getDetailPath - Función que recibe (entity) y retorna string path
  * @param {string} props.createPath - Path para crear nueva entidad
  * @param {Array} props.bulkActions - Array de acciones: ['delete']
+ * @param {Array} props.customActions - Array de acciones personalizadas:
+ *   [{
+ *     label: string,
+ *     variant: string,
+ *     onClick: (selectedIds, helpers) => void,
+ *     disabled: (selectedIds, helpers) => boolean,
+ *     loading: boolean
+ *   }]
+ *   El objeto helpers incluye:
+ *   - entities: Lista completa de entidades
+ *   - refetch: Función para recargar datos
+ *   - setSelectedEntities: Función para limpiar selección
+ *   - setBulkLoading: Función para manejar estado de carga
+ *   - ...todas las propiedades adicionales del hook (ej: syncAllCustomersFromSiigo, syncing, etc.)
  * @param {Function} props.canDeleteEntity - Función que recibe (entity) y retorna boolean
  * @param {string} props.searchPlaceholder - Placeholder para búsqueda
  */
-export default function EntityListPage({
+function EntityListPage({
   useHook,
   title,
+  description,
   entityName,
   entityNamePlural,
   columns,
   getDetailPath,
   createPath,
   bulkActions = [],
+  customActions = [],
   canDeleteEntity = () => true,
   searchPlaceholder = "Buscar...",
 }) {
@@ -78,6 +102,7 @@ export default function EntityListPage({
     pagination,
     deleteEntity,
     refetch,
+    ...restOfHook // Captura todas las propiedades adicionales del hook (ej: syncAllCustomersFromSiigo, syncing, etc.)
   } = useHook({
     pagination: { page: currentPage, pageSize: 20 },
     sort: ["updatedAt:desc"],
@@ -216,52 +241,219 @@ export default function EntityListPage({
     }
   };
 
-  return (
-    <div className="w-full px-4">
-      <h1 className="py-5 text-3xl font-bold">{title}</h1>
-      <Filters
-        search={search}
-        setSearch={setSearch}
-        range={range}
-        setRange={setRange}
-        options={[]}
-        setSelectedOptions={() => {}}
-        linkPath={createPath}
-        placeHolder={searchPlaceholder}
-        dropdownOptions={[]}
-      />
-      <Table
-        columns={columns}
-        data={entities}
-        onRowSelect={handleEntitySelection}
-        onRowEdit={handleEntityEdit}
-        loading={loading}
-        pagination={pagination}
-        getDetailPath={getDetailPath}
-        onPageChange={setCurrentPage}
-        onRowDelete={
-          bulkActions.includes("delete") ? handleDeleteEntity : undefined
-        }
-        canDeleteRow={
-          bulkActions.includes("delete") ? canDeleteEntity : undefined
-        }
-        emptyMessage={`No se encontraron ${entityNamePlural}`}
-      />
+  // Helpers para customActions
+  // Incluye todas las propiedades del hook + utilidades de UI
+  const actionHelpers = {
+    entities,
+    refetch,
+    setSelectedEntities,
+    setBulkLoading,
+    ...restOfHook, // Spread de todas las propiedades adicionales del hook
+  };
 
-      {bulkActions.length > 0 && (
-        <div className="py-4 flex flex-col w-full md:w-auto md:flex-row gap-3 md:justify-end">
-          {bulkActions.includes("delete") && (
-            <Button
-              variant="red"
-              disabled={selectedEntities.length === 0 || bulkLoading}
-              onClick={handleDeleteSelectedEntities}
-              className="w-full md:w-auto"
-            >
-              Eliminar {entityNamePlural}
-            </Button>
-          )}
-        </div>
+  return (
+    <div className="w-full px-4 pb-6">
+      {/* Header con título */}
+      <div className="py-6">
+        <h1 className="text-3xl font-bold text-white mb-2">{title}</h1>
+        {description && <p className="text-gray-400 text-sm">{description}</p>}
+      </div>
+
+      {/* Card principal con filtros */}
+      <Card className="mb-6">
+        <CardHeader className="border-b border-zinc-700">
+          <CardTitle>Filtros de búsqueda</CardTitle>
+          <CardDescription>
+            Filtra por nombre, email, teléfono o NIT
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4">
+          <Filters
+            search={search}
+            setSearch={setSearch}
+            range={range}
+            setRange={setRange}
+            options={[]}
+            setSelectedOptions={() => {}}
+            linkPath={createPath}
+            placeHolder={searchPlaceholder}
+            dropdownOptions={[]}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Card de la tabla */}
+      <Card>
+        <CardHeader className="border-b border-zinc-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Listado de {entityNamePlural}</CardTitle>
+              <CardDescription>
+                {loading
+                  ? "Cargando..."
+                  : `${meta?.pagination?.total || 0} ${
+                      (meta?.pagination?.total || 0) === 1
+                        ? entityName
+                        : entityNamePlural
+                    } encontrados`}
+              </CardDescription>
+            </div>
+            {!loading && entities.length > 0 && (
+              <div className="text-sm text-gray-400">
+                Página {pagination?.page || 1} de {pagination?.pageCount || 1}
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="py-4">
+            <Table
+              columns={columns}
+              data={entities}
+              onRowSelect={handleEntitySelection}
+              onRowEdit={handleEntityEdit}
+              loading={loading}
+              pagination={pagination}
+              getDetailPath={getDetailPath}
+              onPageChange={setCurrentPage}
+              onRowDelete={
+                bulkActions.includes("delete") ? handleDeleteEntity : undefined
+              }
+              canDeleteRow={
+                bulkActions.includes("delete") ? canDeleteEntity : undefined
+              }
+              emptyMessage={`No se encontraron ${entityNamePlural}`}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Custom Actions - Card flotante (siempre visible si hay customActions) */}
+      {customActions.length > 0 && (
+        <Card className="mt-4 bg-gradient-to-r from-zinc-800 to-zinc-900 border-zinc-700 sticky bottom-4 shadow-2xl">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-3 align-middle">
+              {selectedEntities.length > 0 ? (
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                    {selectedEntities.length}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">
+                      {selectedEntities.length}{" "}
+                      {selectedEntities.length === 1
+                        ? entityName
+                        : entityNamePlural}{" "}
+                      seleccionados
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Selecciona una acción para aplicar
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p className="text-white font-semibold">
+                      Acciones disponibles
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Ejecuta acciones personalizadas
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col w-full md:w-auto md:flex-row gap-3">
+                {/* Custom Actions */}
+                {customActions.map((action, index) => {
+                  const isDisabled =
+                    (action.disabled &&
+                      action.disabled(selectedEntities, actionHelpers)) ||
+                    bulkLoading ||
+                    action.loading;
+
+                  return (
+                    <Button
+                      key={index}
+                      variant={action.variant || "zinc"}
+                      disabled={isDisabled}
+                      onClick={() =>
+                        action.onClick(selectedEntities, actionHelpers)
+                      }
+                      className="w-full md:w-auto"
+                      loading={action.loading || bulkLoading}
+                    >
+                      {action.label}
+                    </Button>
+                  );
+                })}
+
+                {/* Built-in Delete Action (solo si hay selección) */}
+                {bulkActions.includes("delete") &&
+                  selectedEntities.length > 0 && (
+                    <Button
+                      variant="red"
+                      disabled={selectedEntities.length === 0 || bulkLoading}
+                      onClick={handleDeleteSelectedEntities}
+                      className="w-full md:w-auto"
+                      loading={bulkLoading}
+                    >
+                      Eliminar {entityNamePlural}
+                    </Button>
+                  )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Bulk Actions sin customActions - Card flotante solo cuando hay selección */}
+      {customActions.length === 0 &&
+        bulkActions.length > 0 &&
+        selectedEntities.length > 0 && (
+          <Card className="mt-4 bg-gradient-to-r from-zinc-800 to-zinc-900 border-zinc-700 sticky bottom-4 shadow-2xl">
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                    {selectedEntities.length}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">
+                      {selectedEntities.length}{" "}
+                      {selectedEntities.length === 1
+                        ? entityName
+                        : entityNamePlural}{" "}
+                      seleccionados
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Selecciona una acción para aplicar
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col w-full md:w-auto md:flex-row gap-3">
+                  {/* Built-in Delete Action */}
+                  {bulkActions.includes("delete") && (
+                    <Button
+                      variant="red"
+                      disabled={selectedEntities.length === 0 || bulkLoading}
+                      onClick={handleDeleteSelectedEntities}
+                      className="w-full md:w-auto"
+                      loading={bulkLoading}
+                    >
+                      Eliminar {entityNamePlural}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }
+
+// Exportar con memo para optimización
+export default memo(EntityListPage);

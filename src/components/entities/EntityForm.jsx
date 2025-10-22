@@ -1,29 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
+import Select from "@/components/ui/Select";
+import DatePicker from "@/components/ui/DatePicker";
+import Badge from "@/components/ui/Bagde";
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/Card";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon } from "@heroicons/react/24/solid";
+import {
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  UserIcon,
+  BuildingOfficeIcon,
+  TruckIcon,
+} from "@heroicons/react/24/outline";
 
 /**
- * Componente genérico para formularios de entidades
+ * Componente genérico para formularios de entidades (customers, suppliers, sellers)
  * @param {Object} props
  * @param {string} props.title - Título del formulario
+ * @param {string} props.description - Descripción del formulario
+ * @param {string} props.entityType - Tipo de entidad: 'customer', 'supplier', 'seller', etc.
  * @param {Object} props.initialData - Datos iniciales (null para crear, objeto para editar)
- * @param {Array} props.fields - Array de configuraciones de campos
+ * @param {Array} props.fields - Array de configuraciones de campos o array de secciones
  * @param {Function} props.onSubmit - Función async que recibe los datos del formulario
  * @param {string} props.backPath - Ruta a la que volver al cancelar
  * @param {boolean} props.loading - Estado de carga
+ * @param {boolean} props.sectioned - Si los campos están organizados en secciones
  */
 export default function EntityForm({
   title,
+  description,
+  entityType = "customer",
   initialData = null,
   fields = [],
   onSubmit,
   backPath,
   loading = false,
+  sectioned = false,
 }) {
   const router = useRouter();
   const isEditMode = !!initialData;
@@ -35,52 +58,89 @@ export default function EntityForm({
   // Inicializar formData con initialData o valores por defecto
   useEffect(() => {
     const defaultData = {};
-    fields.forEach((field) => {
+    const allFields = sectioned
+      ? fields.flatMap((section) => section.fields)
+      : fields;
+
+    allFields.forEach((field) => {
       if (initialData && initialData[field.name] !== undefined) {
-        defaultData[field.name] = initialData[field.name];
+        // Para multi-select, asegurar que sea un array de IDs
+        if (field.type === "multi-select") {
+          const value = initialData[field.name];
+          if (Array.isArray(value)) {
+            // Si es array de objetos con id, extraer solo los IDs
+            defaultData[field.name] = value.map((item) =>
+              typeof item === "object" ? item.id : item
+            );
+          } else {
+            defaultData[field.name] = [];
+          }
+        } else {
+          defaultData[field.name] = initialData[field.name];
+        }
       } else {
-        defaultData[field.name] = field.defaultValue || "";
+        // Valor por defecto según tipo
+        if (field.type === "multi-select") {
+          defaultData[field.name] = field.defaultValue || [];
+        } else {
+          defaultData[field.name] = field.defaultValue || "";
+        }
       }
     });
     setFormData(defaultData);
-  }, [initialData, fields]);
+  }, [initialData, fields, sectioned]);
+
+  // Actualizar campo del formulario
+  const updateField = useCallback((fieldName, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+
+    // Limpiar error del campo
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[fieldName];
+      return newErrors;
+    });
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // Limpiar error del campo cuando el usuario empieza a escribir
-    if (errors[name]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
+    updateField(name, value);
   };
 
   const validate = () => {
     const newErrors = {};
+    const allFields = sectioned
+      ? fields.flatMap((section) => section.fields)
+      : fields;
 
-    fields.forEach((field) => {
-      if (field.required && !formData[field.name]?.trim()) {
-        newErrors[field.name] = `${field.label} es requerido`;
+    allFields.forEach((field) => {
+      const value = formData[field.name];
+
+      // Validación de campo requerido
+      if (field.required) {
+        if (field.type === "multi-select") {
+          if (!Array.isArray(value) || value.length === 0) {
+            newErrors[field.name] = `${field.label} es requerido`;
+          }
+        } else if (!value || (typeof value === "string" && !value.trim())) {
+          newErrors[field.name] = `${field.label} es requerido`;
+        }
       }
 
       // Validación de email
-      if (field.type === "email" && formData[field.name]) {
+      if (field.type === "email" && value) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData[field.name])) {
+        if (!emailRegex.test(value)) {
           newErrors[field.name] = "Email inválido";
         }
       }
 
       // Validación personalizada
-      if (field.validate && formData[field.name]) {
-        const validationError = field.validate(formData[field.name]);
+      if (field.validate && value) {
+        const validationError = field.validate(value, formData);
         if (validationError) {
           newErrors[field.name] = validationError;
         }
@@ -115,85 +175,369 @@ export default function EntityForm({
     router.push(backPath);
   };
 
+  // Calcular estado de validación
+  const validationState = useMemo(() => {
+    const allFields = sectioned
+      ? fields.flatMap((section) => section.fields)
+      : fields;
+    const requiredFields = allFields.filter((f) => f.required);
+    const completedRequired = requiredFields.filter((f) => {
+      const value = formData[f.name];
+      if (f.type === "multi-select") {
+        return Array.isArray(value) && value.length > 0;
+      }
+      return value && (typeof value !== "string" || value.trim());
+    });
+
+    return {
+      total: requiredFields.length,
+      completed: completedRequired.length,
+      isComplete: requiredFields.length === completedRequired.length,
+    };
+  }, [formData, fields, sectioned]);
+
+  // Obtener badge y color según tipo de entidad
+  const entityConfig = getEntityConfig(entityType);
+
   if (loading) {
     return (
-      <div className="w-full px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-neutral-900 rounded-lg p-6 animate-pulse">
-            <div className="h-8 bg-neutral-700 rounded w-1/3 mb-6"></div>
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i}>
-                  <div className="h-4 bg-neutral-700 rounded w-1/4 mb-2"></div>
-                  <div className="h-10 bg-neutral-700 rounded"></div>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-3 mt-6">
-              <div className="h-10 bg-neutral-700 rounded w-24"></div>
-              <div className="h-10 bg-neutral-700 rounded w-24"></div>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-6 pb-8">
+        <Card loading />
       </div>
     );
   }
 
   return (
-    <div className="w-full px-4 py-8">
-      <div className="max-w-2xl mx-auto">
-        <button
-          onClick={handleCancel}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-        >
-          <ArrowLeftIcon className="w-5 h-5" />
-          Volver
-        </button>
+    <div className="space-y-6 pb-8">
+      {/* Botón volver */}
+      <button
+        onClick={handleCancel}
+        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+      >
+        <ArrowLeftIcon className="w-5 h-5" />
+        Volver
+      </button>
 
-        <div className="bg-neutral-900 rounded-lg shadow-xl border border-neutral-800 p-6">
-          <h1 className="text-2xl font-bold text-white mb-6">{title}</h1>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {fields.map((field) => (
-              <FormField
-                key={field.name}
-                label={field.label}
-                name={field.name}
-                type={field.type || "text"}
-                value={formData[field.name] || ""}
-                onChange={handleChange}
-                placeholder={field.placeholder || ""}
-                required={field.required || false}
-                disabled={submitting || field.disabled}
-                error={errors[field.name]}
-                rows={field.rows}
-              />
-            ))}
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
-                type="submit"
-                variant="emerald"
-                loading={submitting}
-                disabled={submitting}
-                className="w-full sm:w-auto"
-              >
-                {isEditMode ? "Actualizar" : "Crear"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="zinc"
-                onClick={handleCancel}
-                disabled={submitting}
-                className="w-full sm:w-auto"
-              >
-                Cancelar
-              </Button>
+      {/* Header Card con título y badge */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">{title}</h1>
+              {description && (
+                <p className="text-gray-400 text-sm mt-1">{description}</p>
+              )}
             </div>
-          </form>
-        </div>
-      </div>
+            <Badge variant={entityConfig.color}>{entityConfig.label}</Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Renderizar campos */}
+        {sectioned ? (
+          // Renderizar secciones
+          fields.map((section, sectionIndex) => (
+            <Card key={sectionIndex}>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  {section.icon && (
+                    <section.icon className="w-6 h-6 text-emerald-400" />
+                  )}
+                  <div>
+                    <CardTitle>{section.title}</CardTitle>
+                    {section.description && (
+                      <CardDescription>{section.description}</CardDescription>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {section.fields.map((field) => (
+                    <div
+                      key={field.name}
+                      className={field.fullWidth ? "md:col-span-2" : ""}
+                    >
+                      {renderField(field, formData, updateField, errors)}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          // Renderizar campos simples en una sola Card
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <entityConfig.icon className="w-6 h-6 text-emerald-400" />
+                <div>
+                  <CardTitle>Información de la entidad</CardTitle>
+                  <CardDescription>
+                    Completa la información del {entityConfig.label.toLowerCase()}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {fields.map((field) => (
+                  <div
+                    key={field.name}
+                    className={field.fullWidth ? "md:col-span-2" : ""}
+                  >
+                    {renderField(field, formData, updateField, errors)}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Card de validación y submit */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <CheckCircleIcon className="w-6 h-6 text-emerald-400" />
+              <div>
+                <CardTitle>
+                  {isEditMode ? "Actualizar" : "Crear"} {entityConfig.label}
+                </CardTitle>
+                <CardDescription>
+                  Revisa que todo esté correcto antes de{" "}
+                  {isEditMode ? "actualizar" : "crear"}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {/* Validación visual */}
+            <div className="space-y-3 mb-6">
+              <ValidationItem
+                label={`Campos requeridos completados (${validationState.completed}/${validationState.total})`}
+                valid={validationState.isComplete}
+              />
+              <ValidationItem
+                label="Sin errores de validación"
+                valid={Object.keys(errors).length === 0}
+              />
+            </div>
+
+            {/* Resumen si es válido */}
+            {validationState.isComplete && Object.keys(errors).length === 0 && (
+              <div className="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
+                <p className="text-sm text-emerald-300">
+                  ✓ Todo listo para {isEditMode ? "actualizar" : "crear"} el{" "}
+                  {entityConfig.label.toLowerCase()}
+                </p>
+              </div>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex flex-col md:flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              disabled={submitting}
+              className="flex-1 md:flex-initial"
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              type="submit"
+              variant="emerald"
+              loading={submitting}
+              disabled={submitting || !validationState.isComplete}
+            >
+              {submitting
+                ? isEditMode
+                  ? "Actualizando..."
+                  : "Creando..."
+                : isEditMode
+                ? "Actualizar"
+                : "Crear"}{" "}
+              {entityConfig.label}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
     </div>
   );
+}
+
+// Helper para renderizar campos según tipo
+function renderField(field, formData, updateField, errors) {
+  const value = formData[field.name];
+
+  switch (field.type) {
+    case "select":
+      const options =
+        typeof field.options === "function"
+          ? field.options(formData)
+          : field.options || [];
+
+      return (
+        <div key={field.name}>
+          <label className="text-sm font-medium text-gray-300 mb-2 block">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <Select
+            value={value}
+            options={options}
+            searchable={field.searchable}
+            clearable={field.clearable}
+            onChange={(v) => {
+              updateField(field.name, v);
+              if (field.onChange) {
+                field.onChange(v, formData, updateField);
+              }
+            }}
+            placeholder={field.placeholder}
+            disabled={field.disabled}
+            emptyMessage={field.emptyMessage || "No hay opciones disponibles"}
+          />
+          {errors[field.name] && (
+            <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>
+          )}
+        </div>
+      );
+
+    case "multi-select":
+      const multiOptions =
+        typeof field.options === "function"
+          ? field.options(formData)
+          : field.options || [];
+
+      return (
+        <div key={field.name}>
+          <label className="text-sm font-medium text-gray-300 mb-2 block">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <Select
+            value={Array.isArray(value) ? value : []}
+            options={multiOptions}
+            multiple={true}
+            searchable={field.searchable}
+            clearable={field.clearable}
+            onChange={(v) => {
+              updateField(field.name, v);
+              if (field.onChange) {
+                field.onChange(v, formData, updateField);
+              }
+            }}
+            placeholder={field.placeholder || "Seleccionar..."}
+            disabled={field.disabled}
+            emptyMessage={field.emptyMessage || "No hay opciones disponibles"}
+            hasMenu={field.hasMenu}
+            menuTitle={field.menuTitle}
+            onClickMenu={field.onClickMenu}
+            menuVariant={field.menuVariant}
+          />
+          {errors[field.name] && (
+            <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>
+          )}
+        </div>
+      );
+
+    case "date":
+      return (
+        <div key={field.name}>
+          <label className="text-sm font-medium text-gray-300 mb-2 block">
+            {field.label}
+            {field.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <DatePicker
+            mode="single"
+            value={value}
+            onChange={(date) => updateField(field.name, date)}
+            disabled={field.disabled}
+          />
+          {errors[field.name] && (
+            <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>
+          )}
+        </div>
+      );
+
+    case "custom":
+      return (
+        <div key={field.name}>
+          {field.label && (
+            <label className="text-sm font-medium text-gray-300 mb-2 block">
+              {field.label}
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+          )}
+          {field.render({ value, formData, updateField })}
+          {errors[field.name] && (
+            <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>
+          )}
+        </div>
+      );
+
+    default:
+      // text, email, textarea, etc.
+      return (
+        <FormField
+          key={field.name}
+          label={field.label}
+          name={field.name}
+          type={field.type || "text"}
+          value={value || ""}
+          onChange={(e) => updateField(field.name, e.target.value)}
+          placeholder={field.placeholder || ""}
+          required={field.required || false}
+          disabled={field.disabled}
+          error={errors[field.name]}
+          rows={field.rows}
+        />
+      );
+  }
+}
+
+// Componente para item de validación
+function ValidationItem({ label, valid }) {
+  return (
+    <div className="flex items-center gap-3">
+      {valid ? (
+        <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+      ) : (
+        <XCircleIcon className="w-5 h-5 text-gray-600 flex-shrink-0" />
+      )}
+      <span className={`text-sm ${valid ? "text-white" : "text-gray-500"}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// Helper para obtener configuración según tipo de entidad
+function getEntityConfig(entityType) {
+  const configs = {
+    customer: {
+      label: "Cliente",
+      color: "cyan",
+      icon: UserIcon,
+    },
+    supplier: {
+      label: "Proveedor",
+      color: "purple",
+      icon: BuildingOfficeIcon,
+    },
+    seller: {
+      label: "Vendedor",
+      color: "emerald",
+      icon: UserIcon,
+    },
+    carrier: {
+      label: "Transportador",
+      color: "blue",
+      icon: TruckIcon,
+    },
+  };
+  return configs[entityType] || configs.customer;
 }
