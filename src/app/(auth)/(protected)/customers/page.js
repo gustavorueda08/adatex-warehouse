@@ -8,6 +8,11 @@ import toast from "react-hot-toast";
 export default function CustomersPage() {
   const columns = [
     {
+      key: "identification",
+      label: "Identificación",
+      render: (identifiation) => identifiation || "-",
+    },
+    {
       key: "name",
       label: "Nombre",
     },
@@ -17,20 +22,9 @@ export default function CustomersPage() {
       render: (email) => email || "-",
     },
     {
-      key: "phone",
-      label: "Teléfono",
-      render: (phone) => phone || "-",
-    },
-    {
-      key: "nit",
-      label: "NIT",
-      render: (nit) => nit || "-",
-    },
-    {
-      key: "createdAt",
-      label: "Fecha de Creación",
-      render: (date) =>
-        moment(date).tz("America/Bogota").format("DD-MM-YYYY | h:mm a"),
+      key: "address",
+      label: "Dirección",
+      render: (address) => address || "-",
     },
     {
       key: "updatedAt",

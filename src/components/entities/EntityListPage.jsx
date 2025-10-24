@@ -126,7 +126,12 @@ function EntityListPage({
                 },
               },
               {
-                nit: {
+                identification: {
+                  $containsi: debouncedSearch,
+                },
+              },
+              {
+                address: {
                   $containsi: debouncedSearch,
                 },
               },
