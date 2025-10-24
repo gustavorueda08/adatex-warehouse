@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
 import { createCustomerFormConfig } from "@/lib/config/entityConfigs";
 import toast from "react-hot-toast";
+import { useCustomers } from "@/lib/hooks/useCustomers";
 
 /**
  * EJEMPLO DE USO DEL NUEVO SISTEMA
@@ -19,37 +20,20 @@ import toast from "react-hot-toast";
  */
 export default function NewCustomerPage() {
   const router = useRouter();
-  const [creating, setCreating] = useState(false);
-
-  const handleSubmit = async (formData) => {
-    try {
-      setCreating(true);
-
-      const response = await fetch("/api/strapi/customers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ data: formData }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al crear el cliente");
-      }
-
-      toast.success("Cliente creado exitosamente");
-      router.push("/customers");
-    } catch (error) {
-      console.error("Error creating customer:", error);
-      throw error;
-    } finally {
-      setCreating(false);
+  const { createCustomer, creating } = useCustomers(
+    {},
+    {
+      enabled: false,
+      onCreate: (createdCustomer) => {
+        console.log("Cliente creado exitosamente:", createdCustomer);
+        router.push(`/customers/${createdCustomer.id}`);
+      },
     }
-  };
+  );
 
   // Crear la configuración para el formulario de cliente
   const config = createCustomerFormConfig({
-    onSubmit: handleSubmit,
+    onSubmit: createCustomer,
     loading: creating,
   });
 

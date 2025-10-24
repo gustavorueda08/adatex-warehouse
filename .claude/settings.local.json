@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git log -1 --format='%h %s')",
+      "Read(//Users/grmini/**)",
+      "Bash(npx tsc --noEmit --jsx preserve)"
     ],
     "deny": [],
     "ask": []

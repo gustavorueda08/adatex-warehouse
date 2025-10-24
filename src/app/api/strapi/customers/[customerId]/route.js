@@ -113,7 +113,7 @@ export async function DELETE(request, context) {
 
     if (!customerId) {
       return NextResponse.json(
-        { error: "ID de orden requerido" },
+        { error: "ID de cliente requerido" },
         { status: 400 }
       );
     }
@@ -122,6 +122,11 @@ export async function DELETE(request, context) {
     const strapiUrl = new URL(
       `/api/customers/${customerId}`,
       STRAPI_URL.toString()
+    );
+
+    console.log(
+      `🗑️ Attempting to DELETE customer ${customerId} from:`,
+      strapiUrl.toString()
     );
 
     // Configurar headers
@@ -135,6 +140,45 @@ export async function DELETE(request, context) {
       method: "DELETE",
       headers,
     });
+
+    console.log(`📬 DELETE Response:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get("content-type"),
+      contentLength: response.headers.get("content-length"),
+    });
+
+    // Verificar si el customer realmente se eliminó
+    if (response.ok) {
+      // Intentar hacer un GET para verificar si el customer aún existe
+      setTimeout(async () => {
+        try {
+          const verifyResponse = await fetch(strapiUrl.toString(), {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (verifyResponse.ok) {
+            console.log(
+              `⚠️ WARNING: Customer ${customerId} STILL EXISTS after DELETE!`
+            );
+          } else if (verifyResponse.status === 404) {
+            console.log(
+              `✅ VERIFIED: Customer ${customerId} was successfully deleted`
+            );
+          } else {
+            console.log(
+              `❓ Unable to verify deletion, status: ${verifyResponse.status}`
+            );
+          }
+        } catch (err) {
+          console.log(`❌ Error verifying deletion:`, err.message);
+        }
+      }, 500);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -154,18 +198,71 @@ export async function DELETE(request, context) {
         { status: response.status }
       );
     }
-
-    const data = await response.json();
-
-    // Validar estructura de respuesta
-    if (!data || typeof data !== "object") {
+    // Manejar respuesta vacía (HTTP 204 o sin contenido)
+    if (
+      response.status === 204 ||
+      response.headers.get("content-length") === "0"
+    ) {
+      console.log(
+        `✅ Customer ${customerId} deleted successfully (204 No Content)`
+      );
       return NextResponse.json(
-        { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        {
+          data: {
+            id: parseInt(customerId),
+            deletedAt: new Date().toISOString(),
+          },
+        },
+        { status: 200 }
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    // Intentar parsear JSON solo si hay contenido
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const text = await response.text();
+      if (text.trim().length === 0) {
+        console.log(
+          `✅ Customer ${customerId} deleted successfully (empty JSON)`
+        );
+        return NextResponse.json(
+          {
+            data: {
+              id: parseInt(customerId),
+              deletedAt: new Date().toISOString(),
+            },
+          },
+          { status: 200 }
+        );
+      }
+
+      const data = JSON.parse(text);
+      console.log(`✅ Customer ${customerId} deleted, Strapi response:`, data);
+
+      // Validar estructura de respuesta
+      if (!data || typeof data !== "object") {
+        return NextResponse.json(
+          { error: "Respuesta inválida de Strapi" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(data, { status: 200 });
+    }
+
+    // Si no es JSON, asumir éxito
+    console.log(
+      `✅ Customer ${customerId} deleted successfully (non-JSON response)`
+    );
+    return NextResponse.json(
+      {
+        data: {
+          id: parseInt(customerId),
+          deletedAt: new Date().toISOString(),
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("API Route Error:", error);
     return NextResponse.json(

@@ -9,7 +9,6 @@ import Card, {
   CardDescription,
   CardContent,
 } from "@/components/ui/Card";
-import moment from "moment-timezone";
 import { useEffect, useState, memo } from "react";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
@@ -21,6 +20,8 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
  *
  * @param {Object} props
  * @param {Function} props.useHook - Hook personalizado (useCustomers, useSuppliers, useSellers)
+ * @param {Object} props.config - Objeto de configuración (opcional, reemplaza las props individuales)
+ *   Si se pasa config, las props individuales se ignoran
  * @param {string} props.title - Título de la página
  * @param {string} props.description - Descripción de la página (opcional)
  * @param {string} props.entityName - Nombre de la entidad en singular
@@ -48,18 +49,32 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
  */
 function EntityListPage({
   useHook,
-  title,
-  description,
-  entityName,
-  entityNamePlural,
-  columns,
-  getDetailPath,
-  createPath,
-  bulkActions = [],
-  customActions = [],
-  canDeleteEntity = () => true,
-  searchPlaceholder = "Buscar...",
+  config,
+  // Props individuales (para retrocompatibilidad)
+  title: titleProp,
+  description: descriptionProp,
+  entityName: entityNameProp,
+  entityNamePlural: entityNamePluralProp,
+  columns: columnsProp,
+  getDetailPath: getDetailPathProp,
+  createPath: createPathProp,
+  bulkActions: bulkActionsProp = [],
+  customActions: customActionsProp = [],
+  canDeleteEntity: canDeleteEntityProp = () => true,
+  searchPlaceholder: searchPlaceholderProp = "Buscar...",
 }) {
+  // Determinar si usar config o props individuales
+  const title = config?.title || titleProp;
+  const description = config?.description || descriptionProp;
+  const entityName = config?.entityName || entityNameProp;
+  const entityNamePlural = config?.entityNamePlural || entityNamePluralProp;
+  const columns = config?.columns || columnsProp;
+  const getDetailPath = config?.getDetailPath || getDetailPathProp;
+  const createPath = config?.createPath || createPathProp;
+  const bulkActions = config?.bulkActions || bulkActionsProp;
+  const canDeleteEntity = config?.canDeleteEntity || canDeleteEntityProp;
+  const searchPlaceholder = config?.searchPlaceholder || searchPlaceholderProp;
+
   const [selectedEntities, setSelectedEntities] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -175,19 +190,26 @@ function EntityListPage({
 
     const loadingToast = toast.loading(`Eliminando ${entityName}...`);
     try {
-      const result = await deleteEntity(entity.id);
-      toast.dismiss(loadingToast);
+      console.log(`🗑️ Deleting entity ${entityId}...`);
+      const result = await deleteEntity(entityId);
+      console.log(`📋 Delete result:`, result);
+
       if (result.success) {
+        // Refetch para asegurar que los datos estén sincronizados
+        console.log(`🔄 Refetching entities after successful delete...`);
+        await refetch();
+        toast.dismiss(loadingToast);
         toast.success(`${entity.name} eliminado exitosamente`);
         setSelectedEntities([]);
       } else {
-        toast.error(`Error al eliminar ${entity.name}`, { duration: 5000 });
+        toast.dismiss(loadingToast);
+        toast.error(result.error?.message || `Error al eliminar ${entity.name}`, { duration: 5000 });
+        console.error(`❌ Delete failed:`, result.error);
       }
-      await refetch();
     } catch (error) {
       toast.dismiss(loadingToast);
       toast.error(`Error al eliminar ${entityName}`);
-      console.error("Error:", error);
+      console.error("❌ Error deleting entity:", error);
     }
   };
 
@@ -255,6 +277,11 @@ function EntityListPage({
     setBulkLoading,
     ...restOfHook, // Spread de todas las propiedades adicionales del hook
   };
+
+  // Si config tiene getCustomActions, usarlo para generar las acciones personalizadas
+  const customActions = config?.getCustomActions
+    ? config.getCustomActions({ helpers: actionHelpers })
+    : customActionsProp;
 
   return (
     <div className="w-full px-4 pb-6">

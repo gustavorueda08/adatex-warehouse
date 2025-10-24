@@ -11,7 +11,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
 
     // Construir la URL de Strapi
-    const strapiUrl = new URL("/api/customers", STRAPI_URL.toString());
+    const strapiUrl = new URL("/api/taxes", STRAPI_URL.toString());
 
     // Pasar todos los parámetros de búsqueda a Strapi
     searchParams.forEach((value, key) => {
@@ -99,7 +99,7 @@ export async function POST(request) {
     }
 
     // Construir la URL de Strapi
-    const strapiUrl = new URL("/api/customers", STRAPI_URL.toString());
+    const strapiUrl = new URL("/api/taxes", STRAPI_URL.toString());
 
     // Configurar headers para la petición a Strapi
     const headers = {
@@ -125,7 +125,7 @@ export async function POST(request) {
 
       return NextResponse.json(
         {
-          error: "Error al crear el Customer en Strapi",
+          error: "Error al crear el impuesto en Strapi",
           details: errorText,
           status: response.status,
         },
