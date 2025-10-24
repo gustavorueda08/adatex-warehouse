@@ -1,53 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
+import { createCustomerFormConfig } from "@/lib/config/entityConfigs";
 import toast from "react-hot-toast";
 
+/**
+ * EJEMPLO DE USO DEL NUEVO SISTEMA
+ *
+ * Este archivo muestra cómo usar EntityForm con las configuraciones
+ * del archivo entityConfigs.js
+ *
+ * Ventajas:
+ * - Configuración centralizada y reutilizable
+ * - Separación de lógica de UI y configuración
+ * - Más fácil de mantener y escalar
+ */
 export default function NewCustomerPage() {
   const router = useRouter();
-
-  const fields = [
-    {
-      name: "name",
-      label: "Nombre",
-      type: "text",
-      required: true,
-      placeholder: "Nombre del cliente",
-    },
-    {
-      name: "email",
-      label: "Email",
-      type: "email",
-      required: false,
-      placeholder: "correo@ejemplo.com",
-    },
-    {
-      name: "phone",
-      label: "Teléfono",
-      type: "text",
-      required: false,
-      placeholder: "+57 300 123 4567",
-    },
-    {
-      name: "nit",
-      label: "NIT",
-      type: "text",
-      required: false,
-      placeholder: "123456789-0",
-    },
-    {
-      name: "address",
-      label: "Dirección",
-      type: "textarea",
-      required: false,
-      placeholder: "Dirección completa del cliente",
-      rows: 3,
-    },
-  ];
+  const [creating, setCreating] = useState(false);
 
   const handleSubmit = async (formData) => {
     try {
+      setCreating(true);
+
       const response = await fetch("/api/strapi/customers", {
         method: "POST",
         headers: {
@@ -65,15 +42,16 @@ export default function NewCustomerPage() {
     } catch (error) {
       console.error("Error creating customer:", error);
       throw error;
+    } finally {
+      setCreating(false);
     }
   };
 
-  return (
-    <EntityForm
-      title="Crear Nuevo Cliente"
-      fields={fields}
-      onSubmit={handleSubmit}
-      backPath="/customers"
-    />
-  );
+  // Crear la configuración para el formulario de cliente
+  const config = createCustomerFormConfig({
+    onSubmit: handleSubmit,
+    loading: creating,
+  });
+
+  return <EntityForm config={config} backPath="/customers" />;
 }

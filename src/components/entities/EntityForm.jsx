@@ -26,28 +26,63 @@ import {
 
 /**
  * Componente genérico para formularios de entidades (customers, suppliers, sellers)
+ *
+ * MODO DE USO:
+ * 1. Modo antiguo (legacy): Pasar props individuales (title, fields, onSubmit, etc.)
+ * 2. Modo nuevo (config): Pasar solo una prop 'config' con toda la configuración
+ *
  * @param {Object} props
- * @param {string} props.title - Título del formulario
- * @param {string} props.description - Descripción del formulario
- * @param {string} props.entityType - Tipo de entidad: 'customer', 'supplier', 'seller', etc.
- * @param {Object} props.initialData - Datos iniciales (null para crear, objeto para editar)
- * @param {Array} props.fields - Array de configuraciones de campos o array de secciones
- * @param {Function} props.onSubmit - Función async que recibe los datos del formulario
+ * @param {Object} props.config - Configuración completa del formulario (modo nuevo)
+ * @param {string} props.config.title - Título del formulario
+ * @param {string} props.config.description - Descripción del formulario
+ * @param {string} props.config.entityType - Tipo de entidad: 'customer', 'supplier', 'seller', etc.
+ * @param {Array} props.config.fields - Array de configuraciones de campos
+ * @param {Function} props.config.onSubmit - Función async que recibe los datos del formulario
+ * @param {Function} props.config.validateForm - Función de validación personalizada
+ * @param {Function} props.config.prepareSubmitData - Función para preparar datos antes de enviar
+ * @param {boolean} props.config.loading - Estado de carga
  * @param {string} props.backPath - Ruta a la que volver al cancelar
- * @param {boolean} props.loading - Estado de carga
- * @param {boolean} props.sectioned - Si los campos están organizados en secciones
+ * @param {Object} props.initialData - Datos iniciales (null para crear, objeto para editar)
+ *
+ * Props legacy (modo antiguo, deprecated):
+ * @param {string} props.title
+ * @param {string} props.description
+ * @param {string} props.entityType
+ * @param {Array} props.fields
+ * @param {Function} props.onSubmit
+ * @param {boolean} props.loading
+ * @param {boolean} props.sectioned
  */
 export default function EntityForm({
-  title,
-  description,
-  entityType = "customer",
-  initialData = null,
-  fields = [],
-  onSubmit,
+  // Modo nuevo (config)
+  config,
+
+  // Props compartidos
   backPath,
-  loading = false,
-  sectioned = false,
+  initialData = null,
+
+  // Props legacy (deprecated)
+  title: legacyTitle,
+  description: legacyDescription,
+  entityType: legacyEntityType = "customer",
+  fields: legacyFields = [],
+  onSubmit: legacyOnSubmit,
+  loading: legacyLoading = false,
+  sectioned: legacySectioned = false,
 }) {
+  // Determinar si estamos usando el modo config o el modo legacy
+  const isConfigMode = !!config;
+
+  // Extraer valores del config o usar props legacy
+  const title = isConfigMode ? config.title : legacyTitle;
+  const description = isConfigMode ? config.description : legacyDescription;
+  const entityType = isConfigMode ? config.entityType : legacyEntityType;
+  const fields = isConfigMode ? config.fields : legacyFields;
+  const onSubmit = isConfigMode ? config.onSubmit : legacyOnSubmit;
+  const loading = isConfigMode ? config.loading : legacyLoading;
+  const sectioned = isConfigMode ? false : legacySectioned; // config mode no soporta sectioned por ahora
+  const validateFormFn = isConfigMode ? config.validateForm : null;
+  const prepareSubmitDataFn = isConfigMode ? config.prepareSubmitData : null;
   const router = useRouter();
   const isEditMode = !!initialData;
 
@@ -111,6 +146,18 @@ export default function EntityForm({
   };
 
   const validate = () => {
+    // Si hay función de validación personalizada del config, usarla
+    if (validateFormFn) {
+      const isValid = validateFormFn(formData);
+      if (!isValid) {
+        // Si la validación falla pero no hay errores específicos, mostrar error genérico
+        if (Object.keys(errors).length === 0) {
+          toast.error("Por favor completa todos los campos requeridos");
+        }
+        return false;
+      }
+    }
+
     const newErrors = {};
     const allFields = sectioned
       ? fields.flatMap((section) => section.fields)
@@ -162,7 +209,12 @@ export default function EntityForm({
     setSubmitting(true);
 
     try {
-      await onSubmit(formData);
+      // Si hay función para preparar datos, usarla; de lo contrario, usar formData directamente
+      const dataToSubmit = prepareSubmitDataFn
+        ? prepareSubmitDataFn(formData)
+        : formData;
+
+      await onSubmit(dataToSubmit);
     } catch (error) {
       console.error("Error en submit:", error);
       toast.error(error.message || "Error al guardar");
