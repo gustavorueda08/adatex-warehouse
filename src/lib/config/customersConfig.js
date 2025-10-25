@@ -34,11 +34,11 @@ export function createCustomerDetailConfig({
           placeholder: "Nombre del cliente",
         },
         {
-          name: "nit",
-          label: "NIT",
+          name: "identification",
+          label: "Identificación",
           type: "text",
           required: false,
-          placeholder: "123456789-0",
+          placeholder: "Cédiula o NIT",
         },
         {
           name: "email",
