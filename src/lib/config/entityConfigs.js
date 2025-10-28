@@ -55,6 +55,7 @@ export function createCustomerFormConfig({ onSubmit, loading }) {
         name: "territory",
         label: "Ciudad / Territorio",
         type: "select",
+        required: true,
       },
     ],
 
