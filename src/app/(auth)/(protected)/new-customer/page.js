@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
 import { createCustomerFormConfig } from "@/lib/config/entityConfigs";
@@ -31,19 +30,14 @@ export default function NewCustomerPage() {
       },
     }
   );
-  const [selectedTerritory, setSelectedTerritory] = useState(null);
 
-  const { territories } = useTerritories();
-
-  console.log(territories);
+  const { territories = [] } = useTerritories();
 
   // Crear la configuración para el formulario de cliente
   const config = createCustomerFormConfig({
     onSubmit: createCustomer,
     loading: creating,
-    territories: territories || [],
-    selectedTerritory,
-    setSelectedTerritory,
+    territories,
   });
 
   return <EntityForm config={config} backPath="/customers" />;

@@ -155,6 +155,7 @@ export const customersListConfig = {
   entityName: "cliente",
   entityNamePlural: "clientes",
   searchPlaceholder: "Buscar cliente (nombre, email, teléfono, NIT)...",
+  showDatePicker: false,
 
   // Path para crear nuevos clientes
   createPath: "/new-customer",

@@ -203,7 +203,10 @@ function EntityListPage({
         setSelectedEntities([]);
       } else {
         toast.dismiss(loadingToast);
-        toast.error(result.error?.message || `Error al eliminar ${entity.name}`, { duration: 5000 });
+        toast.error(
+          result.error?.message || `Error al eliminar ${entity.name}`,
+          { duration: 5000 }
+        );
         console.error(`❌ Delete failed:`, result.error);
       }
     } catch (error) {
@@ -310,6 +313,8 @@ function EntityListPage({
             linkPath={createPath}
             placeHolder={searchPlaceholder}
             dropdownOptions={[]}
+            showDatePicker={false}
+            showDropdownSelector={false}
           />
         </CardContent>
       </Card>

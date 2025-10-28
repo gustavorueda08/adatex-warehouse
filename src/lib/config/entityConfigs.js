@@ -5,7 +5,11 @@
  * CONFIGURACIÓN PARA CREAR CLIENTES
  * ============================================================================
  */
-export function createCustomerFormConfig({ onSubmit, loading }) {
+export function createCustomerFormConfig({
+  onSubmit,
+  loading,
+  territories = [],
+}) {
   return {
     title: "Crear Nuevo Cliente",
     description: "Completa los campos para crear el cliente",
@@ -52,20 +56,37 @@ export function createCustomerFormConfig({ onSubmit, loading }) {
         fullWidth: true,
       },
       {
-        name: "territory",
+        name: "territoryId",
         label: "Ciudad / Territorio",
         type: "select",
         required: true,
+        options: territories.map((t) => ({
+          label: t.city,
+          value: t.id,
+        })),
+        searchable: true,
+        placeholder: "Seleccionar ciudad...",
       },
     ],
 
     validateForm: (formData) => {
-      // Validación básica: solo requerimos el nombre
-      return !!formData.name && formData.name.trim() !== "";
+      // Validar nombre y territorio
+      return (
+        !!formData.name &&
+        formData.name.trim() !== "" &&
+        !!formData.territoryId
+      );
     },
 
     prepareSubmitData: (formData) => {
-      return formData;
+      return {
+        name: formData.name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        identification: formData.identification || null,
+        address: formData.address || null,
+        territoryId: formData.territoryId,
+      };
     },
   };
 }
