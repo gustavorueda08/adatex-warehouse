@@ -6,6 +6,7 @@ import EntityForm from "@/components/entities/EntityForm";
 import { createCustomerFormConfig } from "@/lib/config/entityConfigs";
 import toast from "react-hot-toast";
 import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useTerritories } from "@/lib/hooks/useTerritories";
 
 /**
  * EJEMPLO DE USO DEL NUEVO SISTEMA
@@ -30,11 +31,19 @@ export default function NewCustomerPage() {
       },
     }
   );
+  const [selectedTerritory, setSelectedTerritory] = useState(null);
+
+  const { territories } = useTerritories();
+
+  console.log(territories);
 
   // Crear la configuración para el formulario de cliente
   const config = createCustomerFormConfig({
     onSubmit: createCustomer,
     loading: creating,
+    territories: territories || [],
+    selectedTerritory,
+    setSelectedTerritory,
   });
 
   return <EntityForm config={config} backPath="/customers" />;

@@ -9,11 +9,11 @@ import { useStrapi } from "./useStrapi";
  * @param {Object} options - Opciones del hook
  * @returns {Object} Estado y funciones del hook
  */
-export function useCities(queryParams = {}, options = {}) {
-  return useStrapi("cities", queryParams, {
+export function useTerritories(queryParams = {}, options = {}) {
+  return useStrapi("territories", queryParams, {
     ...options,
-    singularName: "city",
-    pluralName: "cities",
+    singularName: "territory",
+    pluralName: "territories",
     customNormalizer: normalizeFilters,
   });
 }

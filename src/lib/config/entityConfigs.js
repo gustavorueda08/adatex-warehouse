@@ -51,6 +51,11 @@ export function createCustomerFormConfig({ onSubmit, loading }) {
         rows: 3,
         fullWidth: true,
       },
+      {
+        name: "territory",
+        label: "Ciudad / Territorio",
+        type: "select",
+      },
     ],
 
     validateForm: (formData) => {
