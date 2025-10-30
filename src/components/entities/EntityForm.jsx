@@ -110,6 +110,13 @@ export default function EntityForm({
           } else {
             defaultData[field.name] = [];
           }
+        } else if (field.type === "select") {
+          const value = initialData[field.name];
+          if (typeof value === "object" && value.id) {
+            defaultData[field.name] = value.id;
+          } else {
+            defaultData[field.name] = value;
+          }
         } else {
           defaultData[field.name] = initialData[field.name];
         }
@@ -327,7 +334,8 @@ export default function EntityForm({
                 <div>
                   <CardTitle>Información de la entidad</CardTitle>
                   <CardDescription>
-                    Completa la información del {entityConfig.label.toLowerCase()}
+                    Completa la información del{" "}
+                    {entityConfig.label.toLowerCase()}
                   </CardDescription>
                 </div>
               </div>
@@ -519,7 +527,7 @@ function renderField(field, formData, updateField, errors) {
       return (
         <div key={field.name}>
           {field.label && (
-            <label className="text-sm font-medium text-gray-300 mb-2 block">
+            <label className="text-sm font-medium text-gray-300  mb-2 block">
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
             </label>

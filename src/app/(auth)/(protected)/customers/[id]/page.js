@@ -7,7 +7,8 @@ import ConsignmentBalance from "@/components/customers/ConsignmentBalance";
 import toast from "react-hot-toast";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useTaxes } from "@/lib/hooks/useTaxes";
-import { createCustomerDetailConfig } from "@/lib/config/customersConfig";
+import { createCustomerDetailConfig } from "@/lib/config/entityConfigs";
+import { useTerritories } from "@/lib/hooks/useTerritories";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -16,21 +17,23 @@ export default function CustomerDetailPage() {
 
   const [showBalance, setShowBalance] = useState(false);
 
-  // Usar useCustomers con filtro por ID y populate para relaciones
-  const { customers, loading, updateCustomer, updating } = useCustomers(
-    {
-      filters: { id: { $eq: customerId } },
-      pagination: { page: 1, pageSize: 1 },
-      populate: ["taxes", "parties", "prices"],
-    },
-    {
-      onError: (err) => {
-        console.error("Error loading customer:", err);
-        toast.error("Error al cargar el cliente");
-        router.push("/customers");
+  const { customers, loading, updateCustomer, updating, refetch } =
+    useCustomers(
+      {
+        filters: { id: { $eq: customerId } },
+        pagination: { page: 1, pageSize: 1 },
+        populate: ["taxes", "parties", "prices", "territory"],
       },
-    }
-  );
+      {
+        onError: (err) => {
+          console.error("Error loading customer:", err);
+          toast.error("Error al cargar el cliente");
+        },
+        onUpdate: () => {
+          refetch();
+        },
+      }
+    );
 
   const { taxes } = useTaxes({});
 
@@ -41,20 +44,20 @@ export default function CustomerDetailPage() {
     if (!taxes || taxes.length === 0) return [];
     return taxes.map((tax) => ({
       value: tax.id,
-      label: `${tax.name} - ${tax.percentage}%`,
+      label: `${tax.name}`,
     }));
   }, [taxes]);
 
   // Obtener parties disponibles (otros clientes)
-  const { customers: allCustomers } = useCustomers({
-    pagination: { page: 1, pageSize: 100 },
-  });
+
+  const { customers: allCustomers } = useCustomers({});
+  const { territories = [] } = useTerritories({});
 
   const availableParties = useMemo(() => {
     if (!allCustomers) return [];
     // Filtrar el cliente actual de la lista de parties posibles
     return allCustomers
-      .filter((c) => c.id !== parseInt(customerId))
+      .filter((c) => c.id != customerId)
       .map((c) => ({
         value: c.id,
         label: c.name,
@@ -71,6 +74,7 @@ export default function CustomerDetailPage() {
         updateCustomer,
         router,
         updating,
+        territories,
       }),
     [
       customerId,

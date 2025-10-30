@@ -35,8 +35,6 @@ export async function PUT(request, context) {
       );
     }
 
-    console.log(body);
-
     // Construir la URL de Strapi
     const strapiUrl = new URL(
       `/api/customers/${customerId}`,

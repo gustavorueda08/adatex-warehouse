@@ -238,6 +238,8 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
         const result = await response.json();
 
+        console.log("RESULTADO", result);
+
         if (!response.ok) {
           throw new Error(
             result.error?.message ||
@@ -262,7 +264,6 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         }
 
         if (onUpdate) onUpdate(result.data, result);
-
         return { success: true, data: result.data, meta: result.meta };
       } catch (err) {
         console.error(`Error updating ${entitySingular}:`, err);
