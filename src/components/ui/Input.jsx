@@ -14,6 +14,11 @@ const Input = memo(function Input({
   onEnter = () => {},
   disabled = false,
   loading = false,
+  required = true,
+  type = "text",
+  step,
+  min,
+  max,
 }) {
   const [bounce, setBounce] = useState(false);
   const [internalInput, setInternalInput] = useState("");
@@ -32,7 +37,7 @@ const Input = memo(function Input({
         )}
         <input
           readOnly={disabled}
-          type="text"
+          type={type}
           id="simple-search"
           className={classNames(
             "bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-md block w-full p-2.5 focus:outline-none focus:ring-0 focus:border-transparent",
@@ -42,7 +47,10 @@ const Input = memo(function Input({
             }
           )}
           placeholder={loading ? loadingPlaceholder : placeholder}
-          required
+          required={required}
+          step={step}
+          min={min}
+          max={max}
           value={setInput ? input || "" : internalInput}
           onChange={(e) =>
             setInput

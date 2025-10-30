@@ -2,7 +2,7 @@
 import { memo, useMemo, useState } from "react";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
-import Badge from "@/components/ui/Bagde";
+import Badge from "@/components/ui/Badge";
 import { ChevronDownIcon } from "@heroicons/react/24/solid";
 import { CheckCircleIcon, ClockIcon } from "@heroicons/react/24/outline";
 import format from "@/lib/utils/format";

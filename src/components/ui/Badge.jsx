@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import React from "react";
 
-export default function Bagde({
+export default function Badge({
   variant = "zinc",
   className = "",
   children,

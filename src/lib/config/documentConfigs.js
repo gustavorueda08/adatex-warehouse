@@ -145,7 +145,8 @@ export const saleDocumentConfig = {
     handleProductSelect,
     getAvailableProducts,
     isReadOnly,
-    user
+    user,
+    selectedCustomerForInvoice
   ) => [
     {
       key: "name",
@@ -166,7 +167,29 @@ export const saleDocumentConfig = {
             className="md:min-w-80"
             options={selectOptions}
             value={row.product || null}
-            onChange={(product) => handleProductSelect(product, index)}
+            onChange={(product) => {
+              console.log("PRODUITO", product);
+              handleProductSelect(product, index);
+              if (selectedCustomerForInvoice?.prices) {
+                console.log(selectedCustomerForInvoice?.prices);
+
+                const priceData = selectedCustomerForInvoice.prices.find(
+                  (p) => p.product.id == product.id
+                );
+                if (priceData) {
+                  const price = String(priceData.unitPrice);
+                  const ivaIncluded = priceData.ivaIncluded;
+                  const invoicePercentage = priceData.invoicePercentage;
+                  updateProductField(row.id, "price", price);
+                  updateProductField(row.id, "ivaIncluded", ivaIncluded);
+                  updateProductField(
+                    row.id,
+                    "invoicePercentage",
+                    invoicePercentage
+                  );
+                }
+              }
+            }}
             searchable
             disabled={isReadOnly}
           />

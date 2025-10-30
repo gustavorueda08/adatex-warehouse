@@ -29,7 +29,7 @@ import { v4 } from "uuid";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import Bagde from "@/components/ui/Bagde";
+import Bagde from "@/components/ui/Badge";
 import { getOrderStateDataFromState } from "@/lib/utils/orderStates";
 import Textarea from "@/components/ui/Textarea";
 import { generateLabels } from "@/lib/utils/generateLabels";

@@ -27,6 +27,7 @@ export default function SaleDetailPage({ params }) {
       "customer",
       "customerForInvoice",
       "customerForInvoice.prices",
+      "customerForInvoice.prices.product",
       "customerForInvoice.taxes",
       "customer.prices",
       "customer.parties",
@@ -283,7 +284,22 @@ export default function SaleDetailPage({ params }) {
         actualDispatchDate: actualDispatchDate,
         setActualDispatchDate: setActualDispatchDate,
       })}
-      productColumns={config.getProductColumns}
+      productColumns={(
+        updateProductField,
+        handleProductSelect,
+        getAvailableProducts,
+        isReadOnly,
+        user
+      ) =>
+        config.getProductColumns(
+          updateProductField,
+          handleProductSelect,
+          getAvailableProducts,
+          isReadOnly,
+          user,
+          selectedCustomerForInvoice
+        )
+      }
       actions={enhancedActions}
       customSections={[
         ...(isConsignment

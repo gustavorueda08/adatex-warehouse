@@ -2,17 +2,20 @@ import { getTokenFromCookies } from "@/lib/auth/session";
 import { NextResponse } from "next/server";
 const STRAPI_URL = process.env.STRAPI_URL;
 
-export async function GET(request) {
+export async function GET(request, context) {
   try {
     const token = await getTokenFromCookies();
     if (!token)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     // Obtener los parámetros de búsqueda de la URL
     const { searchParams } = new URL(request.url);
-    const customerId = ""
+    const { customerId } = await context.params;
 
     // Construir la URL de Strapi
-    const strapiUrl = new URL("/api/customers/customerId/consigment-balance", STRAPI_URL.toString());
+    const strapiUrl = new URL(
+      `/api/customers/${customerId}/consignment-balance`,
+      STRAPI_URL.toString()
+    );
 
     // Pasar todos los parámetros de búsqueda a Strapi
     searchParams.forEach((value, key) => {

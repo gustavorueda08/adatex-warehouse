@@ -1,23 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import Card, {
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/Card";
 import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
 import { useConsignmentBalance } from "@/lib/hooks/useConsignment";
 import format from "@/lib/utils/format";
 import { useRouter } from "next/navigation";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 
 /**
  * Componente para mostrar el balance de remisión de un cliente
  * Muestra productos despachados vs facturados con opción de facturar
  */
-export default function ConsignmentBalance({ customerId, customerName }) {
+export default function ConsignmentBalance({ customerId }) {
   const router = useRouter();
-  const { balance, loading, error, refetch } = useConsignmentBalance(customerId, {
-    enabled: !!customerId,
-  });
+  const { balance, loading, error, refetch } = useConsignmentBalance(
+    customerId,
+    {
+      enabled: !!customerId,
+    }
+  );
 
   const [expandedProducts, setExpandedProducts] = useState(new Set());
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleProductExpand = (productId) => {
     const newExpanded = new Set(expandedProducts);
@@ -63,7 +74,11 @@ export default function ConsignmentBalance({ customerId, customerName }) {
       key: "pendingBalance",
       label: "Pendiente por Facturar",
       render: (_, row) => (
-        <p className={`font-bold ${row.pendingBalance > 0 ? "text-yellow-400" : "text-zinc-500"}`}>
+        <p
+          className={`font-bold ${
+            row.pendingBalance > 0 ? "text-yellow-400" : "text-zinc-500"
+          }`}
+        >
           {format(row.pendingBalance)} {row.product?.unit || ""}
         </p>
       ),
@@ -128,7 +143,11 @@ export default function ConsignmentBalance({ customerId, customerName }) {
       key: "pending",
       label: "Pendiente",
       render: (qty) => (
-        <p className={`font-bold ${qty > 0 ? "text-yellow-400" : "text-zinc-500"}`}>
+        <p
+          className={`font-bold ${
+            qty > 0 ? "text-yellow-400" : "text-zinc-500"
+          }`}
+        >
           {format(qty)}
         </p>
       ),
@@ -176,79 +195,118 @@ export default function ConsignmentBalance({ customerId, customerName }) {
     return (
       <div className="p-4 bg-zinc-700 rounded-md">
         <h4 className="font-bold mb-3">Órdenes de {row.product?.name}</h4>
-        <Table columns={orderColumns} data={row.orders || []} hiddenHeader={false} />
+        <Table
+          columns={orderColumns}
+          data={row.orders || []}
+          hiddenHeader={false}
+        />
       </div>
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <p className="text-zinc-400">Cargando balance de remisión...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-900/20 border border-red-500 rounded-md">
-        <p className="text-red-400">Error al cargar balance: {error}</p>
-        <Button variant="red" onClick={refetch} className="mt-2">
-          Reintentar
-        </Button>
-      </div>
-    );
-  }
-
-  if (!balance || !balance.products || balance.products.length === 0) {
-    return (
-      <div className="p-4 bg-zinc-700 rounded-md">
-        <p className="text-zinc-400">
-          No hay productos en remisión para este cliente.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      {/* Resumen General */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-zinc-700 rounded-md">
-          <p className="text-sm text-zinc-400">Total Despachado</p>
-          <p className="text-2xl font-bold">{format(balance.summary?.totalDispatched || 0)}</p>
+    <Card>
+      {/* Header con título y botón de expandir/colapsar */}
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Balance de Remisión</CardTitle>
+            <CardDescription>
+              Control de productos despachados vs facturados
+            </CardDescription>
+          </div>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 transition-colors text-sm font-medium"
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUpIcon className="w-4 h-4" />
+                Ocultar
+              </>
+            ) : (
+              <>
+                <ChevronDownIcon className="w-4 h-4" />
+                Mostrar
+              </>
+            )}
+          </button>
         </div>
-        <div className="p-4 bg-zinc-700 rounded-md">
-          <p className="text-sm text-zinc-400">Total Facturado</p>
-          <p className="text-2xl font-bold text-emerald-400">
-            {format(balance.summary?.totalInvoiced || 0)}
-          </p>
-        </div>
-        <div className="p-4 bg-zinc-700 rounded-md">
-          <p className="text-sm text-zinc-400">Pendiente por Facturar</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            {format(balance.summary?.totalPending || 0)}
-          </p>
-        </div>
-      </div>
+      </CardHeader>
 
-      {/* Tabla de Productos */}
-      <div>
-        <h3 className="text-xl font-bold mb-3">Detalle por Producto</h3>
-        <Table
-          columns={productColumns}
-          data={balance.products || []}
-          renderExpandedContent={renderExpandedContent}
-          getRowId={(row) => row.product?.id}
-        />
-      </div>
+      {/* Contenido expandible */}
+      {isExpanded && (
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-zinc-400">Cargando balance de remisión...</p>
+            </div>
+          ) : error ? (
+            <div className="p-4 bg-red-900/20 border border-red-500 rounded-md">
+              <p className="text-red-400">Error al cargar balance: {error}</p>
+              <Button variant="red" onClick={refetch} className="mt-2">
+                Reintentar
+              </Button>
+            </div>
+          ) : !balance || !balance.products || balance.products.length === 0 ? (
+            <div className="p-4 bg-zinc-700/50 rounded-md text-center">
+              <p className="text-zinc-400">
+                No hay productos en remisión para este cliente.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Resumen General */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-zinc-700/50 rounded-lg border border-zinc-600">
+                  <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium mb-1">
+                    Total Despachado
+                  </p>
+                  <p className="text-3xl font-bold text-white">
+                    {format(balance.summary?.totalDispatched || 0)}
+                  </p>
+                </div>
+                <div className="p-4 bg-emerald-900/20 rounded-lg border border-emerald-700">
+                  <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium mb-1">
+                    Total Facturado
+                  </p>
+                  <p className="text-3xl font-bold text-emerald-400">
+                    {format(balance.summary?.totalInvoiced || 0)}
+                  </p>
+                </div>
+                <div className="p-4 bg-yellow-900/20 rounded-lg border border-yellow-700">
+                  <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium mb-1">
+                    Pendiente por Facturar
+                  </p>
+                  <p className="text-3xl font-bold text-yellow-400">
+                    {format(balance.summary?.totalPending || 0)}
+                  </p>
+                </div>
+              </div>
 
-      {/* Botón de Refrescar */}
-      <div className="flex justify-end">
-        <Button variant="zinc" onClick={refetch}>
-          Actualizar balance
-        </Button>
-      </div>
-    </div>
+              {/* Tabla de Productos */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">
+                    Detalle por Producto
+                  </h3>
+                  <Button variant="zinc" size="sm" onClick={refetch}>
+                    Actualizar
+                  </Button>
+                </div>
+                <div className="rounded-lg overflow-hidden border border-zinc-700">
+                  <Table
+                    columns={productColumns}
+                    data={balance.products || []}
+                    renderExpandedContent={renderExpandedContent}
+                    getRowId={(row) => row.product?.id}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
   );
 }

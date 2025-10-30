@@ -4,7 +4,7 @@ import DatePicker from "@/components/ui/DatePicker";
 import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
 import Textarea from "@/components/ui/Textarea";
-import Badge from "@/components/ui/Bagde";
+import Badge from "@/components/ui/Badge";
 import Card, {
   CardHeader,
   CardTitle,

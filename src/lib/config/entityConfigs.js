@@ -5,6 +5,7 @@ import {
   ReceiptPercentIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
+import { PricesSection } from "@/components/entities/PricesSection";
 
 /**
  * ============================================================================
@@ -147,6 +148,19 @@ export function createCustomerDetailConfig({
       taxes: formData.taxes || [],
       parties: formData.parties || [],
       territory: formData.territory,
+      // Preparar precios: solo enviar los válidos con el formato correcto
+      prices: (formData.prices || [])
+        .filter(
+          (price) =>
+            price.product && price.unitPrice && Number(price.unitPrice) > 0
+        )
+        .map((price) => ({
+          id: price.new ? null : price.id,
+          product: price.product.id,
+          unitPrice: Number(price.unitPrice),
+          ivaIncluded: price.ivaIncluded,
+          invoicePercentage: price.invoicePercentage,
+        })),
     };
 
     const result = await updateCustomer(customerId, dataToSubmit);
@@ -166,6 +180,17 @@ export function createCustomerDetailConfig({
     entityType: "customer",
     fields: fieldSections,
     sectioned: true,
+    customSections: [
+      {
+        render: ({ formData, updateField }) => (
+          <PricesSection
+            prices={formData.prices || []}
+            onChange={(prices) => updateField("prices", prices)}
+            entityType="customer"
+          />
+        ),
+      },
+    ],
     onSubmit: handleSubmit,
     backPath: "/customers",
     loading: updating,
@@ -358,6 +383,116 @@ export function createCustomerFormConfig({
         seller: formData.seller,
       };
     },
+  };
+}
+
+/**
+ * ============================================================================
+ * CONFIGURACIÓN PARA DETALLE DE PROVEEDOR
+ * ============================================================================
+ */
+export function createSupplierDetailConfig({
+  supplierId,
+  updateSupplier,
+  updating = false,
+}) {
+  const fieldSections = [
+    {
+      title: "Información Básica",
+      description: "Datos generales del proveedor",
+      icon: UserIcon,
+      fields: [
+        {
+          name: "name",
+          label: "Nombre",
+          type: "text",
+          required: true,
+          placeholder: "Nombre del proveedor",
+        },
+        {
+          name: "email",
+          label: "Email",
+          type: "email",
+          required: false,
+          placeholder: "correo@ejemplo.com",
+        },
+        {
+          name: "phone",
+          label: "Teléfono",
+          type: "text",
+          required: false,
+          placeholder: "+57 300 123 4567",
+        },
+        {
+          name: "identification",
+          label: "NIT",
+          type: "text",
+          required: false,
+          placeholder: "NIT del proveedor",
+        },
+        {
+          name: "address",
+          label: "Dirección",
+          type: "textarea",
+          required: false,
+          placeholder: "Dirección completa del proveedor",
+          rows: 3,
+          fullWidth: true,
+        },
+      ],
+    },
+  ];
+
+  const handleSubmit = async (formData) => {
+    // Preparar datos para enviar al backend
+    const dataToSubmit = {
+      name: formData.name,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      identification: formData.identification || null,
+      address: formData.address || null,
+      // Preparar precios: solo enviar los válidos con el formato correcto
+      prices: (formData.prices || [])
+        .filter(
+          (price) =>
+            price.product && price.unitPrice && Number(price.unitPrice) > 0
+        )
+        .map((price) => ({
+          product: price.product.id,
+          unitPrice: Number(price.unitPrice),
+          ivaIncluded: price.ivaIncluded,
+        })),
+    };
+
+    const result = await updateSupplier(supplierId, dataToSubmit);
+
+    if (result.success) {
+      toast.success("Proveedor actualizado exitosamente");
+    } else {
+      console.error("Error updating supplier:", result.error);
+      throw result.error;
+    }
+  };
+
+  return {
+    title: "Editar Proveedor",
+    description: "Actualiza la información del proveedor",
+    entityType: "supplier",
+    fields: fieldSections,
+    customSections: [
+      {
+        render: ({ formData, updateField }) => (
+          <PricesSection
+            prices={formData.prices || []}
+            onChange={(prices) => updateField("prices", prices)}
+            entityType="supplier"
+          />
+        ),
+      },
+    ],
+    onSubmit: handleSubmit,
+    backPath: "/suppliers",
+    loading: updating,
   };
 }
 

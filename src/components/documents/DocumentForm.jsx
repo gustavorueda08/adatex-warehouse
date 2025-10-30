@@ -4,7 +4,7 @@ import Button from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
 import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
-import Badge from "@/components/ui/Bagde";
+import Badge from "@/components/ui/Badge";
 import Card, {
   CardHeader,
   CardTitle,

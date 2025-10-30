@@ -5,7 +5,9 @@
       "Bash(npx eslint:*)",
       "Bash(git log -1 --format='%h %s')",
       "Read(//Users/grmini/**)",
-      "Bash(npx tsc --noEmit --jsx preserve)"
+      "Bash(npx tsc --noEmit --jsx preserve)",
+      "Bash(echo:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

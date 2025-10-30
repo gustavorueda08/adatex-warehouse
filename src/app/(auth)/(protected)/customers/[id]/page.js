@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
 import ConsignmentBalance from "@/components/customers/ConsignmentBalance";
@@ -15,14 +15,12 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const customerId = params.id;
 
-  const [showBalance, setShowBalance] = useState(false);
-
   const { customers, loading, updateCustomer, updating, refetch } =
     useCustomers(
       {
         filters: { id: { $eq: customerId } },
         pagination: { page: 1, pageSize: 1 },
-        populate: ["taxes", "parties", "prices", "territory"],
+        populate: ["taxes", "parties", "prices", "prices.product", "territory"],
       },
       {
         onError: (err) => {
@@ -94,30 +92,19 @@ export default function CustomerDetailPage() {
     );
   }
 
+  console.log(customer, "FDFDFDFDF");
+
   return (
     <div className="space-y-6">
       {/* Formulario de Cliente */}
-      <EntityForm {...formConfig} initialData={customer} />
+      <EntityForm
+        config={formConfig}
+        initialData={customer}
+        backPath="/customers"
+      />
 
       {/* Sección de Balance de Remisión */}
-      <div className="px-4">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Balance de Remisión</h2>
-          <button
-            onClick={() => setShowBalance(!showBalance)}
-            className="text-cyan-400 hover:underline text-sm"
-          >
-            {showBalance ? "Ocultar" : "Mostrar"} balance
-          </button>
-        </div>
-
-        {showBalance && (
-          <ConsignmentBalance
-            customerId={parseInt(customerId)}
-            customerName={customer?.name}
-          />
-        )}
-      </div>
+      <ConsignmentBalance customerId={parseInt(customerId)} />
     </div>
   );
 }

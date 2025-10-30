@@ -12,6 +12,7 @@ import Searchbar from "./Searchbar";
 import IconButton from "./IconButton";
 import { TrashIcon } from "@heroicons/react/24/solid";
 import classNames from "classnames";
+import Button from "./Button";
 
 export default function Select({
   options = [],
@@ -281,13 +282,22 @@ export default function Select({
                 >
                   <span className="max-w-[150px] truncate">{option.label}</span>
                   {!disabled && (
-                    <button
-                      type="button"
+                    <IconButton
+                      as="span"
                       onClick={(e) => handleRemoveOption(option.value, e)}
-                      className="ml-1 hover:text-blue-600 flex-shrink-0"
+                      variant="zinc"
+                      className="px-2"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleRemoveOption(option.value, e);
+                        }
+                      }}
                     >
                       <XMarkIcon className="w-3 h-3" />
-                    </button>
+                    </IconButton>
                   )}
                 </span>
               ))}
@@ -309,13 +319,20 @@ export default function Select({
 
         <div className="flex items-center space-x-1 flex-shrink-0">
           {clearable && selectedOptions.length > 0 && !disabled && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
-              className="p-1 rounded hover:bg-zinc-700"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleClear(e);
+                }
+              }}
+              className="p-1 rounded hover:bg-zinc-700 cursor-pointer"
             >
               <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-200" />
-            </button>
+            </span>
           )}
           <ChevronDownIcon
             className={`w-4 h-4 text-gray-400 transition-transform ${

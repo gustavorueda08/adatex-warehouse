@@ -365,7 +365,9 @@ export default function Table({
                   <th key={column.key} scope="col" className="max-w-[200px]">
                     <div
                       className={`shadow-xl my-4 p-4 bg-neutral-600 ${
-                        index === columns.length - 1 && !onRowDelete && !getDetailPath
+                        index === columns.length - 1 &&
+                        !onRowDelete &&
+                        !getDetailPath
                           ? "mr-4 rounded-r"
                           : ""
                       } ${
@@ -441,7 +443,10 @@ export default function Table({
         </div>
 
         {pagination && (
-          <nav className="bg-neutral-900 p-4 rounded-lg mt-4" aria-label="Navegación de tabla">
+          <nav
+            className="bg-neutral-900 p-4 rounded-lg mt-4"
+            aria-label="Navegación de tabla"
+          >
             <div className="flex items-center justify-between bg-neutral-800 rounded-lg py-3 px-4 border border-neutral-700">
               <div className="w-48 h-4 bg-neutral-700 rounded animate-pulse"></div>
               <div className="flex gap-1">
@@ -663,9 +668,9 @@ export default function Table({
                         : "mr-0"
                     } ${
                       (index === 0 && data.length === 0) ||
-                      (index === 0 && !renderExpandedContent)
+                      (index === 0 && !renderExpandedContent && !onRowSelect)
                         ? "ml-4 rounded-l"
-                        : ""
+                        : "pl-6"
                     } bg-neutral-600`}
                     title={column.label}
                   >

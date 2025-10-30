@@ -6,7 +6,7 @@ import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
 import Select from "@/components/ui/Select";
 import DatePicker from "@/components/ui/DatePicker";
-import Badge from "@/components/ui/Bagde";
+import Badge from "@/components/ui/Badge";
 import Card, {
   CardHeader,
   CardTitle,
@@ -80,9 +80,15 @@ export default function EntityForm({
   const fields = isConfigMode ? config.fields : legacyFields;
   const onSubmit = isConfigMode ? config.onSubmit : legacyOnSubmit;
   const loading = isConfigMode ? config.loading : legacyLoading;
-  const sectioned = isConfigMode ? false : legacySectioned; // config mode no soporta sectioned por ahora
+
+  // Detectar automáticamente si fields tiene estructura de secciones
+  const isSectioned =
+    fields && fields.length > 0 && fields[0]?.fields ? true : false;
+  const sectioned = isConfigMode ? isSectioned : legacySectioned;
+
   const validateFormFn = isConfigMode ? config.validateForm : null;
   const prepareSubmitDataFn = isConfigMode ? config.prepareSubmitData : null;
+  const customSections = isConfigMode ? config.customSections : [];
   const router = useRouter();
   const isEditMode = !!initialData;
 
@@ -112,7 +118,7 @@ export default function EntityForm({
           }
         } else if (field.type === "select") {
           const value = initialData[field.name];
-          if (typeof value === "object" && value.id) {
+          if (typeof value === "object" && value?.id) {
             defaultData[field.name] = value.id;
           } else {
             defaultData[field.name] = value;
@@ -129,8 +135,15 @@ export default function EntityForm({
         }
       }
     });
+
+    // Inicializar datos adicionales para customSections (ej: prices)
+    // Estos datos no son fields pero necesitan estar en formData
+    if (initialData?.prices) {
+      defaultData.prices = initialData.prices;
+    }
+
     setFormData(defaultData);
-  }, [initialData, fields, sectioned]);
+  }, [initialData?.id, fields, sectioned, initialData?.prices]);
 
   // Actualizar campo del formulario
   const updateField = useCallback((fieldName, value) => {
@@ -353,6 +366,15 @@ export default function EntityForm({
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Secciones custom (si existen) */}
+        {customSections && customSections.length > 0 && (
+          <>
+            {customSections.map((section, index) => (
+              <div key={index}>{section.render({ formData, updateField })}</div>
+            ))}
+          </>
         )}
 
         {/* Card de validación y submit */}

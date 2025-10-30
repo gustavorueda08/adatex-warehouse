@@ -7,13 +7,16 @@ export default function IconButton({
   variant = "zinc",
   onClick = () => {},
   className = "",
+  as = "button",
   ...props
 }) {
+  const Component = as;
+
   return (
-    <button
+    <Component
       {...props}
       className={classNames(
-        "transition-colors duration-200 ease-in-out self-center",
+        "transition-colors duration-200 ease-in-out self-center cursor-pointer",
         {
           "text-red-600 hover:text-red-500 active:text-red-700":
             variant === "red",
@@ -27,6 +30,6 @@ export default function IconButton({
       onClick={onClick}
     >
       {children}
-    </button>
+    </Component>
   );
 }
