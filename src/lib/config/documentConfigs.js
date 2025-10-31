@@ -2129,3 +2129,918 @@ export const partialInvoiceDocumentConfig = {
     },
   ],
 };
+
+/**
+ * ============================================================================
+ * CONFIGURACIÓN V2 PARA DOCUMENTOS DE VENTA (Simplificada)
+ * ============================================================================
+ */
+
+/**
+ * Configuración V2 para Sales - Compatible con DocumentDetailBaseV2
+ * Usa pattern config + initialData (sin props externos)
+ */
+export function createSaleDocumentConfigV2({
+  useCustomers,
+  useWarehouses,
+  useProducts,
+  updateOrder,
+  deleteOrder,
+  addItem,
+  removeItem,
+}) {
+  return {
+    // Metadata
+    type: 'sale',
+    title: (document) => {
+      const baseTitle = document.code || '';
+      const container = document.containerCode ? ` | ${document.containerCode}` : '';
+      const isConsignment = document.state === 'completed' && !document.siigoId;
+      const consignmentLabel = isConsignment ? ' (Remisión)' : '';
+      return `${baseTitle}${container}${consignmentLabel}`;
+    },
+    redirectPath: '/sales',
+
+    // Data fetchers - DocumentDetailBase ejecuta estos hooks
+    dataFetchers: {
+      customers: {
+        hook: useCustomers,
+        params: { populate: ["prices", "prices.product", "parties", "taxes"] },
+      },
+      warehouses: {
+        hook: useWarehouses,
+        params: {},
+      },
+      products: {
+        hook: useProducts,
+        params: {},
+      },
+    },
+
+    // CRUD operations
+    updateDocument: updateOrder,
+    deleteDocument: deleteOrder,
+    addItem,
+    removeItem,
+
+    // Estado inicial del formulario
+    getInitialState: (document) => {
+      const customer = document.customer;
+      const customerForInvoice = document.customerForInvoice;
+      
+      // Calcular parties
+      let parties = [];
+      if (customer) {
+        const customerParties = Array.isArray(customer.parties) ? customer.parties : [];
+        parties = [...customerParties, customer];
+        
+        // Asegurarse de que customerForInvoice esté incluido
+        if (customerForInvoice && !parties.find(p => p.id === customerForInvoice.id)) {
+          parties.push(customerForInvoice);
+        }
+      }
+
+      return {
+        selectedCustomer: customer,
+        selectedCustomerForInvoice: customerForInvoice,
+        selectedWarehouse: document.sourceWarehouse,
+        parties,
+        createdDate: document.createdDate,
+        actualDispatchDate: document.actualDispatchDate,
+        confirmedDate: document.confirmedDate,
+        completedDate: document.completedDate,
+      };
+    },
+
+    // State handlers - Lógica de estado reutilizable
+    stateHandlers: {
+      // SOLUCIÓN al problema de parties/customerForInvoice
+      onCustomerChange: (customer, state, updateState) => {
+        const customerParties = Array.isArray(customer.parties) ? customer.parties : [];
+        const allParties = [...customerParties, customer];
+        
+        // Auto-seleccionar party por defecto
+        let defaultParty = customer;
+        if (customerParties.length > 0) {
+          defaultParty = customerParties.find(p => p.isDefault) || customerParties[0];
+        }
+
+        updateState({
+          selectedCustomer: customer,
+          parties: allParties,
+          selectedCustomerForInvoice: defaultParty,
+        });
+      },
+    },
+
+    // Header fields con acceso al estado interno
+    headerFields: [
+      {
+        label: 'Cliente',
+        type: 'select',
+        key: 'selectedCustomer',
+        options: (state, data) => {
+          if (!data.customers) return [];
+          return data.customers.map(c => ({ label: c.name, value: c }));
+        },
+        searchable: true,
+        onChange: 'onCustomerChange', // Referencia al state handler
+      },
+      {
+        label: 'Cliente para la factura',
+        type: 'select',
+        key: 'selectedCustomerForInvoice',
+        options: (state) => {
+          if (!state.parties) return [];
+          return state.parties.map(p => ({ label: p.name, value: p }));
+        },
+        searchable: true,
+      },
+      {
+        label: 'Bodega origen',
+        type: 'select',
+        key: 'selectedWarehouse',
+        options: (state, data) => {
+          if (!data.warehouses) return [];
+          return data.warehouses.map(w => ({ label: w.name, value: w }));
+        },
+        searchable: true,
+      },
+      {
+        label: 'Fecha de Creación',
+        type: 'date',
+        key: 'createdDate',
+        disabled: true,
+      },
+      {
+        label: 'Fecha de confirmación',
+        type: 'date',
+        key: 'confirmedDate',
+        disabled: true,
+      },
+      {
+        label: 'Fecha de despacho',
+        type: 'date',
+        key: 'actualDispatchDate',
+        disabled: true,
+      },
+    ],
+
+    // Product columns con acceso al estado
+    productColumns: [
+      {
+        key: 'product',
+        label: 'Producto',
+        type: 'select',
+        options: (state, data, row, index, availableProducts) => {
+          return availableProducts.map(p => ({ label: p.name, value: p }));
+        },
+        searchable: true,
+        onChange: (product, row, state) => {
+          // Auto-fill precio desde customerForInvoice.prices
+          const priceData = state.selectedCustomerForInvoice?.prices?.find(
+            p => p.product.id === product.id
+          );
+
+          if (priceData) {
+            return {
+              ...row,
+              product,
+              price: String(priceData.unitPrice),
+              ivaIncluded: priceData.ivaIncluded || false,
+              invoicePercentage: priceData.invoicePercentage || 100,
+            };
+          }
+
+          return { ...row, product };
+        },
+      },
+      {
+        key: 'price',
+        label: 'Precio',
+        type: 'input',
+        editable: true,
+        placeholder: '$',
+        className: 'md:max-w-28',
+      },
+      {
+        key: 'ivaIncluded',
+        label: 'IVA Incluido',
+        type: 'checkbox',
+      },
+      {
+        key: 'requestedQuantity',
+        label: 'Cantidad requerida',
+        type: 'input',
+        editable: true,
+        placeholder: 'Cantidad',
+        className: 'md:max-w-28',
+      },
+      {
+        key: 'items',
+        label: 'Cantidad confirmada',
+        type: 'computed',
+        compute: (row) =>
+          row.items?.reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0,
+        format: (value) => format(value) || '-',
+      },
+      {
+        key: 'itemsConfirmed',
+        label: 'Items Confirmados',
+        type: 'computed',
+        compute: (row) =>
+          row.items?.filter((i) => i.quantity > 0).length || 0,
+        format: (value) => format(value) || '-',
+      },
+      {
+        key: 'unit',
+        label: 'Unidad',
+        type: 'computed',
+        compute: (row) => row?.product?.unit || '-',
+      },
+    ],
+
+    // Actions con contexto completo
+    actions: [
+      {
+        label: 'Confirmar Orden',
+        variant: 'cyan',
+        visible: (document) => document.state === 'draft',
+        onClick: async (document, state, { updateDocument }) => {
+          await updateDocument(document.id, {
+            state: 'confirmed',
+            confirmedDate: moment.tz("America/Bogota").toDate(),
+          });
+        },
+      },
+      {
+        label: 'Despachar orden',
+        variant: 'emerald',
+        visible: (document) => document.state !== 'completed',
+        onClick: async (document, state, { updateDocument, showToast }) => {
+          try {
+            await updateDocument(document.id, {
+              state: 'completed',
+              completedDate: moment.tz("America/Bogota").toDate(),
+              customer: state.selectedCustomer?.id,
+              customerForInvoice: state.selectedCustomerForInvoice?.id,
+              sourceWarehouse: state.selectedWarehouse?.id,
+            });
+            showToast.success('Orden despachada exitosamente');
+          } catch (error) {
+            showToast.error('Error al despachar la orden');
+            throw error;
+          }
+        },
+      },
+      {
+        label: 'Descargar lista de empaque',
+        variant: 'zinc',
+        onClick: async (document) => {
+          await handleDocumentExport(document, { includeLot: false });
+        },
+      },
+      {
+        label: document => document.siigoId || document.invoiceNumber
+          ? 'Descargar factura'
+          : 'Facturar Orden',
+        variant: 'emerald',
+        onClick: async (document, state, { updateDocument }) => {
+          if (!document.siigoId && !document.invoiceNumber) {
+            const result = await Swal.fire({
+              title: "Facturar Orden",
+              text: "¿Está seguro que quiere facturar la orden? Esta acción no se puede deshacer",
+              icon: "question",
+              showCancelButton: true,
+              confirmButtonText: "Facturar",
+              cancelButtonText: "Cancelar",
+              background: "#27272a",
+              color: "#fff",
+              confirmButtonColor: "#10b981",
+              cancelButtonColor: "#71717a",
+            });
+
+            if (result.isConfirmed) {
+              try {
+                await updateDocument(document.id, {
+                  state: "completed",
+                  completedDate: moment.tz("America/Bogota").toDate(),
+                  emitInvoice: true,
+                });
+              } catch (error) {
+                toast.error("Error al facturar la orden");
+                throw error;
+              }
+            }
+          } else {
+            // TODO: Descargar factura
+          }
+        },
+      },
+    ],
+
+    // Preparar datos para actualización
+    prepareUpdateData: (document, products, state) => {
+      const confirmed = products
+        .filter((p) => p.product)
+        .map((p) => ({
+          ...p,
+          items: p.items.filter((i) => i.quantity !== 0 && i.quantity !== ""),
+        }))
+        .every(
+          (product) =>
+            Array.isArray(product.items) &&
+            product.items.every((item) => {
+              const q = item.quantity;
+              return (
+                q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
+              );
+            })
+        );
+
+      return {
+        customer: state.selectedCustomer?.id,
+        customerForInvoice: state.selectedCustomerForInvoice?.id,
+        sourceWarehouse: state.selectedWarehouse?.id,
+        createdDate: state.createdDate,
+        actualDispatchDate: state.actualDispatchDate,
+        state: confirmed ? 'confirmed' : document.state,
+      };
+    },
+
+    // Invoice config
+    invoice: {
+      enabled: true,
+      title: (document) =>
+        document.state === 'draft' || document.state === 'confirmed'
+          ? 'Factura Proforma'
+          : 'Factura',
+      taxes: (state) => state.selectedCustomerForInvoice?.taxes || [],
+    },
+
+    // Custom sections
+    customSections: [
+      {
+        visible: (document) => document.state === 'completed' && !document.siigoId,
+        render: (document, state) => (
+          <div className="p-4 bg-yellow-900/20 border border-yellow-500 rounded-md">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">⚠️</span>
+              <h4 className="font-bold text-yellow-400">
+                Esta orden está en remisión
+              </h4>
+            </div>
+            <p className="text-sm text-yellow-300 mb-3">
+              Los productos han sido despachados pero aún no se han
+              facturado. Puedes crear facturas parciales según el
+              cliente te reporte las ventas.
+            </p>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.href = `/sales/${document.id}/partial-invoice`;
+                }
+              }}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-md transition-colors"
+            >
+              Crear Factura Parcial
+            </button>
+          </div>
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * ============================================================================
+ * CONFIGURACIÓN V2 PARA DOCUMENTOS DE COMPRA
+ * ============================================================================
+ */
+export function createPurchaseDocumentConfigV2({
+  useSuppliers,
+  useWarehouses,
+  useProducts,
+  updateOrder,
+  deleteOrder,
+  addItem,
+  removeItem,
+}) {
+  return {
+    type: 'purchase',
+    redirectPath: '/purchases',
+
+    // Título dinámico
+    title: (document) => {
+      const parts = [document.code || ''];
+      if (document.containerCode) parts.push(document.containerCode);
+      return parts.filter(Boolean).join(' | ');
+    },
+
+    // Data fetchers
+    dataFetchers: {
+      suppliers: {
+        hook: useSuppliers,
+        params: { populate: ['prices', 'prices.product'] },
+      },
+      warehouses: {
+        hook: useWarehouses,
+        params: {},
+      },
+      products: {
+        hook: useProducts,
+        params: {},
+      },
+    },
+
+    // Estado inicial
+    getInitialState: (document) => ({
+      selectedSupplier: document.supplier || null,
+      selectedWarehouse: document.destinationWarehouse || null,
+      createdDate: document.createdDate || moment().tz("America/Bogota").toDate(),
+      actualDispatchDate: document.actualDispatchDate || null,
+      dateArrived: document.actualWarehouseDate || null,
+    }),
+
+    // State handlers
+    stateHandlers: {
+      onSupplierChange: (supplier, state, updateState) => {
+        updateState({ selectedSupplier: supplier });
+      },
+    },
+
+    // Header fields
+    headerFields: [
+      {
+        label: 'Proveedor',
+        type: 'select',
+        key: 'selectedSupplier',
+        searchable: true,
+        options: (state, data) =>
+          data.suppliers.map(s => ({
+            label: s.name,
+            value: s,
+          })),
+        onChange: 'onSupplierChange',
+      },
+      {
+        label: 'Bodega destino',
+        type: 'select',
+        key: 'selectedWarehouse',
+        searchable: true,
+        options: (state, data) =>
+          data.warehouses.map(w => ({
+            label: w.name,
+            value: w,
+          })),
+      },
+      {
+        label: 'Fecha de Creación',
+        type: 'date',
+        key: 'createdDate',
+        disabled: true,
+      },
+      {
+        label: 'Fecha de despacho',
+        type: 'date',
+        key: 'actualDispatchDate',
+      },
+    ],
+
+    // Product columns
+    productColumns: [
+      {
+        key: 'name',
+        label: 'Producto',
+        type: 'select',
+        searchable: true,
+        options: (state, data, row, index, availableProducts) => {
+          if (row.product) {
+            return [
+              { label: row.product.name, value: row.product },
+              ...availableProducts
+                .filter(p => p.id !== row.product.id)
+                .map(p => ({ label: p.name, value: p })),
+            ];
+          }
+          return availableProducts.map(p => ({ label: p.name, value: p }));
+        },
+        footer: 'Total',
+      },
+      {
+        key: 'price',
+        label: 'Precio Unitario',
+        type: 'input',
+        placeholder: '$',
+        className: 'md:max-w-28',
+        editable: true,
+        footer: '-',
+      },
+      {
+        key: 'ivaIncluded',
+        label: 'IVA Incluido',
+        type: 'checkbox',
+        footer: '-',
+      },
+      {
+        key: 'requestedQuantity',
+        label: 'Cantidad Solicitada',
+        type: 'input',
+        placeholder: 'Cantidad',
+        className: 'md:max-w-28',
+        editable: true,
+        footer: (data) =>
+          format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0)),
+      },
+      {
+        key: 'items',
+        label: 'Cantidad Recibida',
+        type: 'computed',
+        compute: (row) =>
+          row.items?.reduce(
+            (acc, item) => acc + Number(item?.quantity || 0),
+            0
+          ) || 0,
+        format: (value) => format(value) || '-',
+        footer: (data) => {
+          const total =
+            data
+              .flatMap(p => p.items)
+              .reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0;
+          return format(total) || '-';
+        },
+      },
+      {
+        key: 'total',
+        label: 'Total',
+        type: 'computed',
+        compute: (row) =>
+          row.price *
+            row.items?.reduce((acc, item) => acc + item.currentQuantity, 0) ||
+          0,
+        format: (value) => format(value, '$'),
+        footer: (data) =>
+          format(
+            data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
+            '$'
+          ),
+      },
+    ],
+
+    // Actions
+    actions: [
+      {
+        label: 'Completar Orden',
+        variant: 'emerald',
+        visible: (doc) => doc.state !== 'completed' && doc.state !== 'canceled',
+        onClick: async (document, state, { updateDocument, showToast }) => {
+          try {
+            const result = await updateDocument({ state: 'completed' }, false);
+            if (result.success) {
+              showToast.success('Orden completada exitosamente');
+            }
+          } catch (error) {
+            showToast.error('Error al completar la orden');
+          }
+        },
+      },
+      {
+        label: 'Descargar orden de compra',
+        variant: 'cyan',
+        onClick: async (document) => {
+          await handleDocumentExport(document, { includeLot: false });
+        },
+      },
+    ],
+
+    // Preparar datos para actualización
+    prepareUpdateData: (document, products, state) => {
+      const confirmed = products
+        .filter(p => p.product)
+        .map(p => ({
+          ...p,
+          items: p.items.filter(i => i.quantity !== 0 && i.quantity !== ''),
+        }))
+        .every(
+          product =>
+            Array.isArray(product.items) &&
+            product.items.every(item => {
+              const q = item.quantity;
+              return (
+                q !== null && q !== undefined && q !== '' && !isNaN(Number(q))
+              );
+            })
+        );
+
+      return {
+        supplier: state.selectedSupplier?.id,
+        destinationWarehouse: state.selectedWarehouse?.id,
+        createdDate: state.createdDate,
+        actualDispatchDate: state.actualDispatchDate,
+        state: confirmed ? 'confirmed' : document.state,
+      };
+    },
+
+    // CRUD operations
+    updateDocument: updateOrder,
+    deleteDocument: deleteOrder,
+    addItem,
+    removeItem,
+
+    // Custom sections para el bulk uploader
+    customSections: [
+      {
+        visible: (document) => document.state !== 'completed' && document.state !== 'canceled',
+        render: (document, state) => (
+          <div className="mt-4">
+            <BulkPackingListUploader
+              onFileLoaded={(data, remove, setProducts) => {
+                if (!Array.isArray(data)) return;
+
+                const items = data.map(item => ({
+                  productId: item['id'] || item['ID'] || null,
+                  name: item['NOMBRE'] || null,
+                  quantity: Number(item['CANTIDAD']) || null,
+                  lotNumber: item['LOTE'] || '',
+                  itemNumber: item['NUMERO'] || '',
+                }));
+
+                if (items.some(item => !item.quantity)) {
+                  toast.error('El formato del archivo no es válido');
+                  remove();
+                  return;
+                }
+
+                setProducts(currentProducts => {
+                  return currentProducts.map(product => {
+                    const productItems = items
+                      .filter(
+                        item =>
+                          item?.productId == product.product?.id ||
+                          item.name == product.product?.name
+                      )
+                      .map(item => ({ ...item, id: v4(), key: v4() }));
+
+                    return productItems.length > 0
+                      ? { ...product, items: productItems }
+                      : product;
+                  });
+                });
+
+                toast.success(`Se han añadido ${items.length} items a la orden`);
+              }}
+              isReadOnly={document.state === 'completed' || document.state === 'canceled'}
+            />
+          </div>
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * ============================================================================
+ * CONFIGURACIÓN V2 PARA DOCUMENTOS DE DEVOLUCIÓN
+ * ============================================================================
+ */
+export function createReturnDocumentConfigV2({
+  useWarehouses,
+  useProducts,
+  updateOrder,
+  deleteOrder,
+  addItem,
+  removeItem,
+}) {
+  return {
+    type: 'return',
+    redirectPath: '/returns',
+
+    // Título dinámico
+    title: (document) => `Devolución ${document.code || ''}`,
+
+    // Data fetchers
+    dataFetchers: {
+      warehouses: {
+        hook: useWarehouses,
+        params: {},
+      },
+      products: {
+        hook: useProducts,
+        params: {},
+      },
+    },
+
+    // Estado inicial
+    getInitialState: (document) => ({
+      selectedWarehouse: document.destinationWarehouse || null,
+      dateCreated: document.createdDate || moment().tz("America/Bogota").toDate(),
+      returnReason: document.returnReason || null,
+      sourceOrder: document.sourceOrder || null,
+    }),
+
+    // Header fields
+    headerFields: [
+      {
+        label: 'Orden de venta original',
+        type: 'input',
+        key: 'sourceOrder',
+        disabled: true,
+        render: (field, state) => (
+          <div className="px-3 py-2 bg-zinc-700 rounded-md border border-zinc-600">
+            <p className="text-white">{state.sourceOrder?.code || '-'}</p>
+          </div>
+        ),
+      },
+      {
+        label: 'Cliente',
+        type: 'input',
+        key: 'sourceOrder',
+        disabled: true,
+        render: (field, state) => (
+          <div className="px-3 py-2 bg-zinc-700 rounded-md border border-zinc-600">
+            <p className="text-white">{state.sourceOrder?.customer?.name || '-'}</p>
+          </div>
+        ),
+      },
+      {
+        label: 'Bodega destino',
+        type: 'select',
+        key: 'selectedWarehouse',
+        searchable: true,
+        options: (state, data) =>
+          data.warehouses.map(w => ({
+            label: w.name,
+            value: w,
+          })),
+      },
+      {
+        label: 'Fecha de devolución',
+        type: 'date',
+        key: 'dateCreated',
+        disabled: true,
+      },
+      {
+        label: 'Motivo de devolución',
+        type: 'select',
+        key: 'returnReason',
+        options: [
+          { label: 'Producto defectuoso', value: 'defective' },
+          { label: 'Producto equivocado', value: 'wrong_product' },
+          { label: 'Cliente insatisfecho', value: 'unsatisfied' },
+          { label: 'Otro', value: 'other' },
+        ],
+      },
+    ],
+
+    // Product columns - Productos de devolución son read-only
+    productColumns: [
+      {
+        key: 'name',
+        label: 'Producto',
+        type: 'computed',
+        compute: (row) => row.product?.name || '-',
+        footer: 'Total',
+      },
+      {
+        key: 'originalQuantity',
+        label: 'Cantidad original',
+        type: 'computed',
+        compute: (row) =>
+          row.items
+            ?.filter(i => i.parentItem)
+            ?.reduce((acc, item) => {
+              return (
+                acc +
+                (item.parentItem?.quantity ||
+                  item.parentItem?.currentQuantity ||
+                  0)
+              );
+            }, 0) || 0,
+        format: (value) => format(value) || '-',
+        footer: (data) => {
+          const total = data.reduce((acc, p) => {
+            const productTotal =
+              p.items
+                ?.filter(i => i.parentItem)
+                ?.reduce((sum, item) => {
+                  return (
+                    sum +
+                    (item.parentItem?.quantity ||
+                      item.parentItem?.currentQuantity ||
+                      0)
+                  );
+                }, 0) || 0;
+            return acc + productTotal;
+          }, 0);
+          return format(total) || '-';
+        },
+      },
+      {
+        key: 'returnQuantity',
+        label: 'Cantidad devuelta',
+        type: 'computed',
+        compute: (row) =>
+          row.items?.reduce(
+            (acc, item) => acc + Number(item?.quantity || 0),
+            0
+          ) || 0,
+        format: (value) => format(value) || '-',
+        footer: (data) => {
+          const total =
+            data
+              .flatMap(p => p.items)
+              .reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0;
+          return format(total) || '-';
+        },
+      },
+      {
+        key: 'itemsCount',
+        label: 'Items devueltos',
+        type: 'computed',
+        compute: (row) => row.items?.filter(i => i.quantity > 0).length || 0,
+        format: (value) => format(value) || '-',
+        footer: (data) => {
+          const total = data.reduce(
+            (acc, p) =>
+              acc + (p.items?.filter(i => i.quantity > 0).length || 0),
+            0
+          );
+          return format(total) || '-';
+        },
+      },
+      {
+        key: 'unit',
+        label: 'Unidad',
+        type: 'computed',
+        compute: (row) => row?.product?.unit || '-',
+        footer: '-',
+      },
+    ],
+
+    // Actions
+    actions: [
+      {
+        label: 'Procesar devolución',
+        variant: 'emerald',
+        visible: (doc) => doc.state !== 'completed' && doc.state !== 'canceled',
+        onClick: async (document, _state, { updateDocument, showToast }) => {
+          try {
+            const result = await updateDocument({
+              state: 'completed',
+              completedDate: new Date(),
+            }, false);
+
+            if (result.success) {
+              showToast.success('Devolución procesada exitosamente');
+            } else {
+              showToast.error('Error al procesar la devolución');
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            showToast.error('Error al procesar la devolución');
+          }
+        },
+      },
+    ],
+
+    // Preparar datos para actualización
+    prepareUpdateData: (document, _products, state) => {
+      return {
+        destinationWarehouse: state.selectedWarehouse?.id,
+        returnReason: state.returnReason,
+      };
+    },
+
+    // CRUD operations
+    updateDocument: updateOrder,
+    deleteDocument: deleteOrder,
+    addItem,
+    removeItem,
+
+    // Custom section para mostrar info de la orden original
+    customSections: [
+      {
+        visible: () => true,
+        render: (document) => (
+          <div className="bg-zinc-700 rounded-md p-4">
+            <h3 className="text-lg font-semibold mb-3">Información de la orden original</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <p className="text-sm text-zinc-400">Orden de venta</p>
+                <p className="font-semibold">
+                  {document.sourceOrder?.code || '-'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-zinc-400">Cliente</p>
+                <p className="font-semibold">
+                  {document.sourceOrder?.customer?.name || '-'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+    ],
+  };
+}
