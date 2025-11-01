@@ -30,20 +30,27 @@ export default function PurchaseDetailPageV2({ params }) {
 
   const order = orders[0] || null;
 
-  // Crear config con las operaciones CRUD
+  // Fetch data needed by the document (hooks must be called at top level)
+  const { suppliers } = useSuppliers({
+    populate: ["prices", "prices.product"],
+  });
+  const { warehouses } = useWarehouses({});
+  const { products } = useProducts({});
+
+  // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
     if (!order) return null;
 
     return createPurchaseDocumentConfigV2({
-      useSuppliers,
-      useWarehouses,
-      useProducts,
+      suppliers,
+      warehouses,
+      products,
       updateOrder,
       deleteOrder,
       addItem,
       removeItem,
     });
-  }, [order, updateOrder, deleteOrder, addItem, removeItem]);
+  }, [order, suppliers, warehouses, products, updateOrder, deleteOrder, addItem, removeItem]);
 
   // Loading state
   if (!order || !config) {

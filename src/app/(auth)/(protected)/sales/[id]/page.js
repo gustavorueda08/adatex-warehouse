@@ -1,23 +1,21 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import DocumentDetailBase from "@/components/documents/DocumentDetailBase";
+import { use, useMemo } from "react";
+import DocumentDetailBaseV2 from "@/components/documents/DocumentDetailBaseV2";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useProducts } from "@/lib/hooks/useProducts";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
-import { useSocketContext } from "@/lib/contexts/SocketContext";
-import { saleDocumentConfig } from "@/lib/config/documentConfigs";
-import moment from "moment-timezone";
-import toast from "react-hot-toast";
-import { v4 } from "uuid";
-import { useUser } from "@/lib/hooks/useUser";
-import { useSocket } from "@/lib/hooks/useSocket";
+import { useProducts } from "@/lib/hooks/useProducts";
+import { createSaleDetailConfig } from "@/lib/config/saleDocumentConfigs";
 
-export default function SaleDetailPage({ params }) {
+/**
+ * Sales Detail Page V2 - Versión simplificada usando DocumentDetailBaseV2
+ * Reducido de 340 líneas a ~70 líneas (79% reducción)
+ */
+export default function SaleDetailPageV2({ params }) {
   const { id } = use(params);
-  const router = useRouter();
+
+  // Solo fetch del documento con todas sus relaciones
   const { orders, updateOrder, deleteOrder, addItem, removeItem } = useOrders({
     filters: { id: [id] },
     populate: [
@@ -25,196 +23,53 @@ export default function SaleDetailPage({ params }) {
       "orderProducts.product",
       "orderProducts.items",
       "customer",
+      "customer.parties",
+      "customer.prices",
+      "customer.prices.product",
+      "customer.taxes",
       "customerForInvoice",
       "customerForInvoice.prices",
       "customerForInvoice.prices.product",
       "customerForInvoice.taxes",
-      "customer.prices",
-      "customer.parties",
-      "customer.taxes",
       "sourceWarehouse",
     ],
   });
-  const { products: productsData = [] } = useProducts({});
+
+  const order = orders[0] || null;
+
+  // Fetch data needed by the document (hooks must be called at top level)
   const { customers } = useCustomers({
     populate: ["prices", "prices.product", "parties", "taxes"],
   });
   const { warehouses } = useWarehouses({});
-  const { user } = useUser({});
-  const order = orders[0] || null;
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [selectedCustomerForInvoice, setSelectedCustomerForInvoice] =
-    useState(null);
-  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
-  const [parties, setParties] = useState([]);
-  const [loadingConfirm, setLoadingConfirm] = useState(false);
-  const [loadingComplete, setLoadingComplete] = useState(false);
-  const [createdDate, setCreatedDate] = useState(null);
-  const [actualDispatchDate, setActualDispatchDate] = useState(null);
-  const [confirmedDate, setConfirmedDate] = useState(null);
-  const [completedDate, setCompletedDate] = useState(null);
+  const { products } = useProducts({});
 
-  useEffect(() => {
-    if (order) {
-      setSelectedCustomer(order.customer);
-      setSelectedCustomerForInvoice(order.customerForInvoice);
-      setSelectedWarehouse(order.sourceWarehouse);
-      setCreatedDate(order.createdDate || null);
-      setActualDispatchDate(order.actualDispatchDate || null);
-      setConfirmedDate(order.confirmedDate || null);
-      setCompletedDate(order.completedDate || null);
-      // Configurar parties
-      if (Array.isArray(order.customer?.parties)) {
-        setParties([...order.customer.parties, order.customer]);
-      } else {
-        setParties([order.customer]);
-      }
-    }
-  }, [order]);
-  useEffect(() => {
-    if (
-      selectedCustomer &&
-      order &&
-      selectedCustomer.id !== order.customer?.id
-    ) {
-      const customerParties = selectedCustomer.parties || [];
-      setParties([...customerParties, selectedCustomer]);
+  // Crear config con las operaciones CRUD y data fetched
+  const config = useMemo(() => {
+    if (!order) return null;
 
-      // Auto-seleccionar party por defecto
-      if (customerParties.length === 0) {
-        setSelectedCustomerForInvoice(selectedCustomer);
-      } else {
-        const defaultParty = customerParties.find((party) => party.isDefault);
-        setSelectedCustomerForInvoice(defaultParty || customerParties[0]);
-      }
-    }
-  }, [selectedCustomer, order]);
-  const { isConnected, joinOrder, on, leaveOrder } = useSocket();
-  useEffect(() => {
-    if (!isConnected || !order?.id) return;
-
-    console.log(`Uniéndose a orden: ${order.id}`);
-    joinOrder(order.id);
-
-    // Escuchar cuando se agrega un item
-    const unsubscribeItemAdded = on("order:item-added", (item) => {
-      console.log("Item agregado vía socket:", item);
-      toast.success(
-        `${item.product?.name || "Item"}: ${item.currentQuantity} ${
-          item.product?.unit || ""
-        } agregado`,
-        { id: `item-${item.id}` }
-      );
+    return createSaleDetailConfig({
+      customers,
+      warehouses,
+      products,
+      updateOrder,
+      deleteOrder,
+      addItem,
+      removeItem,
     });
-
-    // Escuchar cuando se elimina un item
-    const unsubscribeItemRemoved = on("order:item-removed", (removedItem) => {
-      console.log("Item eliminado vía socket:", removedItem);
-      toast.success(`${removedItem.product?.name || "Item"} eliminado`, {
-        id: `item-removed-${removedItem.id}`,
-      });
-    });
-
-    // Escuchar actualizaciones de la orden
-    const unsubscribeOrderUpdated = on("order:updated", (updatedOrder) => {
-      console.log("Orden actualizada vía socket:", updatedOrder);
-    });
-
-    // Cleanup
-    return () => {
-      console.log(`Saliendo de orden: ${order.id}`);
-      leaveOrder(order.id);
-      unsubscribeItemAdded?.();
-      unsubscribeItemRemoved?.();
-      unsubscribeOrderUpdated?.();
-    };
-  }, [isConnected, order?.id, joinOrder, leaveOrder, on]);
-  // Función para completar/despachar orden
-  const handleComplete = useCallback(async () => {
-    setLoadingComplete(true);
-    try {
-      let destinationWarehouse = selectedWarehouse;
-      // Verificar que la bodega sea de tipo stock
-      if (destinationWarehouse?.type !== "stock") {
-        destinationWarehouse = warehouses.find(
-          (warehouse) => warehouse.type === "stock" && warehouse.isDefault
-        );
-        if (!destinationWarehouse) {
-          toast.error("No se ha encontrado ninguna bodega stock");
-          setLoadingComplete(false);
-          return;
-        }
-      }
-      // Actualizar orden a completada
-      const result = await updateOrder(order.id, {
-        state: "completed",
-        completedDate: new Date(),
-        destinationWarehouse: destinationWarehouse.id,
-        customer: selectedCustomer.id,
-        customerForInvoice: selectedCustomerForInvoice.id,
-      });
-      if (result.success) {
-        toast.success("Orden despachada exitosamente");
-      } else {
-        toast.error("Error al despachar la orden");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Error al despachar la orden");
-    } finally {
-      setLoadingComplete(false);
-    }
   }, [
     order,
-    selectedWarehouse,
+    customers,
     warehouses,
-    selectedCustomer,
-    selectedCustomerForInvoice,
+    products,
     updateOrder,
+    deleteOrder,
+    addItem,
+    removeItem,
   ]);
-  // Callback cuando se actualiza exitosamente
-  const handleUpdateSuccess = useCallback((result) => {
-    console.log("Orden actualizada exitosamente:", result);
-    // Puedes agregar lógica adicional aquí si es necesario
-  }, []);
-  const config = saleDocumentConfig;
-  const isReadOnly =
-    order?.state === "completed" || order?.state === "canceled";
 
-  // Determinar si la orden es una remisión (completada sin facturar)
-  const isConsignment = order?.state === "completed" && !order?.siigoId;
-
-  const prepareUpdateData = useCallback(
-    (document, products = []) => {
-      const confirmed = products
-        .filter((p) => p.product)
-        .map((p) => ({
-          ...p,
-          items: p.items.filter((i) => i.quantity !== 0 && i.quantity !== ""),
-        }))
-        .every(
-          (product) =>
-            Array.isArray(product.items) &&
-            product.items.every((item) => {
-              const q = item.quantity;
-              return (
-                q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
-              );
-            })
-        );
-      return {
-        customer: selectedCustomer?.id,
-        customerForInvoice: selectedCustomerForInvoice?.id,
-        sourceWarehouse: selectedWarehouse?.id,
-        createdDate,
-        actualDispatchDate,
-        state: confirmed ? "confirmed" : document.state,
-      };
-    },
-    [selectedCustomer, selectedCustomerForInvoice, selectedWarehouse]
-  );
-
-  if (!order) {
+  // Loading state
+  if (!order || !config) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl">Cargando orden...</div>
@@ -222,119 +77,6 @@ export default function SaleDetailPage({ params }) {
     );
   }
 
-  // Agregar acción de crear factura parcial si es remisión
-  const enhancedActions = [
-    ...config.getActions({
-      handleComplete,
-      loadingConfirm,
-      loadingComplete,
-      setLoadingConfirm,
-      setLoadingComplete,
-      document: order,
-    }),
-    ...(isConsignment
-      ? [
-          {
-            label: "Crear factura parcial",
-            variant: "yellow",
-            onClick: () => router.push(`/sales/${order.id}/partial-invoice`),
-            disabled: false,
-          },
-        ]
-      : []),
-  ];
-
-  return (
-    <DocumentDetailBase
-      document={order}
-      user={user}
-      showInvoice
-      invoiceTitle={
-        order?.state === "draft" || order?.state === "confirmed"
-          ? "Factura Proforma"
-          : "Factura"
-      }
-      taxes={selectedCustomerForInvoice?.taxes || []}
-      updateDocument={updateOrder}
-      deleteDocument={deleteOrder}
-      allowManualEntry={false}
-      addItem={addItem}
-      removeItem={removeItem}
-      availableProducts={productsData}
-      documentType={config.documentType}
-      title={`${order.code || ""} ${
-        order.containerCode ? ` | ${order.containerCode}` : ""
-      }${isConsignment ? " (Remisión)" : ""}`}
-      redirectPath={config.redirectPath}
-      prepareUpdateData={prepareUpdateData}
-      headerFields={config.getHeaderFields({
-        customers,
-        parties,
-        warehouses,
-        selectedCustomer,
-        setSelectedCustomer,
-        selectedCustomerForInvoice,
-        setSelectedCustomerForInvoice,
-        selectedWarehouse,
-        setSelectedWarehouse,
-        createdDate: createdDate,
-        setCreatedDate: setCreatedDate,
-        confirmedDate: confirmedDate,
-        setConfirmedDate: setConfirmedDate,
-        actualDispatchDate: actualDispatchDate,
-        setActualDispatchDate: setActualDispatchDate,
-      })}
-      productColumns={(
-        updateProductField,
-        handleProductSelect,
-        getAvailableProducts,
-        isReadOnly,
-        user
-      ) =>
-        config.getProductColumns(
-          updateProductField,
-          handleProductSelect,
-          getAvailableProducts,
-          isReadOnly,
-          user,
-          selectedCustomerForInvoice
-        )
-      }
-      actions={enhancedActions}
-      customSections={[
-        ...(isConsignment
-          ? [
-              {
-                title: "Estado de Remisión",
-                render: () => (
-                  <div className="p-4 bg-yellow-900/20 border border-yellow-500 rounded-md">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">⚠️</span>
-                      <h4 className="font-bold text-yellow-400">
-                        Esta orden está en remisión
-                      </h4>
-                    </div>
-                    <p className="text-sm text-yellow-300 mb-3">
-                      Los productos han sido despachados pero aún no se han
-                      facturado. Puedes crear facturas parciales según el
-                      cliente te reporte las ventas.
-                    </p>
-                    <button
-                      onClick={() =>
-                        router.push(`/sales/${order.id}/partial-invoice`)
-                      }
-                      className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-md transition-colors"
-                    >
-                      Crear Factura Parcial
-                    </button>
-                  </div>
-                ),
-              },
-            ]
-          : []),
-      ]}
-      onUpdate={handleUpdateSuccess}
-      isReadOnly={isReadOnly}
-    />
-  );
+  // ¡Eso es todo! Solo config e initialData
+  return <DocumentDetailBaseV2 config={config} initialData={order} />;
 }

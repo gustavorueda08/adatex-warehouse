@@ -2141,9 +2141,9 @@ export const partialInvoiceDocumentConfig = {
  * Usa pattern config + initialData (sin props externos)
  */
 export function createSaleDocumentConfigV2({
-  useCustomers,
-  useWarehouses,
-  useProducts,
+  customers,
+  warehouses,
+  products,
   updateOrder,
   deleteOrder,
   addItem,
@@ -2161,20 +2161,11 @@ export function createSaleDocumentConfigV2({
     },
     redirectPath: '/sales',
 
-    // Data fetchers - DocumentDetailBase ejecuta estos hooks
-    dataFetchers: {
-      customers: {
-        hook: useCustomers,
-        params: { populate: ["prices", "prices.product", "parties", "taxes"] },
-      },
-      warehouses: {
-        hook: useWarehouses,
-        params: {},
-      },
-      products: {
-        hook: useProducts,
-        params: {},
-      },
+    // Data provided by parent component (no longer using hooks here)
+    data: {
+      customers: customers || [],
+      warehouses: warehouses || [],
+      products: products || [],
     },
 
     // CRUD operations
@@ -2518,9 +2509,9 @@ export function createSaleDocumentConfigV2({
  * ============================================================================
  */
 export function createPurchaseDocumentConfigV2({
-  useSuppliers,
-  useWarehouses,
-  useProducts,
+  suppliers,
+  warehouses,
+  products,
   updateOrder,
   deleteOrder,
   addItem,
@@ -2537,20 +2528,11 @@ export function createPurchaseDocumentConfigV2({
       return parts.filter(Boolean).join(' | ');
     },
 
-    // Data fetchers
-    dataFetchers: {
-      suppliers: {
-        hook: useSuppliers,
-        params: { populate: ['prices', 'prices.product'] },
-      },
-      warehouses: {
-        hook: useWarehouses,
-        params: {},
-      },
-      products: {
-        hook: useProducts,
-        params: {},
-      },
+    // Data provided by parent component (no longer using hooks here)
+    data: {
+      suppliers: suppliers || [],
+      warehouses: warehouses || [],
+      products: products || [],
     },
 
     // Estado inicial
@@ -2804,8 +2786,8 @@ export function createPurchaseDocumentConfigV2({
  * ============================================================================
  */
 export function createReturnDocumentConfigV2({
-  useWarehouses,
-  useProducts,
+  warehouses,
+  products,
   updateOrder,
   deleteOrder,
   addItem,
@@ -2818,16 +2800,10 @@ export function createReturnDocumentConfigV2({
     // Título dinámico
     title: (document) => `Devolución ${document.code || ''}`,
 
-    // Data fetchers
-    dataFetchers: {
-      warehouses: {
-        hook: useWarehouses,
-        params: {},
-      },
-      products: {
-        hook: useProducts,
-        params: {},
-      },
+    // Data provided by parent component (no longer using hooks here)
+    data: {
+      warehouses: warehouses || [],
+      products: products || [],
     },
 
     // Estado inicial
