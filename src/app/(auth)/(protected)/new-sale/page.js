@@ -1,7 +1,7 @@
 "use client";
 
 import DocumentForm from "@/components/documents/DocumentForm";
-import { createSaleFormConfig } from "@/lib/config/documentConfigs";
+import { createSaleFormConfig } from "@/lib/config/saleDocumentConfigs";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useProducts } from "@/lib/hooks/useProducts";

@@ -69,9 +69,9 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
 
   // Preparar datos para actualización
   const prepareUpdateData = useCallback(
-    (document, products) => {
+    (document, products, stateOverride = null) => {
       if (config.prepareUpdateData) {
-        return config.prepareUpdateData(document, products, documentState);
+        return config.prepareUpdateData(document, products, stateOverride || documentState);
       }
       return {};
     },
@@ -338,8 +338,10 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
       if (!action.onClick) return;
 
       const context = {
-        updateDocument: handleUpdateDocument,
+        updateDocument: (id, additionalData, loading, stateOverride) =>
+          handleUpdateDocument(additionalData, loading, stateOverride),
         deleteDocument: handleDeleteDocument,
+        updateState: updateState,
         showToast: {
           success: (msg) => toast.success(msg),
           error: (msg) => toast.error(msg),
@@ -353,7 +355,7 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
         context.showToast.error(error.message || "Error al ejecutar la acción");
       }
     },
-    [initialData, documentState, handleUpdateDocument, handleDeleteDocument]
+    [initialData, documentState, handleUpdateDocument, handleDeleteDocument, updateState]
   );
 
   // Calcular taxes para invoice

@@ -211,12 +211,12 @@ export function useDocumentDetail(config) {
 
   // Actualizar documento
   const handleUpdateDocument = useCallback(
-    async (additionalData = {}, loading = true) => {
+    async (additionalData = {}, loading = true, stateOverride = null) => {
       const loadingToast = toast.loading("Actualizando documento...");
       setLoading(loading);
       try {
         // Obtener datos adicionales del callback si existe
-        const extraData = prepareUpdateData?.(document, products) || {};
+        const extraData = prepareUpdateData?.(document, products, stateOverride) || {};
 
         const { destinationWarehouse } = extraData;
 

@@ -1,13 +1,138 @@
 import format from "@/lib/utils/format";
 import moment from "moment-timezone";
 import Swal from "sweetalert2";
+import { createProductColumns } from "./documentConfigs";
+import { ORDER_TYPES } from "../utils/orderTypes";
 
-/**
- * Configuración V2 para Sales - Compatible con DocumentDetailBaseV2
- * Usa pattern config + initialData (sin props externos)
- */
+export function createSaleFormConfig({
+  customers,
+  warehouses,
+  productsData,
+  onSubmit,
+  loading,
+}) {
+  return {
+    title: "Nueva orden de venta",
+    type: ORDER_TYPES.SALE,
+    loading,
+    onSubmit,
+    headerFields: [
+      [
+        {
+          key: "selectedCustomer",
+          label: "Cliente",
+          type: "select",
+          searchable: true,
+          options: customers.map((c) => ({ label: c.name, value: c })),
+          onChange: (customer, formState, updateField) => {
+            const parties = customer.parties || [];
+            updateField("parties", [...parties, customer]);
+
+            if (parties.length === 0) {
+              updateField("selectedCustomerForInvoice", customer);
+            } else {
+              const defaultParty = parties.find((p) => p.isDefault);
+              updateField(
+                "selectedCustomerForInvoice",
+                defaultParty || parties[0]
+              );
+            }
+          },
+        },
+        {
+          key: "selectedCustomerForInvoice",
+          label: "Cliente para factura",
+          type: "select",
+          searchable: true,
+          options: (formState) =>
+            (formState.parties || []).map((p) => ({
+              label: p.name,
+              value: p,
+            })),
+        },
+      ],
+      [
+        {
+          key: "dateCreated",
+          label: "Fecha de Creación",
+          type: "date",
+        },
+        {
+          key: "selectedWarehouse",
+          label: "Bodega de origen",
+          type: "select",
+          searchable: true,
+          options: warehouses
+            .filter((w) => w.type === "stock" || w.type === "printlab")
+            .map((w) => ({ label: w.name, value: w })),
+        },
+      ],
+    ],
+    productColumns: (context) =>
+      createProductColumns({
+        ...context,
+        productsData,
+        includePrice: true,
+        includeIVA: true,
+        includeInvoicePercentage: true,
+      }),
+
+    onProductSelect: (product, selectedProduct, formState) => {
+      if (formState.selectedCustomer?.prices) {
+        const priceData = formState.selectedCustomer.prices.find(
+          (p) => p.product.id === selectedProduct.id
+        );
+        if (priceData) {
+          product.price = String(priceData.unitPrice);
+          product.ivaIncluded = priceData.ivaIncluded || false;
+          product.invoicePercentage = priceData.invoicePercentage || 100;
+        }
+      }
+      product.total =
+        Number(product.price || 0) * Number(product.quantity || 0);
+      return product;
+    },
+
+    validateForm: (formState) => {
+      const hasCustomer = formState.selectedCustomer;
+      const hasWarehouse = formState.selectedWarehouse;
+      const hasProducts = formState.products.some((p) => p.product);
+      const allProductsValid = formState.products
+        .filter((p) => p.product)
+        .every((p) => p.quantity && Number(p.quantity) > 0);
+
+      return hasCustomer && hasWarehouse && hasProducts && allProductsValid;
+    },
+
+    prepareSubmitData: (formState, user) => ({
+      type: ORDER_TYPES.SALE,
+      products: formState.products
+        .filter((p) => p.product)
+        .map((p) => ({
+          requestedQuantity: Number(p.quantity),
+          product: p.product.id,
+          price: Number(p.price),
+          name: p.name,
+          ivaIncluded: p.ivaIncluded,
+          invoicePercentage: p.invoicePercentage,
+        })),
+      sourceWarehouse: formState.selectedWarehouse.id,
+      customer: formState.selectedCustomer.id,
+      customerForInvoice: formState.selectedCustomerForInvoice.id,
+      createdDate: formState.dateCreated,
+      generatedBy: user.id,
+    }),
+
+    initialState: {
+      selectedCustomer: null,
+      selectedCustomerForInvoice: null,
+      selectedWarehouse: null,
+      parties: [],
+    },
+  };
+}
+
 export function createSaleDetailConfig({
-  order,
   customers,
   warehouses,
   products,
@@ -17,7 +142,9 @@ export function createSaleDetailConfig({
   removeItem,
 }) {
   return {
+    // Tipo de la orden
     type: "sale",
+    // Titulo
     title: (document) => {
       const baseTitle = document.code || "";
       const container = document.containerCode
@@ -28,20 +155,19 @@ export function createSaleDetailConfig({
       const consignmentLabel = isConsignment ? " (Remisión)" : "";
       return `${baseTitle}${container}${consignmentLabel}`;
     },
+    // Redirección
     redirectPath: "/sales",
-
+    // Datos para el state
     data: {
       customers: customers || [],
       warehouses: warehouses || [],
       products: products || [],
     },
-
     // CRUD operations
     updateDocument: updateOrder,
     deleteDocument: deleteOrder,
     addItem,
     removeItem,
-
     // Estado inicial del formulario
     getInitialState: (document) => {
       const customer = document.customer;
@@ -75,7 +201,6 @@ export function createSaleDetailConfig({
         completedDate: document.completedDate,
       };
     },
-
     // State handlers - Lógica de estado reutilizable
     stateHandlers: {
       // SOLUCIÓN al problema de parties/customerForInvoice
@@ -113,7 +238,6 @@ export function createSaleDetailConfig({
         }
       },
     },
-
     // Header fields con acceso al estado interno
     headerFields: [
       {
@@ -167,7 +291,6 @@ export function createSaleDetailConfig({
         disabled: true,
       },
     ],
-
     // Product columns con acceso al estado
     productColumns: [
       {
@@ -243,7 +366,6 @@ export function createSaleDetailConfig({
         compute: (row) => row?.product?.unit || "-",
       },
     ],
-
     // Actions con contexto completo
     actions: [
       {
@@ -251,10 +373,12 @@ export function createSaleDetailConfig({
         variant: "cyan",
         visible: (document) => document.state === "draft",
         onClick: async (document, state, { updateDocument }) => {
-          await updateDocument(document.id, {
+          const newState = {
+            ...state,
             state: "confirmed",
             confirmedDate: moment.tz("America/Bogota").toDate(),
-          });
+          };
+          await updateDocument(document.id, {}, true, newState);
         },
       },
       {
@@ -263,13 +387,13 @@ export function createSaleDetailConfig({
         visible: (document) => document.state !== "completed",
         onClick: async (document, state, { updateDocument, showToast }) => {
           try {
-            await updateDocument(document.id, {
+            const newState = {
+              ...state,
               state: "completed",
               completedDate: moment.tz("America/Bogota").toDate(),
-              customer: state.selectedCustomer?.id,
-              customerForInvoice: state.selectedCustomerForInvoice?.id,
-              sourceWarehouse: state.selectedWarehouse?.id,
-            });
+              actualDispatchDate: moment.tz("America/Bogota").toDate(),
+            };
+            await updateDocument(document.id, {}, true, newState);
             showToast.success("Orden despachada exitosamente");
           } catch (error) {
             showToast.error("Error al despachar la orden");
@@ -290,7 +414,7 @@ export function createSaleDetailConfig({
             ? "Descargar factura"
             : "Facturar Orden",
         variant: "emerald",
-        onClick: async (document, state, { updateDocument }) => {
+        onClick: async (document, state, { updateState, updateDocument }) => {
           if (!document.siigoId && !document.invoiceNumber) {
             const result = await Swal.fire({
               title: "Facturar Orden",
@@ -307,11 +431,12 @@ export function createSaleDetailConfig({
 
             if (result.isConfirmed) {
               try {
-                await updateDocument(document.id, {
+                const newState = {
                   state: "completed",
                   completedDate: moment.tz("America/Bogota").toDate(),
                   emitInvoice: true,
-                });
+                };
+                await updateDocument(document.id, {}, true, newState);
               } catch (error) {
                 toast.error("Error al facturar la orden");
                 throw error;
@@ -323,7 +448,6 @@ export function createSaleDetailConfig({
         },
       },
     ],
-
     // Preparar datos para actualización
     prepareUpdateData: (document, products, state) => {
       const confirmed = products
@@ -342,17 +466,18 @@ export function createSaleDetailConfig({
               );
             })
         );
-
       return {
         customer: state.selectedCustomer?.id,
         customerForInvoice: state.selectedCustomerForInvoice?.id,
         sourceWarehouse: state.selectedWarehouse?.id,
         createdDate: state.createdDate,
+        confirmedDate: state.confirmedDate,
+        completedDate: state.completedDate,
         actualDispatchDate: state.actualDispatchDate,
-        state: "completed",
+        state: confirmed && state.state === "draft" ? "confirmed" : state.state,
+        emitInvoice: state.emitInvoice || false,
       };
     },
-
     // Invoice config
     invoice: {
       enabled: true,
