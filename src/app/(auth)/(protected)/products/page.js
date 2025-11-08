@@ -144,13 +144,12 @@ export default function ProductsPage() {
             Gestiona el catálogo de productos de tu inventario
           </p>
         </div>
-        {/* Botón para crear nuevo producto - puedes implementar esto después */}
-        {/* <Link href="/new-product">
+        <Link href="/new-product">
           <Button variant="emerald" className="flex items-center gap-2">
             <PlusIcon className="w-5 h-5" />
             Nuevo Producto
           </Button>
-        </Link> */}
+        </Link>
       </div>
 
       {/* Estadísticas rápidas */}

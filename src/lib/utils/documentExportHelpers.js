@@ -32,8 +32,7 @@ export function prepareDocumentData(document) {
     entityAddress = "-";
     entityLabel = "Bodega";
   }
-
-  return {
+  const data = {
     type,
     code: document.code || "-",
     entityName,
@@ -45,14 +44,15 @@ export function prepareDocumentData(document) {
     dispatchDate: document.actualDispatchDate
       ? moment(document.actualDispatchDate).format("DD/MM/YYYY")
       : "-",
-    warehouse: document.destinationWarehouse?.name ||
-               document.sourceWarehouse?.name ||
-               "-",
+    warehouse:
+      document.destinationWarehouse?.name ||
+      document.sourceWarehouse?.name ||
+      "-",
     warehouseLabel: document.destinationWarehouse
       ? "Bodega Destino"
       : "Bodega Origen",
     state: document.state || "draft",
-    products: document.products || [],
+    products: document.orderProducts || [],
 
     // Campos especiales para transfers
     sourceOrder: document.sourceOrder?.code || null,
@@ -61,6 +61,8 @@ export function prepareDocumentData(document) {
     // Cliente para factura (solo sales)
     customerForInvoice: document.customerForInvoice?.name || null,
   };
+  console.log("DATOS", data);
+  return data;
 }
 
 /**
@@ -129,8 +131,8 @@ export function formatPackingList(products, options = {}) {
     if (items.length === 0) {
       // Producto sin items detallados
       const row = {
-        producto: productName,
-        cantidad: format(product.requestedQuantity || 0),
+        product: productName,
+        quantity: format(product.confirmedQuantity || 0),
         unidad: unit,
       };
 
@@ -143,9 +145,9 @@ export function formatPackingList(products, options = {}) {
       // Producto con items
       items.forEach((item) => {
         const row = {
-          producto: productName,
-          cantidad: format(item.quantity || item.currentQuantity || 0),
-          unidad: unit,
+          product: productName,
+          quantity: format(item.quantity || item.currentQuantity || 0),
+          unit: unit,
         };
 
         if (includeLot) {
@@ -157,11 +159,12 @@ export function formatPackingList(products, options = {}) {
         if (includeBarcode) {
           row.codigoBarras = item.barcode || "-";
         }
-
         rows.push(row);
       });
     }
   });
+
+  console.log("ROOWS", rows);
 
   return rows;
 }
@@ -326,4 +329,125 @@ export function getDocumentTitle(type) {
   };
 
   return titles[type] || "Documento";
+}
+
+/**
+ * Transpone un array bidimensional (convierte filas en columnas y viceversa)
+ * @param {Array} array - Array de arrays a transponer
+ * @returns {Array} Array transpuesto
+ */
+export function transposeArray(array = []) {
+  // Encuentra la longitud máxima entre las columnas
+  const maxLength = Math.max(...array.map((col) => col.length));
+
+  // Crea un array transpuesto
+  const rows = Array.from(
+    { length: maxLength },
+    (_, index) => array.map((column) => column[index] || "") // Rellena con string vacío si no hay dato
+  );
+
+  return rows;
+}
+
+/**
+ * Transforma un documento a la estructura de packingList para exportación con ExcelJS
+ * Convierte productos en columnas y sus items en filas (estructura transpuesta)
+ * @param {Object} document - Documento completo del sistema
+ * @returns {Object} PackingList estructurado por producto
+ */
+export function transformToPackingListStructure(document) {
+  const products = document.orderProducts || [];
+  const packingList = {};
+
+  products.forEach((product, index) => {
+    const key = `product_${index}`;
+    const productName = product.product?.name || product.name || "-";
+    const items = product.items || [];
+    const quantities = [];
+
+    if (items.length > 0) {
+      // Si hay items, usar sus cantidades
+      items.forEach((item) => {
+        const qty = Number(item.quantity || item.currentQuantity || 0);
+        quantities.push(qty);
+      });
+    } else {
+      // Si no hay items, usar requestedQuantity como única cantidad
+      const qty = Number(product.requestedQuantity || 0);
+      if (qty > 0) {
+        quantities.push(qty);
+      }
+    }
+
+    packingList[key] = {
+      name: productName,
+      quantities: quantities,
+      unit: product.product?.unit || "und",
+    };
+  });
+
+  return packingList;
+}
+
+/**
+ * Genera un string descriptivo del total de unidades
+ * @param {Object} packingList - PackingList estructurado
+ * @param {boolean} includeSymbol - Si debe incluir el símbolo/nombre de la unidad
+ * @returns {string} String descriptivo del total
+ */
+export function getTotalUnitString(packingList, includeSymbol = true) {
+  const products = Object.values(packingList);
+
+  if (products.length === 0) return "TOTAL";
+
+  // Obtener la primera unidad
+  const firstUnit = products[0]?.unit || "und";
+
+  // Verificar si todas las unidades son iguales
+  const allSameUnit = products.every((p) => p.unit === firstUnit);
+
+  if (!allSameUnit) {
+    return includeSymbol ? "TOTAL (unidades mixtas)" : "TOTAL";
+  }
+
+  // Mapeo de unidades a su forma plural
+  const unitNames = {
+    kg: includeSymbol ? "TOTAL KG" : "TOTAL",
+    m: includeSymbol ? "TOTAL METROS" : "TOTAL",
+    und: includeSymbol ? "TOTAL UNIDADES" : "TOTAL",
+    pza: includeSymbol ? "TOTAL PIEZAS" : "TOTAL",
+    lt: includeSymbol ? "TOTAL LITROS" : "TOTAL",
+    caja: includeSymbol ? "TOTAL CAJAS" : "TOTAL",
+    paq: includeSymbol ? "TOTAL PAQUETES" : "TOTAL",
+  };
+
+  return (
+    unitNames[firstUnit] ||
+    (includeSymbol ? `TOTAL ${firstUnit.toUpperCase()}` : "TOTAL")
+  );
+}
+
+/**
+ * Crea un resumen agrupado de items del packingList
+ * Agrupa por producto y calcula totales
+ * @param {Object} packingList - PackingList estructurado
+ * @returns {Array} Array de objetos con resumen por producto
+ */
+export function getResumeItemsFromPackingList(packingList) {
+  const products = Object.values(packingList);
+
+  return products.map((product) => {
+    const totalQuantity = product.quantities.reduce(
+      (acc, q) => acc + Number(q || 0),
+      0
+    );
+    const count = product.quantities.length; // Número de rollos/items
+
+    return {
+      name: product.name,
+      totalQuantity: totalQuantity,
+      count: count,
+      unit: product.unit,
+    };
+  });
 }

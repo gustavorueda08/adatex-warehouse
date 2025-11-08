@@ -1,8 +1,11 @@
 import format from "@/lib/utils/format";
 import moment from "moment-timezone";
 import Swal from "sweetalert2";
+import toast from "react-hot-toast";
 import { createProductColumns } from "./documentConfigs";
 import { ORDER_TYPES } from "../utils/orderTypes";
+import { exportDocumentToExcel } from "../utils/exportToExcel";
+import { exportDocumentToPDF } from "../utils/exportToPDF";
 
 export function createSaleFormConfig({
   customers,
@@ -405,14 +408,48 @@ export function createSaleDetailConfig({
       {
         label: "Descargar lista de empaque",
         variant: "zinc",
-        onClick: async (document) => {
-          await handleDocumentExport(document, { includeLot: false });
+        onClick: async (document, state, { showToast }) => {
+          const result = await Swal.fire({
+            title: "Descargar Documento",
+            text: "¿En qué formato deseas descargar?",
+            icon: "question",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: "Excel",
+            denyButtonText: "PDF",
+            cancelButtonText: "Cancelar",
+            background: "#27272a",
+            color: "#fff",
+            confirmButtonColor: "#10b981", // emerald
+            denyButtonColor: "#06b6d4", // cyan
+            cancelButtonColor: "#71717a", // zinc
+          });
+
+          if (result.isConfirmed) {
+            // Usuario seleccionó Excel
+            try {
+              await exportDocumentToExcel(document, { includeLot: false });
+              showToast.success("Documento exportado a Excel exitosamente");
+            } catch (error) {
+              console.error("Error exportando a Excel:", error);
+              showToast.error("Error al exportar el documento a Excel");
+            }
+          } else if (result.isDenied) {
+            // Usuario seleccionó PDF
+            try {
+              await exportDocumentToPDF(document, { includeLot: false });
+              showToast.success("Documento exportado a PDF exitosamente");
+            } catch (error) {
+              console.error("Error exportando a PDF:", error);
+              showToast.error("Error al exportar el documento a PDF");
+            }
+          }
+          // Si result.isDismissed, el usuario canceló, no hacemos nada
         },
       },
       {
         label: (document) =>
-          document.invoiceNumberTypeA !== null ||
-          document.invoiceNumberTypeB !== null
+          document.invoiceNumberTypeA || document.invoiceNumberTypeB
             ? "Descargar Facturas"
             : "Facturar Orden",
         variant: "emerald",

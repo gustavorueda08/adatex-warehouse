@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useMemo } from "react";
-import DocumentDetailBaseV2 from "@/components/documents/DocumentDetailBaseV2";
+import DocumentDetail from "@/components/documents/DocumentDetail";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
@@ -48,7 +48,6 @@ export default function SaleDetailPageV2({ params }) {
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
     if (!order) return null;
-
     return createSaleDetailConfig({
       customers,
       warehouses,
@@ -79,6 +78,5 @@ export default function SaleDetailPageV2({ params }) {
     );
   }
 
-  // ¡Eso es todo! Solo config e initialData
-  return <DocumentDetailBaseV2 config={config} initialData={order} />;
+  return <DocumentDetail config={config} initialData={order} />;
 }

@@ -36,7 +36,7 @@ import moment from "moment-timezone";
  * @param {Object} config - Configuración del documento
  * @param {Object} initialData - Datos iniciales del documento
  */
-export default function DocumentDetailBaseV2({ config, initialData }) {
+export default function DocumentDetail({ config, initialData }) {
   // Get fetched data from config (data is now provided by parent component)
   const fetchedData = config.data || {};
 
@@ -508,8 +508,8 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
         ),
         footer: (data) => {
           // Mapear los datos para extraer las unidades en el formato que espera unitsAreConsistent
-          const productsWithUnits = data.map(product => ({
-            unit: product?.product?.unit
+          const productsWithUnits = data.map((product) => ({
+            unit: product?.product?.unit,
           }));
 
           // Verificar si todas las unidades son consistentes usando la función existente
@@ -519,7 +519,8 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
 
           // Si todas son consistentes, calcular la suma desde items
           const total = data.reduce((acc, product) => {
-            const quantity = product.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+            const quantity =
+              product.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
             return acc + quantity;
           }, 0);
 

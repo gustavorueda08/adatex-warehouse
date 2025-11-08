@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useMemo } from "react";
-import DocumentDetailBaseV2 from "@/components/documents/DocumentDetailBaseV2";
+import DocumentDetailBaseV2 from "@/components/documents/DocumentDetail";
 import { createReturnDocumentConfigV2 } from "@/lib/config/documentConfigs";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
@@ -47,7 +47,15 @@ export default function ReturnDetailPageV2({ params }) {
       addItem,
       removeItem,
     });
-  }, [order, warehouses, products, updateOrder, deleteOrder, addItem, removeItem]);
+  }, [
+    order,
+    warehouses,
+    products,
+    updateOrder,
+    deleteOrder,
+    addItem,
+    removeItem,
+  ]);
 
   // Loading state
   if (!order || !config) {
@@ -59,10 +67,5 @@ export default function ReturnDetailPageV2({ params }) {
   }
 
   // ¡Eso es todo! Solo config e initialData
-  return (
-    <DocumentDetailBaseV2
-      config={config}
-      initialData={order}
-    />
-  );
+  return <DocumentDetailBaseV2 config={config} initialData={order} />;
 }
