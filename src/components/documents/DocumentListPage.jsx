@@ -205,9 +205,7 @@ function DocumentListPage({
     {
       key: "code",
       label: "Código",
-      render: (_, row) => (
-        <p>{row.invoiceNumber ? row.invoiceNumber : row.code}</p>
-      ),
+      render: (_, row) => <p>{row.code}</p>,
     },
     {
       key: relationField,

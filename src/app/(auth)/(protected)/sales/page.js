@@ -1,6 +1,7 @@
 "use client";
 
 import DocumentListPage from "@/components/documents/DocumentListPage";
+import { generateOrderInvoiceCodeLabel } from "@/lib/utils/orderInvoiceHelpers";
 
 export default function SalesPage() {
   return (
@@ -45,8 +46,10 @@ export default function SalesPage() {
         {
           key: "invoiceNumber",
           label: "N° Factura",
-          render: (invoiceNumber) => (
-            <p className="font-mono text-sm">{invoiceNumber || "-"}</p>
+          render: (_, row) => (
+            <p className="font-mono text-sm">
+              {`${generateOrderInvoiceCodeLabel(row)}` || "-"}
+            </p>
           ),
         },
       ]}

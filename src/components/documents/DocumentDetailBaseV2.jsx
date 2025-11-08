@@ -25,6 +25,7 @@ import {
 import { useDocumentDetail } from "@/lib/hooks/useDocumentDetail";
 import { PackingListProduct } from "./PackingListProduct";
 import format from "@/lib/utils/format";
+import unitsAreConsistent from "@/lib/utils/unitsConsistency";
 import toast from "react-hot-toast";
 import moment from "moment-timezone";
 
@@ -71,7 +72,11 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
   const prepareUpdateData = useCallback(
     (document, products, stateOverride = null) => {
       if (config.prepareUpdateData) {
-        return config.prepareUpdateData(document, products, stateOverride || documentState);
+        return config.prepareUpdateData(
+          document,
+          products,
+          stateOverride || documentState
+        );
       }
       return {};
     },
@@ -355,7 +360,13 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
         context.showToast.error(error.message || "Error al ejecutar la acción");
       }
     },
-    [initialData, documentState, handleUpdateDocument, handleDeleteDocument, updateState]
+    [
+      initialData,
+      documentState,
+      handleUpdateDocument,
+      handleDeleteDocument,
+      updateState,
+    ]
   );
 
   // Calcular taxes para invoice
@@ -397,7 +408,7 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
         const invoicePercentage =
           Number(product.invoicePercentage || 100) / 100;
         const price = product.ivaIncluded
-          ? product.price / 1.19
+          ? Math.round((product.price / 1.19) * 100) / 100
           : product.price;
         const quantity =
           product.items?.reduce((acc, item) => acc + item.quantity, 0) ||
@@ -416,8 +427,8 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
     const subtotal = subtotalForTaxes + subtotalWithNoTaxes;
 
     // Ordenar impuestos
-    const ordenPrioridad = ["IVA - 19%", "Retefuente -2,5%", "ICA - 0,77%"];
-    const taxesValues = subtotalTaxes
+    const ordenPrioridad = ["IVA - 19%", "Retefuente - 2,5%", "ICA - 0,77%"];
+    const taxesValues = invoiceTaxes
       .map((tax) => ({
         id: tax.id,
         name: tax.name,
@@ -495,17 +506,33 @@ export default function DocumentDetailBaseV2({ config, initialData }) {
             ) || "-"}
           </p>
         ),
-        footer: (data) => (
-          <p>
-            {data.reduce((a, p) => a + (p.quantity || 0), 0).toLocaleString()}
-          </p>
-        ),
+        footer: (data) => {
+          // Mapear los datos para extraer las unidades en el formato que espera unitsAreConsistent
+          const productsWithUnits = data.map(product => ({
+            unit: product?.product?.unit
+          }));
+
+          // Verificar si todas las unidades son consistentes usando la función existente
+          if (!unitsAreConsistent(productsWithUnits)) {
+            return <p>-</p>;
+          }
+
+          // Si todas son consistentes, calcular la suma desde items
+          const total = data.reduce((acc, product) => {
+            const quantity = product.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+            return acc + quantity;
+          }, 0);
+
+          return <p>{total.toLocaleString()}</p>;
+        },
       },
       {
         key: "id",
         label: "Valor bruto",
         render: (_, row) => {
-          const price = row.ivaIncluded ? row.price / 1.19 : row.price;
+          const price = row.ivaIncluded
+            ? Math.round((row.price / 1.19) * 100) / 100
+            : row.price;
           const quantity =
             row.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
           const total = Math.round(price * quantity * 100) / 100;

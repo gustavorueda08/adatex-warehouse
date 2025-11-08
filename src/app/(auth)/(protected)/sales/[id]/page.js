@@ -16,24 +16,25 @@ export default function SaleDetailPageV2({ params }) {
   const { id } = use(params);
 
   // Solo fetch del documento con todas sus relaciones
-  const { orders, updateOrder, deleteOrder, addItem, removeItem } = useOrders({
-    filters: { id: [id] },
-    populate: [
-      "orderProducts",
-      "orderProducts.product",
-      "orderProducts.items",
-      "customer",
-      "customer.parties",
-      "customer.prices",
-      "customer.prices.product",
-      "customer.taxes",
-      "customerForInvoice",
-      "customerForInvoice.prices",
-      "customerForInvoice.prices.product",
-      "customerForInvoice.taxes",
-      "sourceWarehouse",
-    ],
-  });
+  const { orders, updateOrder, deleteOrder, addItem, removeItem, refetch } =
+    useOrders({
+      filters: { id: [id] },
+      populate: [
+        "orderProducts",
+        "orderProducts.product",
+        "orderProducts.items",
+        "customer",
+        "customer.parties",
+        "customer.prices",
+        "customer.prices.product",
+        "customer.taxes",
+        "customerForInvoice",
+        "customerForInvoice.prices",
+        "customerForInvoice.prices.product",
+        "customerForInvoice.taxes",
+        "sourceWarehouse",
+      ],
+    });
 
   const order = orders[0] || null;
 
@@ -56,6 +57,7 @@ export default function SaleDetailPageV2({ params }) {
       deleteOrder,
       addItem,
       removeItem,
+      refetch,
     });
   }, [
     order,

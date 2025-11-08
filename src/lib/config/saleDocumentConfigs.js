@@ -140,6 +140,7 @@ export function createSaleDetailConfig({
   deleteOrder,
   addItem,
   removeItem,
+  refetch,
 }) {
   return {
     // Tipo de la orden
@@ -410,8 +411,9 @@ export function createSaleDetailConfig({
       },
       {
         label: (document) =>
-          document.siigoId || document.invoiceNumber
-            ? "Descargar factura"
+          document.invoiceNumberTypeA !== null ||
+          document.invoiceNumberTypeB !== null
+            ? "Descargar Facturas"
             : "Facturar Orden",
         variant: "emerald",
         onClick: async (document, state, { updateState, updateDocument }) => {
@@ -437,6 +439,7 @@ export function createSaleDetailConfig({
                   emitInvoice: true,
                 };
                 await updateDocument(document.id, {}, true, newState);
+                await refetch();
               } catch (error) {
                 toast.error("Error al facturar la orden");
                 throw error;
