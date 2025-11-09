@@ -68,12 +68,5 @@ export default function NewSellerPage() {
     }
   };
 
-  return (
-    <EntityForm
-      title="Crear Nuevo Vendedor"
-      fields={fields}
-      onSubmit={handleSubmit}
-      backPath="/sellers"
-    />
-  );
+  return <div>Pagina en desarrollo</div>;
 }

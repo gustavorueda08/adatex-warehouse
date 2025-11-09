@@ -11,6 +11,7 @@ import { useProducts } from "@/lib/hooks/useProducts";
 import { useSuppliers } from "@/lib/hooks/useSuppliers";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 /**
  * EJEMPLO DE USO DEL NUEVO SISTEMA
@@ -38,6 +39,12 @@ export default function NewPurchasePage() {
       onCreate: (createdOrder) => {
         console.log("Orden creada exitosamente:", createdOrder);
         router.push(`/purchases/${createdOrder.id}`);
+      },
+      onError: (error) => {
+        console.log(error);
+        toast.error(
+          "Error: La orden no pudo ser creada, verifique que el código de la órden sea unico"
+        );
       },
     }
   );

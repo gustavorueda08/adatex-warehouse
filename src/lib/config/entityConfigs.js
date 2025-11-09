@@ -518,6 +518,13 @@ export function createSupplierFormConfig({ onSubmit, loading }) {
         placeholder: "Nombre del proveedor",
       },
       {
+        name: "code",
+        label: "Código",
+        type: "text",
+        required: true,
+        placeholder: "Codigo único del proveedor",
+      },
+      {
         name: "email",
         label: "Email",
         type: "email",
@@ -525,18 +532,25 @@ export function createSupplierFormConfig({ onSubmit, loading }) {
         placeholder: "correo@ejemplo.com",
       },
       {
-        name: "phone",
-        label: "Teléfono",
+        name: "identification",
+        label: "Identificación",
         type: "text",
         required: false,
-        placeholder: "+57 300 123 4567",
+        placeholder: "Identificación del proveedor",
       },
       {
-        name: "identification",
-        label: "NIT",
+        name: "country",
+        label: "País",
         type: "text",
         required: false,
-        placeholder: "NIT del proveedor",
+        placeholder: "País del proveedor",
+      },
+      {
+        name: "city",
+        label: "Ciudad",
+        type: "text",
+        required: false,
+        placeholder: "Ciudad del proveedor",
       },
       {
         name: "address",
@@ -697,6 +711,7 @@ export function createProductFormConfig({ onSubmit, loading }) {
     title: "Crear Nuevo Producto",
     description: "Completa los campos para crear el producto",
     entityType: "product",
+    label: "Crear Producto",
     loading,
     onSubmit,
 
@@ -719,7 +734,7 @@ export function createProductFormConfig({ onSubmit, loading }) {
         name: "barcode",
         label: "Código de Barras",
         type: "text",
-        required: false,
+        required: true,
         placeholder: "Código de barras (opcional)",
       },
       {
@@ -731,12 +746,7 @@ export function createProductFormConfig({ onSubmit, loading }) {
         options: [
           { label: "Kilogramos (kg)", value: "kg" },
           { label: "Metros (m)", value: "m" },
-          { label: "Unidades", value: "unidades" },
-          { label: "Litros (L)", value: "L" },
-          { label: "Gramos (g)", value: "g" },
-          { label: "Centímetros (cm)", value: "cm" },
-          { label: "Cajas", value: "cajas" },
-          { label: "Paquetes", value: "paquetes" },
+          { label: "Unidad", value: "unit" },
         ],
       },
       {
@@ -745,14 +755,6 @@ export function createProductFormConfig({ onSubmit, loading }) {
         type: "text",
         required: false,
         placeholder: "Ej: 12, 24, 50 (opcional)",
-        validate: (value) => {
-          if (!value) return true;
-          const num = Number(value);
-          if (isNaN(num) || num <= 0) {
-            return "Debe ser un número mayor a 0";
-          }
-          return true;
-        },
       },
       {
         name: "description",
@@ -763,28 +765,13 @@ export function createProductFormConfig({ onSubmit, loading }) {
         rows: 3,
         fullWidth: true,
       },
-      {
-        name: "isActive",
-        label: "Estado Activo",
-        type: "checkbox",
-        required: false,
-        defaultValue: true,
-        description: "El producto estará activo al crearlo",
-      },
     ],
 
     validateForm: (formData) => {
       const hasName = !!formData.name && formData.name.trim() !== "";
       const hasCode = !!formData.code && formData.code.trim() !== "";
       const hasUnit = !!formData.unit;
-
-      // Validar unitsPerPackage si está presente
-      if (formData.unitsPerPackage) {
-        const num = Number(formData.unitsPerPackage);
-        if (isNaN(num) || num <= 0) {
-          return false;
-        }
-      }
+      console.log(hasName, hasCode, hasUnit);
 
       return hasName && hasCode && hasUnit;
     },
@@ -799,7 +786,7 @@ export function createProductFormConfig({ onSubmit, loading }) {
           ? Number(formData.unitsPerPackage)
           : null,
         description: formData.description || null,
-        isActive: formData.isActive !== undefined ? formData.isActive : true,
+        isActive: true,
       };
     },
   };

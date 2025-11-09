@@ -22,6 +22,7 @@ import {
   UserIcon,
   BuildingOfficeIcon,
   TruckIcon,
+  ArchiveBoxIcon,
 } from "@heroicons/react/24/outline";
 
 /**
@@ -619,6 +620,11 @@ function getEntityConfig(entityType) {
       label: "Transportador",
       color: "blue",
       icon: TruckIcon,
+    },
+    product: {
+      label: "Producto",
+      color: "cyan",
+      icon: ArchiveBoxIcon,
     },
   };
   return configs[entityType] || configs.customer;

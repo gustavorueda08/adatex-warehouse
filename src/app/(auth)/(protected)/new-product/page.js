@@ -19,7 +19,7 @@ export default function NewProductPage() {
       enabled: false,
       onCreate: (createdProduct) => {
         console.log("Producto creado exitosamente:", createdProduct);
-        router.push(`/products/${createdProduct.id}`);
+        router.push(`/products/${createdProduct.documentId}`);
       },
     }
   );
