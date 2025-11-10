@@ -1,7 +1,12 @@
 "use client";
 
 import DocumentForm from "@/components/documents/DocumentForm";
-import { createTransformFormConfig } from "@/lib/config/documentConfigs";
+import {
+  createInflowFormConfig,
+  createOutflowFormConfig,
+  createPurchaseFormConfig,
+  createSaleFormConfig,
+} from "@/lib/config/documentConfigs";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useProducts } from "@/lib/hooks/useProducts";
@@ -10,7 +15,7 @@ import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-export default function NewTransferPage() {
+export default function NewInflowPage() {
   const router = useRouter();
   const { products: productsData = [] } = useProducts({});
   const { warehouses = [] } = useWarehouses({});
@@ -20,7 +25,7 @@ export default function NewTransferPage() {
       enabled: false,
       onCreate: (createdOrder) => {
         console.log("Orden creada exitosamente:", createdOrder);
-        router.push(`/outflows/${createdOrder.id}`);
+        router.push(`/inflows/${createdOrder.id}`);
       },
       onError: (error) => {
         console.log(error);
@@ -32,7 +37,7 @@ export default function NewTransferPage() {
   );
 
   // Crear la configuración para el formulario de venta
-  const config = createTransformFormConfig({
+  const config = createInflowFormConfig({
     warehouses,
     productsData,
     onSubmit: createOrder,

@@ -1,7 +1,11 @@
 "use client";
 
 import DocumentForm from "@/components/documents/DocumentForm";
-import { createTransformFormConfig } from "@/lib/config/documentConfigs";
+import {
+  createOutflowFormConfig,
+  createPurchaseFormConfig,
+  createSaleFormConfig,
+} from "@/lib/config/documentConfigs";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useProducts } from "@/lib/hooks/useProducts";
@@ -10,7 +14,7 @@ import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-export default function NewTransferPage() {
+export default function NewOutflowPage() {
   const router = useRouter();
   const { products: productsData = [] } = useProducts({});
   const { warehouses = [] } = useWarehouses({});
@@ -32,7 +36,7 @@ export default function NewTransferPage() {
   );
 
   // Crear la configuración para el formulario de venta
-  const config = createTransformFormConfig({
+  const config = createOutflowFormConfig({
     warehouses,
     productsData,
     onSubmit: createOrder,
