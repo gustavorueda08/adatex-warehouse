@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import classNames from "classnames";
 import Input from "@/components/ui/Input";
 import Checkbox from "@/components/ui/Checkbox";
 import format from "@/lib/utils/format";
@@ -8,8 +9,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/solid";
 
 /**
  * Componente para seleccionar items de una orden de venta para devolución
- * Muestra productos colapsables con sus items, permitiendo seleccionar cuáles devolver
- * y ajustar las cantidades de devolución (parciales o totales)
+ * con una experiencia visual optimizada (resúmenes, barras de progreso y chips informativos)
  */
 export default function ReturnItemSelector({
   orderProducts = [],
@@ -32,7 +32,6 @@ export default function ReturnItemSelector({
     });
   };
 
-  // Calcular si un producto tiene todos sus items seleccionados
   const isProductFullySelected = (product) => {
     const productItems = product.items || [];
     if (productItems.length === 0) return false;
@@ -42,7 +41,6 @@ export default function ReturnItemSelector({
     );
   };
 
-  // Calcular si un producto tiene algunos items seleccionados
   const isProductPartiallySelected = (product) => {
     const productItems = product.items || [];
     if (productItems.length === 0) return false;
@@ -55,125 +53,172 @@ export default function ReturnItemSelector({
     return someSelected && !allSelected;
   };
 
-  // Toggle todos los items de un producto
   const toggleAllProductItems = (product) => {
     const productItems = product.items || [];
     const isFullySelected = isProductFullySelected(product);
 
     productItems.forEach((item) => {
       if (isFullySelected) {
-        // Deseleccionar todos
         onItemToggle(item, false);
       } else {
-        // Seleccionar todos
         onItemToggle(item, true);
       }
     });
   };
 
-  // Obtener cantidad actual de devolución de un item
   const getReturnQuantity = (itemId) => {
     const selectedItem = selectedItems.find((si) => si.itemId === itemId);
     return selectedItem?.returnQuantity || 0;
   };
 
-  // Verificar si un item está seleccionado
   const isItemSelected = (itemId) => {
     return selectedItems.some((si) => si.itemId === itemId);
   };
 
-  // Calcular totales por producto
-  const getProductTotals = (product) => {
+  const getProductStats = (product) => {
     const items = product.items || [];
-    const totalOriginal = items.reduce(
-      (acc, item) => acc + (item.quantity || item.currentQuantity || 0),
-      0
-    );
-    const totalReturn = items.reduce((acc, item) => {
-      const returnQty = getReturnQuantity(item.id);
-      return acc + returnQty;
-    }, 0);
+    let totalOriginal = 0;
+    let totalReturn = 0;
+    let selectedCount = 0;
 
-    return { totalOriginal, totalReturn };
+    items.forEach((item) => {
+      const original = item.quantity || item.currentQuantity || 0;
+      totalOriginal += original;
+      totalReturn += getReturnQuantity(item.id);
+      if (isItemSelected(item.id)) {
+        selectedCount += 1;
+      }
+    });
+
+    const percentage =
+      totalOriginal > 0
+        ? Math.min(100, (totalReturn / totalOriginal) * 100)
+        : 0;
+
+    return { totalOriginal, totalReturn, selectedCount, percentage };
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {orderProducts.length === 0 ? (
-        <div className="p-8 text-center text-zinc-500">
+        <div className="p-10 text-center text-zinc-500 border border-dashed border-zinc-600 rounded-2xl bg-zinc-900/30">
           Selecciona una orden de venta para ver sus productos
         </div>
       ) : (
         orderProducts.map((product) => {
           const isExpanded = expandedProducts.has(product.id);
           const items = product.items || [];
-          const { totalOriginal, totalReturn } = getProductTotals(product);
+          const { totalOriginal, totalReturn, selectedCount, percentage } =
+            getProductStats(product);
           const isFullySelected = isProductFullySelected(product);
           const isPartiallySelected = isProductPartiallySelected(product);
+          const hasSelections = selectedCount > 0;
+          const unitLabel = product.product?.unit || "";
 
           return (
             <div
               key={product.id}
-              className="bg-zinc-700 rounded-md overflow-hidden"
+              className={classNames(
+                "rounded-2xl border transition-all duration-300 overflow-hidden",
+                hasSelections
+                  ? "border-emerald-500/60 bg-emerald-500/5 shadow-lg shadow-emerald-500/10"
+                  : "border-zinc-700 bg-zinc-800/60",
+                disabled && "opacity-60"
+              )}
             >
-              {/* Header del producto */}
-              <div className="p-4 flex items-center gap-3">
-                {/* Checkbox para seleccionar todos los items del producto */}
-                <Checkbox
-                  variant="cyan"
-                  checked={isFullySelected}
-                  indeterminate={isPartiallySelected}
-                  onCheck={() => toggleAllProductItems(product)}
-                  disabled={disabled || items.length === 0}
-                />
+              <div className="p-5 space-y-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:gap-5">
+                  <Checkbox
+                    variant="cyan"
+                    checked={isFullySelected}
+                    indeterminate={isPartiallySelected}
+                    onCheck={() => toggleAllProductItems(product)}
+                    disabled={disabled || items.length === 0}
+                    className="mt-0.5"
+                  />
 
-                {/* Info del producto */}
-                <div
-                  className="flex-1 cursor-pointer"
-                  onClick={() => toggleProduct(product.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">
-                        {product.product?.name || product.name}
-                      </h3>
-                      <p className="text-sm text-zinc-400">
-                        {items.length} item{items.length !== 1 ? "s" : ""}{" "}
-                        disponibles
-                      </p>
+                  <div className="flex-1 space-y-3">
+                    <div
+                      className="flex items-start justify-between gap-4 cursor-pointer"
+                      onClick={() => toggleProduct(product.id)}
+                    >
+                      <div>
+                        <h3 className="text-lg font-semibold">
+                          {product.product?.name || product.name}
+                        </h3>
+                        <p className="text-sm text-zinc-400">
+                          {items.length} item{items.length !== 1 ? "s" : ""} disponibles
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-xs uppercase text-zinc-400 tracking-wide">
+                            Unidades seleccionadas
+                          </p>
+                          <p className="text-sm font-semibold">
+                            {format(totalReturn)} / {format(totalOriginal)} {unitLabel}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleProduct(product.id);
+                          }}
+                          className="p-2 hover:bg-zinc-700 rounded transition-colors"
+                          disabled={disabled}
+                          aria-label={isExpanded ? "Colapsar" : "Expandir"}
+                        >
+                          {isExpanded ? (
+                            <ChevronUpIcon className="w-5 h-5" />
+                          ) : (
+                            <ChevronDownIcon className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-right mr-2">
-                      <p className="text-sm text-zinc-400">
-                        Devolver: {format(totalReturn)} / {format(totalOriginal)}{" "}
-                        {product.product?.unit || ""}
-                      </p>
-                    </div>
+
+                    {items.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        <InfoChip label="Items" value={`${selectedCount}/${items.length}`} />
+                        <InfoChip
+                          label="Unidades"
+                          value={`${format(totalReturn)} / ${format(totalOriginal)} ${unitLabel}`}
+                        />
+                        {hasSelections && (
+                          <InfoChip
+                            label="Restantes"
+                            value={`${format(totalOriginal - totalReturn)} ${unitLabel}`}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Toggle button */}
-                <button
-                  onClick={() => toggleProduct(product.id)}
-                  className="p-2 hover:bg-zinc-600 rounded transition-colors"
-                  disabled={disabled}
-                >
-                  {isExpanded ? (
-                    <ChevronUpIcon className="w-5 h-5" />
-                  ) : (
-                    <ChevronDownIcon className="w-5 h-5" />
-                  )}
-                </button>
+                {items.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <span>Progreso de devolución</span>
+                      <span>{Math.round(percentage)}%</span>
+                    </div>
+                    <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-400 transition-all"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Items del producto */}
               {isExpanded && (
-                <div className="border-t border-zinc-600 bg-zinc-800">
+                <div className="border-t border-zinc-700 bg-zinc-900/40">
                   {items.length === 0 ? (
                     <div className="p-4 text-center text-zinc-500">
                       Este producto no tiene items
                     </div>
                   ) : (
-                    <div className="divide-y divide-zinc-600">
+                    <div className="flex flex-col gap-3 p-4">
                       {items.map((item) => {
                         const originalQuantity =
                           item.quantity || item.currentQuantity || 0;
@@ -183,80 +228,81 @@ export default function ReturnItemSelector({
                         return (
                           <div
                             key={item.id}
-                            className="p-4 flex items-center gap-4"
+                            className={classNames(
+                              "p-4 md:p-5 rounded-2xl border transition-all duration-200",
+                              selected
+                                ? "border-emerald-500/60 bg-emerald-500/10 shadow-inner shadow-emerald-500/20"
+                                : "border-zinc-700 bg-zinc-900/30 hover:border-cyan-500/40"
+                            )}
                           >
-                            {/* Checkbox del item */}
-                            <Checkbox
-                              variant="cyan"
-                              checked={selected}
-                              onCheck={(checked) =>
-                                onItemToggle(
-                                  {
-                                    ...item,
-                                    productId: product.product?.id,
-                                    productName: product.product?.name,
-                                  },
-                                  checked
-                                )
-                              }
-                              disabled={disabled}
-                            />
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                              <Checkbox
+                                variant={selected ? "emerald" : "cyan"}
+                                checked={selected}
+                                onCheck={(checked) =>
+                                  onItemToggle(
+                                    {
+                                      ...item,
+                                      productId: product.product?.id,
+                                      productName: product.product?.name,
+                                    },
+                                    checked
+                                  )
+                                }
+                                disabled={disabled}
+                                className="md:self-start"
+                              />
 
-                            {/* Info del item */}
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
-                              {/* Lote y código */}
-                              <div>
-                                <p className="text-xs text-zinc-400">
-                                  Lote / Código
-                                </p>
-                                <p className="font-mono text-sm">
-                                  {item.lotNumber || item.lot || "-"} /{" "}
-                                  {item.itemNumber || item.barcode || "-"}
-                                </p>
-                              </div>
+                              <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                                    Lote
+                                  </p>
+                                  <p className="font-mono text-sm">
+                                    {item.lotNumber || item.lot || "-"}
+                                  </p>
+                                  <p className="text-xs text-zinc-500 mt-1">
+                                    Código: {item.itemNumber || item.barcode || "-"}
+                                  </p>
+                                </div>
 
-                              {/* Bodega */}
-                              <div>
-                                <p className="text-xs text-zinc-400">Bodega</p>
-                                <p className="text-sm">
-                                  {item.warehouse?.name || "-"}
-                                </p>
-                              </div>
+                                <div>
+                                  <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                                    Bodega
+                                  </p>
+                                  <p className="text-sm font-semibold">
+                                    {item.warehouse?.name || "-"}
+                                  </p>
+                                  <p className="text-xs text-zinc-500">
+                                    Disponible: {format(originalQuantity)} {unitLabel}
+                                  </p>
+                                </div>
 
-                              {/* Cantidad original */}
-                              <div>
-                                <p className="text-xs text-zinc-400">
-                                  Cantidad original
-                                </p>
-                                <p className="text-sm font-semibold">
-                                  {format(originalQuantity)}{" "}
-                                  {product.product?.unit || ""}
-                                </p>
-                              </div>
-
-                              {/* Cantidad a devolver */}
-                              <div>
-                                <p className="text-xs text-zinc-400 mb-1">
-                                  Cantidad a devolver
-                                </p>
-                                <Input
-                                  type="number"
-                                  input={returnQuantity}
-                                  setInput={(value) => {
-                                    const numValue = Number(value) || 0;
-                                    // Validar que no exceda la cantidad original
-                                    const validValue = Math.min(
-                                      Math.max(0, numValue),
-                                      originalQuantity
-                                    );
-                                    onQuantityChange(item.id, validValue);
-                                  }}
-                                  placeholder="0"
-                                  disabled={disabled || !selected}
-                                  className="max-w-28"
-                                  min={0}
-                                  max={originalQuantity}
-                                />
+                                <div className="space-y-2">
+                                  <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                                    Cantidad a devolver
+                                  </p>
+                                  <Input
+                                    type="number"
+                                    input={returnQuantity}
+                                    setInput={(value) => {
+                                      const numValue = Number(value) || 0;
+                                      const validValue = Math.min(
+                                        Math.max(0, numValue),
+                                        originalQuantity
+                                      );
+                                      onQuantityChange(item.id, validValue);
+                                    }}
+                                    placeholder="0"
+                                    disabled={disabled || !selected}
+                                    className="max-w-36"
+                                    min={0}
+                                    max={originalQuantity}
+                                  />
+                                  <p className="text-[11px] text-zinc-500">
+                                    Máx: {format(originalQuantity)} {unitLabel}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -270,6 +316,17 @@ export default function ReturnItemSelector({
           );
         })
       )}
+    </div>
+  );
+}
+
+function InfoChip({ label, value }) {
+  return (
+    <div className="px-3 py-1 rounded-full bg-zinc-900/60 border border-zinc-700 text-xs text-zinc-200 flex items-center gap-2">
+      <span className="uppercase tracking-wide text-[10px] text-zinc-500">
+        {label}
+      </span>
+      <span className="font-semibold text-white">{value}</span>
     </div>
   );
 }

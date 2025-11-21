@@ -7,7 +7,7 @@ export default function ReturnsPage() {
     <DocumentListPage
       documentType="return"
       title="Devoluciones"
-      relationField="sourceOrder"
+      relationField="parentOrder"
       relationLabel="Orden original"
       getDetailPath={(order) => `/returns/${order.id}`}
       showPricing={false}
