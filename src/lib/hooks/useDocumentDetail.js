@@ -29,6 +29,7 @@ export function useDocumentDetail(config) {
     onSuccess,
     redirectPath,
     prepareUpdateData,
+    allowAutoCreateItems = true,
   } = config;
 
   const router = useRouter();
@@ -57,11 +58,11 @@ export function useDocumentDetail(config) {
                 }))
               : [createEmptyItem()],
         })),
-        createEmptyProduct(),
+        ...(allowAutoCreateItems ? [createEmptyProduct()] : []),
       ]);
       setNotes(document.notes || "");
     }
-  }, [document, documentType]);
+  }, [document, documentType, allowAutoCreateItems]);
 
   // Actualizar producto
   const updateProductField = useCallback((productId, field, value) => {
@@ -75,70 +76,84 @@ export function useDocumentDetail(config) {
   }, []);
 
   // Actualizar item
-  const updateItemField = useCallback((productId, itemId, field, value) => {
-    setProducts((current) => {
-      const productIndex = current.findIndex((p) => p.id === productId);
-      if (productIndex === -1) return current;
-      const product = current[productIndex];
-      const updatedItems = product.items.map((item) =>
-        item.id === itemId ? { ...item, [field]: value } : item
-      );
-      // Agregar item vacío si el último tiene cantidad
-      const lastItem = updatedItems[updatedItems.length - 1];
-      if (lastItem?.quantity !== "" && lastItem?.quantity !== 0) {
-        updatedItems.push(createEmptyItem());
-      }
-      const newProducts = [...current];
-      newProducts[productIndex] = { ...product, items: updatedItems };
-      return newProducts;
-    });
-  }, []);
+  const updateItemField = useCallback(
+    (productId, itemId, field, value) => {
+      setProducts((current) => {
+        const productIndex = current.findIndex((p) => p.id === productId);
+        if (productIndex === -1) return current;
+        const product = current[productIndex];
+        const updatedItems = product.items.map((item) =>
+          item.id === itemId ? { ...item, [field]: value } : item
+        );
+        // Agregar item vacío si el último tiene cantidad
+        const lastItem = updatedItems[updatedItems.length - 1];
+        if (
+          allowAutoCreateItems &&
+          lastItem?.quantity !== "" &&
+          lastItem?.quantity !== 0
+        ) {
+          updatedItems.push(createEmptyItem());
+        }
+        const newProducts = [...current];
+        newProducts[productIndex] = { ...product, items: updatedItems };
+        return newProducts;
+      });
+    },
+    [allowAutoCreateItems]
+  );
 
   // Seleccionar producto
-  const handleProductSelect = useCallback((selectedProduct, index) => {
-    setProducts((current) => {
-      const updated = current.map((product, i) => {
-        if (i !== index) return product;
-        return {
-          ...product,
-          product: selectedProduct,
-          items: [createEmptyItem()],
-        };
+  const handleProductSelect = useCallback(
+    (selectedProduct, index) => {
+      setProducts((current) => {
+        const updated = current.map((product, i) => {
+          if (i !== index) return product;
+          return {
+            ...product,
+            product: selectedProduct,
+            items: [createEmptyItem()],
+          };
+        });
+        // Agregar fila vacía si la última tiene producto
+        if (allowAutoCreateItems && updated[updated.length - 1]?.product) {
+          updated.push(createEmptyProduct());
+        }
+        return updated;
       });
-      // Agregar fila vacía si la última tiene producto
-      if (updated[updated.length - 1]?.product) {
-        updated.push(createEmptyProduct());
-      }
-      return updated;
-    });
-  }, []);
+    },
+    [allowAutoCreateItems]
+  );
 
   // Eliminar producto
-  const handleDeleteProductRow = useCallback((index) => {
-    setProducts((current) => {
-      const updated = current.filter((_, i) => i !== index);
-      if (updated.length === 0 || updated.at(-1).product !== null) {
-        updated.push(createEmptyProduct());
-      }
-      return updated;
-    });
-  }, []);
+  const handleDeleteProductRow = useCallback(
+    (index) => {
+      setProducts((current) => {
+        const updated = current.filter((_, i) => i !== index);
+        if (
+          allowAutoCreateItems &&
+          (updated.length === 0 || updated.at(-1).product !== null)
+        ) {
+          updated.push(createEmptyProduct());
+        }
+        return updated;
+      });
+    },
+    [allowAutoCreateItems]
+  );
 
   // Eliminar item
   const handleDeleteItemRow = useCallback(
     async (productId, itemId) => {
-      if (!removeItem) {
-        toast.error("Función removeItem no disponible");
-        return;
-      }
       const loadingToast = toast.loading("Eliminando Item");
       try {
-        const response = await removeItem(document.id, itemId);
-        toast.dismiss(loadingToast);
-        if (!response.success) {
-          toast.error("No se pudo eliminar el item");
-          return;
+        if (removeItem) {
+          const response = await removeItem(document.id, itemId);
+          if (!response.success) {
+            toast.error("No se pudo eliminar el item");
+            return;
+          }
         }
+        toast.dismiss(loadingToast);
         setProducts((current) =>
           current.map((product) => {
             if (product?.id === productId) {
@@ -216,7 +231,8 @@ export function useDocumentDetail(config) {
       setLoading(loading);
       try {
         // Obtener datos adicionales del callback si existe
-        const extraData = prepareUpdateData?.(document, products, stateOverride) || {};
+        const extraData =
+          prepareUpdateData?.(document, products, stateOverride) || {};
 
         const { destinationWarehouse } = extraData;
 
@@ -232,9 +248,10 @@ export function useDocumentDetail(config) {
               items: p.items
                 .filter((i) => i.quantity !== 0 && i.quantity !== "")
                 .map((item) => ({
-                  id: item?.documentId ? item.id : null,
+                  id: item?.id || null,
                   lot: item.lotNumber,
                   itemNumber: item.itemNumber,
+                  parentItem: item?.parentItem?.id || item?.parentItem || null,
                   warehouse: destinationWarehouse || item?.warehouse?.id,
                   quantity: Number(item.quantity),
                 })),

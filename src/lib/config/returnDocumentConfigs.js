@@ -1,6 +1,10 @@
 import moment from "moment-timezone";
 import format from "@/lib/utils/format";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
+import { exportDocumentToExcel } from "@/lib/utils/exportToExcel";
+import { exportDocumentToPDF } from "@/lib/utils/exportToPDF";
+import Swal from "sweetalert2";
+import { buildInvoiceLabel } from "../utils/invoiceLabel";
 
 const RETURN_REASON_OPTIONS = [
   { label: "Producto defectuoso", value: "defective" },
@@ -8,6 +12,28 @@ const RETURN_REASON_OPTIONS = [
   { label: "Cliente insatisfecho", value: "unsatisfied" },
   { label: "Otro", value: "other" },
 ];
+
+async function askExportFormat() {
+  const result = await Swal.fire({
+    title: "Descargar Documento",
+    text: "¿En qué formato deseas descargar?",
+    icon: "question",
+    showCancelButton: true,
+    showDenyButton: true,
+    confirmButtonText: "Excel",
+    denyButtonText: "PDF",
+    cancelButtonText: "Cancelar",
+    background: "#27272a",
+    color: "#fff",
+    confirmButtonColor: "#10b981",
+    denyButtonColor: "#06b6d4",
+    cancelButtonColor: "#71717a",
+  });
+
+  if (result.isConfirmed) return "excel";
+  if (result.isDenied) return "pdf";
+  return null;
+}
 
 /**
  * Configuración para crear Devoluciones desde el nuevo ReturnForm
@@ -33,7 +59,9 @@ export function createReturnFormConfig({
           type: "select",
           searchable: true,
           options: orders.map((order) => ({
-            label: `${order.code} - ${order.customer?.name || "Sin cliente"}`,
+            label: `${buildInvoiceLabel(order)} - ${
+              order.customer?.name || "Sin cliente"
+            }`,
             value: order,
           })),
           onChange: (order, formState, updateField) => {
@@ -124,7 +152,8 @@ export function createReturnFormConfig({
         destinationWarehouse: formState.selectedWarehouse?.id,
         parentOrder: formState.selectedOrder?.id,
         returnReason: formState.returnReason,
-        createdDate: formState.dateCreated,
+        createdDate:
+          formState.dateCreated || moment().tz("America/Bogota").toDate(),
         generatedBy: user?.id,
       };
     },
@@ -149,6 +178,8 @@ export function createReturnDetailConfig({
   return {
     type: ORDER_TYPES.RETURN,
     redirectPath: "/returns",
+    allowAddItems: false,
+    showItemInput: false,
     data: {
       warehouses,
       products,
@@ -161,9 +192,8 @@ export function createReturnDetailConfig({
     getInitialState: (document) => ({
       selectedWarehouse: document.destinationWarehouse,
       returnReason: document.returnReason || null,
-      dateCreated: document.createdDate
-        ? new Date(document.createdDate)
-        : moment().tz("America/Bogota").toDate(),
+      createdDate:
+        document.createdDate || moment().tz("America/Bogota").toDate(),
       parentOrder: document.parentOrder,
     }),
     stateHandlers: {
@@ -179,7 +209,9 @@ export function createReturnDetailConfig({
         type: "input",
         render: (_, state) => (
           <div className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md">
-            <p className="text-white">{state.parentOrder?.code || "-"}</p>
+            <p className="text-white">
+              {buildInvoiceLabel(state.parentOrder) || "-"}
+            </p>
           </div>
         ),
       },
@@ -207,7 +239,7 @@ export function createReturnDetailConfig({
         onChange: "onWarehouseChange",
       },
       {
-        key: "dateCreated",
+        key: "createdDate",
         label: "Fecha de devolución",
         type: "date",
         disabled: true,
@@ -230,18 +262,44 @@ export function createReturnDetailConfig({
         key: "originalQuantity",
         label: "Cantidad original",
         type: "computed",
-        compute: (row) =>
-          row.items
-            ?.filter((item) => item.parentItem)
-            ?.reduce(
-              (acc, item) =>
-                acc +
-                (item.parentItem?.quantity ||
-                  item.parentItem?.currentQuantity ||
-                  0),
-              0
-            ) || 0,
+        compute: (row) => {
+          console.log(row, "EL ROW");
+
+          if (row.parentOriginalQuantity !== undefined) {
+            return row.parentOriginalQuantity;
+          }
+
+          return (
+            row.items
+              ?.filter((item) => item.parentItem)
+              ?.reduce(
+                (acc, item) =>
+                  acc +
+                  (item.parentItem?.quantity ||
+                    item.parentItem?.currentQuantity ||
+                    0),
+                0
+              ) || 0
+          );
+        },
         format: (value) => format(value) || "-",
+        footer: (data) =>
+          format(
+            data.reduce((acc, row) => {
+              const rowTotal =
+                row.items
+                  ?.filter((item) => item.parentItem)
+                  ?.reduce(
+                    (subtotal, item) =>
+                      subtotal +
+                      (item.parentItem?.quantity ||
+                        item.parentItem?.currentQuantity ||
+                        0),
+                    0
+                  ) || 0;
+              return acc + rowTotal;
+            }, 0)
+          ) || "-",
       },
       {
         key: "returnQuantity",
@@ -253,6 +311,18 @@ export function createReturnDetailConfig({
             0
           ) || 0,
         format: (value) => format(value) || "-",
+        footer: (data) =>
+          format(
+            data.reduce(
+              (acc, row) =>
+                acc +
+                (row.items?.reduce(
+                  (subtotal, item) => subtotal + Number(item?.quantity || 0),
+                  0
+                ) || 0),
+              0
+            )
+          ) || "-",
       },
       {
         key: "itemsCount",
@@ -262,6 +332,16 @@ export function createReturnDetailConfig({
           row.items?.filter((item) => Number(item?.quantity || 0) > 0).length ||
           0,
         format: (value) => format(value) || "-",
+        footer: (data) =>
+          format(
+            data.reduce(
+              (acc, row) =>
+                acc +
+                (row.items?.filter((item) => Number(item?.quantity || 0) > 0)
+                  .length || 0),
+              0
+            )
+          ) || "-",
       },
       {
         key: "unit",
@@ -286,6 +366,27 @@ export function createReturnDetailConfig({
             showToast.success("Devolución procesada exitosamente");
           } catch (error) {
             showToast.error("Error al procesar la devolución");
+            throw error;
+          }
+        },
+      },
+      {
+        label: "Descargar lista de empaque",
+        variant: "cyan",
+        onClick: async (document, state, { showToast }) => {
+          const formatChoice = await askExportFormat();
+          if (!formatChoice) return;
+
+          try {
+            if (formatChoice === "excel") {
+              await exportDocumentToExcel(document, { includeLot: true });
+            } else {
+              await exportDocumentToPDF(document, { includeLot: true });
+            }
+            showToast.success("Documento exportado exitosamente");
+          } catch (error) {
+            console.error("Error al exportar devolución:", error);
+            showToast.error("No se pudo exportar la devolución");
             throw error;
           }
         },

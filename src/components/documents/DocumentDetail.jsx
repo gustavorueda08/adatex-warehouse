@@ -83,6 +83,10 @@ export default function DocumentDetail({ config, initialData }) {
     [config, documentState]
   );
 
+  const allowAddItems = config.allowAddItems;
+  const showMainItemInput = config.showItemInput;
+  const allowManualEntry = config.allowManualEntry;
+
   // Usar el hook existente para manejo de productos/items
   const {
     products,
@@ -114,12 +118,23 @@ export default function DocumentDetail({ config, initialData }) {
     onSuccess: config.onUpdate,
     redirectPath: config.redirectPath,
     prepareUpdateData,
+    allowAutoCreateItems: allowAddItems,
   });
+
+  const resolveProductValue = useCallback(
+    (product, index) => {
+      if (product && typeof product === "object") return product;
+      const available = getAvailableProductsForRow(index) || [];
+      return available.find((p) => p.id == product) || product;
+    },
+    [getAvailableProductsForRow]
+  );
 
   // Handler personalizado para selección de producto (con auto-fill desde config)
   const handleProductSelect = useCallback(
     (product, index) => {
-      baseHandleProductSelect(product, index);
+      const normalizedProduct = resolveProductValue(product, index);
+      baseHandleProductSelect(normalizedProduct, index);
 
       // Si hay lógica de onChange en la columna de producto
       const productColumn = config.productColumns?.find(
@@ -128,7 +143,7 @@ export default function DocumentDetail({ config, initialData }) {
       if (productColumn && productColumn.onChange) {
         const currentRow = products[index];
         const updatedRow = productColumn.onChange(
-          product,
+          normalizedProduct,
           currentRow,
           documentState
         );
@@ -148,6 +163,7 @@ export default function DocumentDetail({ config, initialData }) {
       config.productColumns,
       documentState,
       products,
+      resolveProductValue,
       updateProductField,
     ]
   );
@@ -175,10 +191,10 @@ export default function DocumentDetail({ config, initialData }) {
           ? field.options(documentState, fetchedData)
           : field.options;
 
-      const value =
-        typeof documentState[field.key] === "object"
-          ? documentState[field.key]?.id
-          : documentState[field.key];
+      let value = documentState[field.key];
+      if (field.type === "select") {
+        value = typeof value === "object" && value !== null ? value.id : value;
+      }
 
       return (
         <div
@@ -241,15 +257,18 @@ export default function DocumentDetail({ config, initialData }) {
                   )
                 : column.options;
 
+            const useIdValue = column.useProductIdAsValue === true;
+            const value =
+              column.useProductIdAsValue !== false &&
+              typeof row[column.key] === "object"
+                ? row[column.key]?.id
+                : row[column.key] || null;
+
             return (
               <Select
                 className="md:min-w-80"
                 options={options || []}
-                value={
-                  typeof row[column.key] === "object"
-                    ? row[column.key]?.id
-                    : row[column.key] || null
-                }
+                value={value}
                 onChange={(value) => {
                   if (column.key === "name" || column.key === "product") {
                     handleProductSelect(value, index);
@@ -341,7 +360,6 @@ export default function DocumentDetail({ config, initialData }) {
   const handleActionClick = useCallback(
     async (action) => {
       if (!action.onClick) return;
-
       const context = {
         updateDocument: (id, additionalData, loading, stateOverride) =>
           handleUpdateDocument(additionalData, loading, stateOverride),
@@ -352,7 +370,6 @@ export default function DocumentDetail({ config, initialData }) {
           error: (msg) => toast.error(msg),
         },
       };
-
       try {
         await action.onClick(initialData, documentState, context);
       } catch (error) {
@@ -781,11 +798,9 @@ export default function DocumentDetail({ config, initialData }) {
                     onEnter={(input, setInput) =>
                       handleAddItemRow(product.product.id, input, setInput)
                     }
-                    showMainInput={true}
-                    canAddItems={
-                      !(config.type === "purchase" || config.type === "in")
-                    }
-                    allowManualEntry={true}
+                    showMainInput={showMainItemInput}
+                    canAddItems={allowAddItems}
+                    allowManualEntry={allowManualEntry}
                     state={initialData.state}
                   />
                 ))}

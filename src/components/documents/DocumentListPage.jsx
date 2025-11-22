@@ -19,6 +19,7 @@ import { v4 } from "uuid";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { buildInvoiceLabel } from "@/lib/utils/invoiceLabel";
 
 /**
  * Componente reutilizable para listado de documentos (sales, purchases, returns, etc.)
@@ -144,7 +145,7 @@ function DocumentListPage({
     populate: [
       "orderProducts", // Solo IDs para contar
       "orderProducts.items",
-      relationField, // Solo el campo de relación necesario (customer o supplier)
+      ...(relationField ? [relationField] : []), // Solo el campo de relación necesario (customer o supplier) si existe
     ],
   });
 
@@ -200,18 +201,29 @@ function DocumentListPage({
     }
   };
 
+  const getDocumentCode = (row) => {
+    const parts = [row.code || ""];
+    if (row.containerCode) parts.push(row.containerCode);
+    return parts.filter(Boolean).join(" | ");
+  };
+
   // Columnas base comunes a todos los documentos
   const baseColumns = [
     {
       key: "code",
       label: "Código",
-      render: (_, row) => <p>{row.code}</p>,
+      render: (_, row) => <p>{getDocumentCode(row)}</p>,
     },
-    {
-      key: relationField,
-      label: relationLabel,
-      render: (relation) => (relation ? `${relation.name}` : "-"),
-    },
+    ...(relationField
+      ? [
+          {
+            key: relationField,
+            label: relationLabel || "Relacionado",
+            render: (relation) =>
+              relation ? `${relation.name || buildInvoiceLabel(relation)}` : "-",
+          },
+        ]
+      : []),
     {
       key: "state",
       label: "Estado",
@@ -311,8 +323,10 @@ function DocumentListPage({
       },
       {
         label: "Fecha de Despacho",
-        date: moment(order.completedDate).isValid()
-          ? moment(order.completedDate).format("DD-MM-YYYY | h:mm a")
+        date: moment(order.completedDate || order.actualDispatchDate).isValid()
+          ? moment(order.completedDate || order.actualDispatchDate).format(
+              "DD-MM-YYYY | h:mm a"
+            )
           : "-",
         id: `${v4()}-completed`,
       },
@@ -656,7 +670,9 @@ function DocumentListPage({
         <CardHeader className="border-b border-zinc-700">
           <CardTitle>Filtros de búsqueda</CardTitle>
           <CardDescription>
-            Filtra por código, {relationLabel.toLowerCase()}, fecha o estado
+            Filtra por código
+            {relationLabel ? `, ${relationLabel.toLowerCase()}` : ""}, fecha o
+            estado
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4">
@@ -725,13 +741,13 @@ function DocumentListPage({
       {/* Bulk Actions - Card flotante cuando hay selección */}
       {bulkActions.length > 0 && selectedOrders.length > 0 && (
         <Card className="mt-4 bg-gradient-to-r from-zinc-800 to-zinc-900 border-zinc-700 sticky bottom-4 shadow-2xl">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <CardContent className="px-4 py-3 md:p-4">
+            <div className="flex flex-col md:flex-row items-center md:items-center justify-center md:justify-between gap-4 text-center md:text-left">
               <div className="flex items-center gap-3">
                 <div className="bg-emerald-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
                   {selectedOrders.length}
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-white font-semibold">
                     {selectedOrders.length}{" "}
                     {selectedOrders.length === 1
@@ -743,8 +759,7 @@ function DocumentListPage({
                   </p>
                 </div>
               </div>
-
-              <div className="flex flex-col w-full md:w-auto md:flex-row gap-3">
+              <div className="flex flex-col w-full md:w-auto md:flex-row md:items-center justify-center gap-3">
                 {bulkActions.includes("confirm") && (
                   <Button
                     variant="zinc"

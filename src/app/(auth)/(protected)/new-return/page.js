@@ -17,7 +17,7 @@ export default function NewReturnPage() {
   } = useOrders(
     {
       filters: {
-        type: "sale",
+        type: ["sale"],
         state: ["completed"],
       },
       populate: [
@@ -40,9 +40,7 @@ export default function NewReturnPage() {
   const config = createReturnFormConfig({
     orders,
     warehouses,
-    onSubmit: async (data) => {
-      await createOrder(data);
-    },
+    onSubmit: createOrder,
     loading: creating,
   });
 

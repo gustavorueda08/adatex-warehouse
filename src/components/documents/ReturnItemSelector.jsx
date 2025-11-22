@@ -147,7 +147,11 @@ export default function ReturnItemSelector({
                           {product.product?.name || product.name}
                         </h3>
                         <p className="text-sm text-zinc-400">
-                          {items.length} item{items.length !== 1 ? "s" : ""} disponibles
+                          {items.filter((i) => i.state === "sold").length} item
+                          {items.filter((i) => i.state === "sold").length !== 1
+                            ? "s"
+                            : ""}{" "}
+                          disponibles
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -156,7 +160,8 @@ export default function ReturnItemSelector({
                             Unidades seleccionadas
                           </p>
                           <p className="text-sm font-semibold">
-                            {format(totalReturn)} / {format(totalOriginal)} {unitLabel}
+                            {format(totalReturn)} / {format(totalOriginal)}{" "}
+                            {unitLabel}
                           </p>
                         </div>
                         <button
@@ -179,15 +184,24 @@ export default function ReturnItemSelector({
 
                     {items.length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        <InfoChip label="Items" value={`${selectedCount}/${items.length}`} />
+                        <InfoChip
+                          label="Items"
+                          value={`${selectedCount}/${
+                            items.filter((i) => i.state === "sold").length
+                          }`}
+                        />
                         <InfoChip
                           label="Unidades"
-                          value={`${format(totalReturn)} / ${format(totalOriginal)} ${unitLabel}`}
+                          value={`${format(totalReturn)} / ${format(
+                            totalOriginal
+                          )} ${unitLabel}`}
                         />
                         {hasSelections && (
                           <InfoChip
                             label="Restantes"
-                            value={`${format(totalOriginal - totalReturn)} ${unitLabel}`}
+                            value={`${format(
+                              totalOriginal - totalReturn
+                            )} ${unitLabel}`}
                           />
                         )}
                       </div>
@@ -249,7 +263,7 @@ export default function ReturnItemSelector({
                                     checked
                                   )
                                 }
-                                disabled={disabled}
+                                disabled={disabled || item.state !== "sold"}
                                 className="md:self-start"
                               />
 
@@ -262,7 +276,8 @@ export default function ReturnItemSelector({
                                     {item.lotNumber || item.lot || "-"}
                                   </p>
                                   <p className="text-xs text-zinc-500 mt-1">
-                                    Código: {item.itemNumber || item.barcode || "-"}
+                                    Código:{" "}
+                                    {item.itemNumber || item.barcode || "-"}
                                   </p>
                                 </div>
 
@@ -274,7 +289,8 @@ export default function ReturnItemSelector({
                                     {item.warehouse?.name || "-"}
                                   </p>
                                   <p className="text-xs text-zinc-500">
-                                    Disponible: {format(originalQuantity)} {unitLabel}
+                                    Disponible: {format(originalQuantity)}{" "}
+                                    {unitLabel}
                                   </p>
                                 </div>
 

@@ -5,6 +5,7 @@ import { createProductColumns } from "./documentConfigs";
 import Swal from "sweetalert2";
 import { exportDocumentToPDF } from "../utils/exportToPDF";
 import { exportDocumentToExcel } from "../utils/exportToExcel";
+import { createProductColumnsDetailForm } from "../utils/createProductColumnsForDocuments";
 
 export function createInflowFormConfig({
   warehouses,
@@ -94,6 +95,9 @@ export function createInflowDetailConfig({
       return `${baseTitle}${container}`;
     },
     redirectPath: "/inflows",
+    allowAddItems: true,
+    allowManualEntry: true,
+    showItemInput: false,
     data: {
       warehouses: warehouses || [],
       products: products || [],
@@ -106,7 +110,6 @@ export function createInflowDetailConfig({
     deleteDocument: deleteOrder,
     getInitialState: (document) => {
       return {
-        selectedWarehouse: document.sourceWarehouse,
         createdDate: document.createdDate,
         actualDispatchDate: document.actualDispatchDate,
         confirmedDate: document.confirmedDate,
@@ -120,10 +123,7 @@ export function createInflowDetailConfig({
         label: "Bodega destino",
         type: "select",
         key: "selectedWarehouse",
-        options: (_, data) => {
-          if (!data.warehouses) return [];
-          return data.warehouses.map((w) => ({ label: w.name, value: w.id }));
-        },
+        options: warehouses.map((w) => ({ label: w.name, value: w.id })),
         searchable: true,
       },
       {},
@@ -140,66 +140,33 @@ export function createInflowDetailConfig({
         disabled: true,
       },
     ],
-    // Product columns con acceso al estado
-    productColumns: [
-      {
-        key: "product",
-        label: "Producto",
-        type: "select",
-        options: (state, data, row, index, availableProducts) => {
-          return availableProducts.map((p) => ({ label: p.name, value: p.id }));
-        },
-        searchable: true,
-        onChange: (product, row, state) => {
-          return { ...row, product };
-        },
+    productColumns: createProductColumnsDetailForm({
+      productKey: "product",
+      useProductIdAsValue: true,
+      productFooter: "Total",
+      priceLabel: "Precio Unitario",
+      includePrice: false,
+      includeIVA: false,
+      quantityKey: "requestedQuantity",
+      quantityLabel: "Cantidad Solicitada",
+      quantityFooter: (data) =>
+        format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0)),
+      itemsLabel: "Cantidad Recibida",
+      itemsFooter: (data) => {
+        const total =
+          data
+            .flatMap((p) => p.items)
+            .reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0;
+        return format(total) || "-";
       },
-      {
-        key: "price",
-        label: "Precio",
-        type: "input",
-        editable: true,
-        placeholder: "$",
-        className: "md:max-w-28",
-      },
-      {
-        key: "ivaIncluded",
-        label: "IVA Incluido",
-        type: "checkbox",
-      },
-      {
-        key: "requestedQuantity",
-        label: "Cantidad requerida",
-        type: "input",
-        editable: true,
-        placeholder: "Cantidad",
-        className: "md:max-w-28",
-      },
-      {
-        key: "items",
-        label: "Cantidad confirmada",
-        type: "computed",
-        compute: (row) =>
-          row.items?.reduce(
-            (acc, item) => acc + Number(item?.quantity || 0),
-            0
-          ) || 0,
-        format: (value) => format(value) || "-",
-      },
-      {
-        key: "itemsConfirmed",
-        label: "Items Confirmados",
-        type: "computed",
-        compute: (row) => row.items?.filter((i) => i.quantity > 0).length || 0,
-        format: (value) => format(value) || "-",
-      },
-      {
-        key: "unit",
-        label: "Unidad",
-        type: "computed",
-        compute: (row) => row?.product?.unit || "-",
-      },
-    ],
+      includeTotal: true,
+      totalFooter: (data) =>
+        format(
+          data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
+          "$"
+        ),
+      includeUnit: false,
+    }),
     actions: [
       {
         label: "Ingresar orden",
@@ -215,7 +182,6 @@ export function createInflowDetailConfig({
               actualDispatchDate: moment.tz("America/Bogota").toDate(),
             };
             await updateDocument(document.id, {}, true, newState);
-
             showToast.success("Orden despachada exitosamente");
           } catch (error) {
             showToast.error("Error al despachar la orden");

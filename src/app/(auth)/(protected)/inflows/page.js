@@ -7,8 +7,6 @@ export default function InflowsPage() {
     <DocumentListPage
       documentType="in"
       title="Ordenes de Entrada"
-      relationField="customer"
-      relationLabel="Cliente"
       getDetailPath={(order) => `/inflows/${order.id}`}
       showPricing={true}
       bulkActions={["confirm", "complete", "delete"]}

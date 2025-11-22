@@ -6,6 +6,7 @@ export const ORDER_TYPES = {
   RETURN: "return",
   CUT: "cut",
   TRANSFORM: "transform",
+  TRANSFER: "transfer",
 };
 
 export const orderTypesArray = Object.values(ORDER_TYPES).map((type) => {
@@ -34,6 +35,9 @@ export const orderTypesArray = Object.values(ORDER_TYPES).map((type) => {
       break;
     case ORDER_TYPES.TRANSFORM:
       data.label = "Transformación";
+      break;
+    case ORDER_TYPES.TRANSFER:
+      data.label = "Transferencia";
       break;
     default:
       break;

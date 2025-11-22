@@ -1,4 +1,3 @@
-import format from "@/lib/utils/format";
 import moment from "moment-timezone";
 import Swal from "sweetalert2";
 import toast from "react-hot-toast";
@@ -6,6 +5,9 @@ import { createProductColumns } from "./documentConfigs";
 import { ORDER_TYPES } from "../utils/orderTypes";
 import { exportDocumentToExcel } from "../utils/exportToExcel";
 import { exportDocumentToPDF } from "../utils/exportToPDF";
+import { createProductColumnsDetailForm } from "../utils/createProductColumnsForDocuments";
+import format from "../utils/format";
+import { buildInvoiceLabel } from "../utils/invoiceLabel";
 
 export function createSaleFormConfig({
   customers,
@@ -146,37 +148,24 @@ export function createSaleDetailConfig({
   refetch,
 }) {
   return {
-    // Tipo de la orden
     type: "sale",
-    // Titulo
-    title: (document) => {
-      const baseTitle = document.code || "";
-      const container = document.containerCode
-        ? ` | ${document.containerCode}`
-        : "";
-      const isConsignment =
-        document.state === "completed" && !document?.siigoId;
-      const consignmentLabel = isConsignment ? " (Remisión)" : "";
-      return `${baseTitle}${container}${consignmentLabel}`;
-    },
-    // Redirección
+    title: (document) => buildInvoiceLabel(document),
     redirectPath: "/sales",
-    // Datos para el state
+    allowAddItems: true,
+    showItemInput: true,
+    allowManualEntry: false,
     data: {
-      customers: customers || [],
-      warehouses: warehouses || [],
-      products: products || [],
+      customers,
+      warehouses,
+      products,
     },
-    // CRUD operations
     updateDocument: updateOrder,
     deleteDocument: deleteOrder,
     addItem,
     removeItem,
-    // Estado inicial del formulario
     getInitialState: (document) => {
       const customer = document.customer;
       const customerForInvoice = document.customerForInvoice;
-
       // Calcular parties
       let parties = [];
       if (customer) {
@@ -184,7 +173,6 @@ export function createSaleDetailConfig({
           ? customer.parties
           : [];
         parties = [...customerParties, customer];
-
         // Asegurarse de que customerForInvoice esté incluido
         if (
           customerForInvoice &&
@@ -193,11 +181,10 @@ export function createSaleDetailConfig({
           parties.push(customerForInvoice);
         }
       }
-
       return {
-        selectedCustomer: customer,
-        selectedCustomerForInvoice: customerForInvoice,
-        selectedWarehouse: document.sourceWarehouse,
+        selectedCustomer: customer.id,
+        selectedCustomerForInvoice: customerForInvoice.id,
+        selectedWarehouse: document.sourceWarehouse.id,
         parties,
         createdDate: document.createdDate,
         actualDispatchDate: document.actualDispatchDate,
@@ -205,9 +192,7 @@ export function createSaleDetailConfig({
         completedDate: document.completedDate,
       };
     },
-    // State handlers - Lógica de estado reutilizable
     stateHandlers: {
-      // SOLUCIÓN al problema de parties/customerForInvoice
       onCustomerChange: (customerId, state, updateState) => {
         const customer = customers.find((c) => c.id == customerId);
         const customerParties = Array.isArray(customer.parties)
@@ -242,16 +227,12 @@ export function createSaleDetailConfig({
         }
       },
     },
-    // Header fields con acceso al estado interno
     headerFields: [
       {
         label: "Cliente",
         type: "select",
         key: "selectedCustomer",
-        options: (state, data) => {
-          if (!data.customers) return [];
-          return data.customers.map((c) => ({ label: c.name, value: c.id }));
-        },
+        options: customers.map((c) => ({ label: c.name, value: c.id })),
         searchable: true,
         onChange: "onCustomerChange", // Referencia al state handler
       },
@@ -295,82 +276,48 @@ export function createSaleDetailConfig({
         disabled: true,
       },
     ],
-    // Product columns con acceso al estado
-    productColumns: [
-      {
-        key: "product",
-        label: "Producto",
-        type: "select",
-        options: (state, data, row, index, availableProducts) => {
-          return availableProducts.map((p) => ({ label: p.name, value: p.id }));
-        },
-        searchable: true,
-        onChange: (product, row, state) => {
-          // Auto-fill precio desde customerForInvoice.prices
-          const priceData = state.selectedCustomerForInvoice?.prices?.find(
-            (p) => p.product.id === product.id
-          );
-
-          if (priceData) {
-            return {
-              ...row,
-              product,
-              price: String(priceData.unitPrice),
-              ivaIncluded: priceData.ivaIncluded || false,
-              invoicePercentage: priceData.invoicePercentage || 100,
-            };
-          }
-
-          return { ...row, product };
-        },
+    productColumns: createProductColumnsDetailForm({
+      useProductIdAsValue: true,
+      includePrice: true,
+      includeIVA: true,
+      quantityKey: "requestedQuantity",
+      quantityLabel: "Cantidad requerida",
+      itemsLabel: "Cantidad confirmada",
+      includeInvoicePercentage: true,
+      includeItemsConfirmed: true,
+      productFooter: "Total",
+      includeUnit: true,
+      quantityFooter: (data) =>
+        format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0)),
+      itemsFooter: (data) => {
+        const total =
+          data
+            .flatMap((p) => p.items)
+            .reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0;
+        return format(total) || "-";
       },
-      {
-        key: "price",
-        label: "Precio",
-        type: "input",
-        editable: true,
-        placeholder: "$",
-        className: "md:max-w-28",
+      includeTotal: true,
+      totalFooter: (data) =>
+        format(
+          data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
+          "$"
+        ),
+      onProductChange: (product, row, state) => {
+        const priceData = state.selectedCustomerForInvoice?.prices?.find(
+          (p) => p.product.id === product.id
+        );
+        if (priceData) {
+          return {
+            ...row,
+            product,
+            price: String(priceData.unitPrice),
+            ivaIncluded: priceData.ivaIncluded || false,
+            invoicePercentage: priceData.invoicePercentage || 100,
+          };
+        }
+        return { ...row, product };
       },
-      {
-        key: "ivaIncluded",
-        label: "IVA Incluido",
-        type: "checkbox",
-      },
-      {
-        key: "requestedQuantity",
-        label: "Cantidad requerida",
-        type: "input",
-        editable: true,
-        placeholder: "Cantidad",
-        className: "md:max-w-28",
-      },
-      {
-        key: "items",
-        label: "Cantidad confirmada",
-        type: "computed",
-        compute: (row) =>
-          row.items?.reduce(
-            (acc, item) => acc + Number(item?.quantity || 0),
-            0
-          ) || 0,
-        format: (value) => format(value) || "-",
-      },
-      {
-        key: "itemsConfirmed",
-        label: "Items Confirmados",
-        type: "computed",
-        compute: (row) => row.items?.filter((i) => i.quantity > 0).length || 0,
-        format: (value) => format(value) || "-",
-      },
-      {
-        key: "unit",
-        label: "Unidad",
-        type: "computed",
-        compute: (row) => row?.product?.unit || "-",
-      },
-    ],
-    // Actions con contexto completo
+    }),
     actions: [
       {
         label: "Confirmar Orden",
@@ -488,8 +435,7 @@ export function createSaleDetailConfig({
         },
       },
     ],
-    // Preparar datos para actualización
-    prepareUpdateData: (document, products, state) => {
+    prepareUpdateData: (_, products, state) => {
       const confirmed = products
         .filter((p) => p.product)
         .map((p) => ({
@@ -507,9 +453,9 @@ export function createSaleDetailConfig({
             })
         );
       return {
-        customer: state.selectedCustomer?.id,
-        customerForInvoice: state.selectedCustomerForInvoice?.id,
-        sourceWarehouse: state.selectedWarehouse?.id,
+        customer: state.selectedCustomer,
+        customerForInvoice: state.selectedCustomerForInvoice,
+        sourceWarehouse: state.selectedWarehouse,
         createdDate: state.createdDate,
         confirmedDate: state.confirmedDate,
         completedDate: state.completedDate,
@@ -518,7 +464,6 @@ export function createSaleDetailConfig({
         emitInvoice: state.emitInvoice || false,
       };
     },
-    // Invoice config
     invoice: {
       enabled: true,
       title: (document) =>
@@ -526,10 +471,12 @@ export function createSaleDetailConfig({
           ? "Factura Proforma"
           : "Factura",
       taxes: (state) => {
-        return state.selectedCustomerForInvoice?.taxes || [];
+        return (
+          state.parties.find((p) => p.id === state.selectedCustomerForInvoice)
+            ?.taxes || []
+        );
       },
     },
-    // Custom sections
     customSections: [
       {
         visible: (document) =>
