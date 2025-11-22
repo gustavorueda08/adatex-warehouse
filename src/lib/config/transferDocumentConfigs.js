@@ -1,6 +1,10 @@
-import { createProductColumnsForm } from "../utils/createProductColumnsForDocuments";
+import moment from "moment-timezone";
+import {
+  createProductColumnsDetailForm,
+  createProductColumnsForm,
+} from "../utils/createProductColumnsForDocuments";
+import format from "../utils/format";
 import { ORDER_TYPES } from "../utils/orderTypes";
-import { createProductColumns } from "./documentConfigs";
 
 export function createTransferFormConfig({
   warehouses,
@@ -42,9 +46,9 @@ export function createTransferFormConfig({
       createProductColumnsForm({
         ...context,
         productsData,
-        includePrice: true,
-        includeIVA: true,
-        includeInvoicePercentage: true,
+        includePrice: false,
+        includeIVA: false,
+        includeInvoicePercentage: false,
       }),
 
     onProductSelect: (product) => {
@@ -70,7 +74,7 @@ export function createTransferFormConfig({
     },
 
     prepareSubmitData: (formState, user) => ({
-      type: ORDER_TYPES.SALE,
+      type: ORDER_TYPES.TRANSFER,
       products: formState.products
         .filter((p) => p.product)
         .map((p) => ({
@@ -81,8 +85,8 @@ export function createTransferFormConfig({
           ivaIncluded: p.ivaIncluded,
           invoicePercentage: p.invoicePercentage,
         })),
-      sourceWarehouse: formState.selectedSourceWarehouse.id,
-      destinationWarehouse: formState.selectedDestinationWarehouse.id,
+      sourceWarehouse: formState.selectedSourceWarehouse,
+      destinationWarehouse: formState.selectedDestinationWarehouse,
       createdDate: formState.dateCreated,
       generatedBy: user.id,
     }),
@@ -91,5 +95,219 @@ export function createTransferFormConfig({
       selectedSourceWarehouse: null,
       selectedDestinationWarehouse: null,
     },
+  };
+}
+
+export function createTransferDetailConfig({
+  updateOrder,
+  deleteOrder,
+  warehouses,
+  products,
+  addItem,
+  removeItem,
+}) {
+  return {
+    type: "transfer",
+    title: (document) => {
+      const baseTitle = document.code || "";
+      const container = document.containerCode
+        ? ` | ${document.containerCode}`
+        : "";
+      return `${baseTitle}${container}`;
+    },
+    redirectPath: "/outflows",
+    allowAddItems: true,
+    showItemInput: true,
+    allowManualEntry: false,
+    data: {
+      warehouses: warehouses || [],
+      products: products || [],
+      createdDate: null,
+      actualDispatchDate: null,
+      confirmedDate: null,
+      completedDate: null,
+      selectedSourceWarehouse: null,
+      selectedDestinationWarehouse: null,
+    },
+    updateDocument: updateOrder,
+    deleteDocument: deleteOrder,
+    addItem,
+    removeItem,
+    getInitialState: (document) => {
+      return {
+        selectedSourceWarehouse: document?.sourceWarehouse?.id,
+        selectedDestinationWarehouse: document?.destinationWarehouse?.id,
+        createdDate: document.createdDate,
+        actualDispatchDate: document.actualDispatchDate,
+        confirmedDate: document.confirmedDate,
+        completedDate: document.completedDate,
+      };
+    },
+    stateHandlers: {},
+    headerFields: [
+      {
+        label: "Bodega de Origen",
+        type: "select",
+        key: "selectedSourceWarehouse",
+        options: warehouses.map((w) => ({ label: w.name, value: w.id })),
+        searchable: true,
+      },
+      {
+        label: "Bodega Destino",
+        type: "select",
+        key: "selectedDestinationWarehouse",
+        options: warehouses.map((w) => ({ label: w.name, value: w.id })),
+        searchable: true,
+      },
+      {
+        label: "Fecha de Creación",
+        type: "date",
+        key: "createdDate",
+        disabled: true,
+      },
+      {
+        label: "Fecha de Salida",
+        type: "date",
+        key: "completedDate",
+        disabled: true,
+      },
+    ],
+    productColumns: createProductColumnsDetailForm({
+      useProductIdAsValue: true,
+      includePrice: false,
+      includeIVA: false,
+      quantityKey: "requestedQuantity",
+      quantityLabel: "Cantidad requerida",
+      itemsLabel: "Cantidad confirmada",
+      includeInvoicePercentage: true,
+      includeItemsConfirmed: true,
+      productFooter: "Total",
+      includeUnit: true,
+      quantityFooter: (data) =>
+        format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0)),
+      itemsFooter: (data) => {
+        const total =
+          data
+            .flatMap((p) => p.items)
+            .reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0;
+        return format(total) || "-";
+      },
+      includeTotal: true,
+      totalFooter: (data) =>
+        format(
+          data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
+          "$"
+        ),
+      onProductChange: (product, row, state) => {
+        const priceData = state.selectedCustomerForInvoice?.prices?.find(
+          (p) => p.product.id === product.id
+        );
+        if (priceData) {
+          return {
+            ...row,
+            product,
+            price: String(priceData.unitPrice),
+            ivaIncluded: priceData.ivaIncluded || false,
+            invoicePercentage: priceData.invoicePercentage || 100,
+          };
+        }
+        return { ...row, product };
+      },
+    }),
+    actions: [
+      {
+        label: "Confirmar transferencia",
+        variant: "emerald",
+        visible: (document) => document.state !== "completed",
+        onClick: async (document, state, { updateDocument, showToast }) => {
+          try {
+            const newState = {
+              ...state,
+              state: "completed",
+              confirmedDate: moment.tz("America/Bogota").toDate(),
+              completedDate: moment.tz("America/Bogota").toDate(),
+              actualDispatchDate: moment.tz("America/Bogota").toDate(),
+            };
+            await updateDocument(document.id, {}, true, newState);
+
+            showToast.success("Orden transferida exitosamente");
+          } catch (error) {
+            showToast.error("Error al transferir la orden");
+            throw error;
+          }
+        },
+      },
+      {
+        label: "Descargar lista de empaque",
+        variant: "zinc",
+        onClick: async (document, state, { showToast }) => {
+          const result = await Swal.fire({
+            title: "Descargar Documento",
+            text: "¿En qué formato deseas descargar?",
+            icon: "question",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: "Excel",
+            denyButtonText: "PDF",
+            cancelButtonText: "Cancelar",
+            background: "#27272a",
+            color: "#fff",
+            confirmButtonColor: "#10b981", // emerald
+            denyButtonColor: "#06b6d4", // cyan
+            cancelButtonColor: "#71717a", // zinc
+          });
+
+          if (result.isConfirmed) {
+            // Usuario seleccionó Excel
+            try {
+              await exportDocumentToExcel(document, { includeLot: false });
+              showToast.success("Documento exportado a Excel exitosamente");
+            } catch (error) {
+              console.error("Error exportando a Excel:", error);
+              showToast.error("Error al exportar el documento a Excel");
+            }
+          } else if (result.isDenied) {
+            // Usuario seleccionó PDF
+            try {
+              await exportDocumentToPDF(document, { includeLot: false });
+              showToast.success("Documento exportado a PDF exitosamente");
+            } catch (error) {
+              console.error("Error exportando a PDF:", error);
+              showToast.error("Error al exportar el documento a PDF");
+            }
+          }
+          // Si result.isDismissed, el usuario canceló, no hacemos nada
+        },
+      },
+    ],
+    // Preparar datos para actualización
+    prepareUpdateData: (_, products, state) => {
+      const confirmed = products
+        .filter((p) => p.product)
+        .map((p) => ({
+          ...p,
+          items: p.items.filter((i) => i.quantity !== 0 && i.quantity !== ""),
+        }))
+        .every(
+          (product) =>
+            Array.isArray(product.items) &&
+            product.items.every((item) => {
+              const q = item.quantity;
+              return (
+                q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
+              );
+            })
+        );
+      return {
+        sourceWarehouse: state.selectedSourceWarehouse,
+        destinationWarehouse: state.selectedDestinationWarehouse,
+        createdDate: state.createdDate,
+        confirmedDate: state.confirmedDate,
+        completedDate: state.completedDate,
+        actualDispatchDate: state.actualDispatchDate,
+        state: confirmed && state.state === "draft" ? "confirmed" : state.state,
+      };
+    },
+    customSections: [],
   };
 }

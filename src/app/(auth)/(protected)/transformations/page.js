@@ -7,8 +7,6 @@ export default function TransformationsPage() {
     <DocumentListPage
       documentType="transform"
       title="Transformaciones"
-      relationField="customer"
-      relationLabel="Cliente"
       getDetailPath={(order) => `/transformations/${order.id}`}
       showPricing={false}
       bulkActions={[]}

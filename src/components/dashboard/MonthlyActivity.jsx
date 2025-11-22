@@ -23,12 +23,18 @@ const generateMockData = (days, seed) => {
 
     // Usar seed para generar valores consistentes
     const daySeed = seed + i;
-    const sales = Math.floor((Math.sin(daySeed * 0.5) * 0.5 + 0.5) * 50000) + 30000;
-    const purchases = Math.floor((Math.sin(daySeed * 0.7) * 0.5 + 0.5) * 40000) + 20000;
-    const movements = Math.floor((Math.sin(daySeed * 0.3) * 0.5 + 0.5) * 30000) + 15000;
+    const sales =
+      Math.floor((Math.sin(daySeed * 0.5) * 0.5 + 0.5) * 50000) + 30000;
+    const purchases =
+      Math.floor((Math.sin(daySeed * 0.7) * 0.5 + 0.5) * 40000) + 20000;
+    const movements =
+      Math.floor((Math.sin(daySeed * 0.3) * 0.5 + 0.5) * 30000) + 15000;
 
     data.push({
-      date: date.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }),
+      date: date.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "short",
+      }),
       fullDate: date.toISOString(),
       ventas: sales,
       compras: purchases,
@@ -46,13 +52,18 @@ const CustomTooltip = ({ active, payload, label }) => {
       <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 shadow-xl">
         <p className="text-white font-semibold mb-2">{label}</p>
         {payload.map((entry, index) => (
-          <div key={index} className="flex items-center justify-between gap-4 mb-1">
+          <div
+            key={index}
+            className="flex items-center justify-between gap-4 mb-1"
+          >
             <span className="flex items-center gap-2">
               <span
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="text-gray-300 text-sm capitalize">{entry.name}:</span>
+              <span className="text-gray-300 text-sm capitalize">
+                {entry.name}:
+              </span>
             </span>
             <span className="text-white font-medium">
               ${entry.value.toLocaleString()}
@@ -189,7 +200,11 @@ export default function MonthlyActivity() {
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" opacity={0.3} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#3f3f46"
+              opacity={0.3}
+            />
 
             <XAxis
               dataKey="date"
@@ -252,7 +267,10 @@ export default function MonthlyActivity() {
             </div>
             <div>
               <p className="text-gray-400 text-xs">Promedio Diario Ventas</p>
-              <p className="text-white text-lg font-bold" suppressHydrationWarning>
+              <p
+                className="text-white text-lg font-bold"
+                suppressHydrationWarning
+              >
                 ${Math.floor(totals.ventas / period).toLocaleString()}
               </p>
             </div>
@@ -266,7 +284,10 @@ export default function MonthlyActivity() {
             </div>
             <div>
               <p className="text-gray-400 text-xs">Promedio Diario Compras</p>
-              <p className="text-white text-lg font-bold" suppressHydrationWarning>
+              <p
+                className="text-white text-lg font-bold"
+                suppressHydrationWarning
+              >
                 ${Math.floor(totals.compras / period).toLocaleString()}
               </p>
             </div>
@@ -279,8 +300,13 @@ export default function MonthlyActivity() {
               <div className="w-5 h-5 bg-purple-500 rounded-full" />
             </div>
             <div>
-              <p className="text-gray-400 text-xs">Promedio Diario Movimientos</p>
-              <p className="text-white text-lg font-bold" suppressHydrationWarning>
+              <p className="text-gray-400 text-xs">
+                Promedio Diario Movimientos
+              </p>
+              <p
+                className="text-white text-lg font-bold"
+                suppressHydrationWarning
+              >
                 ${Math.floor(totals.movimientos / period).toLocaleString()}
               </p>
             </div>

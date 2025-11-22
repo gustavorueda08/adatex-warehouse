@@ -4,6 +4,8 @@ import { v4 } from "uuid";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
+import { useSocket } from "./useSocket";
+import format from "../utils/format";
 
 /**
  * Hook reutilizable para manejar la lógica de documentos (ventas, compras, devoluciones, etc.)
@@ -39,6 +41,79 @@ export function useDocumentDetail(config) {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState("");
+
+  const { isConnected, joinOrder, on, leaveOrder } = useSocket();
+
+  useEffect(() => {
+    if (!isConnected || !document?.id) return;
+
+    console.log(`Uniéndose a orden de transformación: ${document.id}`);
+    joinOrder(document.id);
+
+    // Escuchar cuando se agrega un item
+    const onItemAdded = on("order:item-added", (item) => {
+      console.log("Item agregado vía socket:", item);
+      toast.success(
+        `Item ${item.product.name} | ${format(item.currentQuantity, "")} ${
+          item.product.unit
+        } agregado a la orden`
+      );
+      const { currentQuantity, ...itemData } = item;
+      setProducts((current) =>
+        current.map((product) => {
+          if (product?.product?.id === itemData?.product?.id) {
+            return {
+              ...product,
+              items: [
+                { ...itemData, quantity: currentQuantity },
+                ...product.items,
+              ],
+            };
+          }
+          return product;
+        })
+      );
+    });
+
+    // Escuchar cuando se elimina un item
+    const onItemRemoved = on("order:item-removed", (removedItem) => {
+      console.log("Item eliminado vía socket:", removedItem);
+      toast.success(
+        `Item ${removedItem.product.name} | ${format(
+          removedItem.currentQuantity,
+          ""
+        )} ${removedItem.product.unit} agregado a la orden`
+      );
+      setProducts((current) =>
+        current.map((product) => {
+          if (product?.product?.id === removedItem?.product?.id) {
+            return {
+              ...product,
+              items: product.items.filter((item) => item.id !== removedItem.id),
+            };
+          }
+          return product;
+        })
+      );
+    });
+
+    // Escuchar actualizaciones de la orden
+    const onDocumentUpdated = on("order:updated", (updatedDocument) => {
+      console.log(
+        "Orden de transformación actualizada vía socket:",
+        updatedDocument
+      );
+    });
+
+    // Cleanup
+    return () => {
+      console.log(`Saliendo de orden de transformación: ${document.id}`);
+      leaveOrder(document.id);
+      onItemAdded?.();
+      onItemRemoved?.();
+      onDocumentUpdated?.();
+    };
+  }, [isConnected, document?.id, joinOrder, leaveOrder, on]);
 
   // Inicializar productos desde el documento
   useEffect(() => {

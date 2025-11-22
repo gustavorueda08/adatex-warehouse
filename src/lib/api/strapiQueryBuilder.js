@@ -336,6 +336,8 @@ export function normalizeOrderTypes(types) {
     "out",
     "return",
     "transfer",
+    "transform",
+    "partial-invoice",
     "cut",
     "by-warehouse",
     "by-product",

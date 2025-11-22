@@ -5,6 +5,7 @@ import { createProductColumns } from "./documentConfigs";
 import Swal from "sweetalert2";
 import { exportDocumentToPDF } from "../utils/exportToPDF";
 import { exportDocumentToExcel } from "../utils/exportToExcel";
+import { createProductColumnsDetailForm } from "../utils/createProductColumnsForDocuments";
 
 export function createOutflowFormConfig({
   warehouses,
@@ -80,12 +81,11 @@ export function createOutflowDetailConfig({
   deleteOrder,
   warehouses,
   products,
-  refetch,
+  addItem,
+  removeItem,
 }) {
   return {
-    // Tipo de la orden
     type: "outflow",
-    // Titulo
     title: (document) => {
       const baseTitle = document.code || "";
       const container = document.containerCode
@@ -94,6 +94,9 @@ export function createOutflowDetailConfig({
       return `${baseTitle}${container}`;
     },
     redirectPath: "/outflows",
+    allowAddItems: true,
+    showItemInput: true,
+    allowManualEntry: false,
     data: {
       warehouses: warehouses || [],
       products: products || [],
@@ -104,9 +107,11 @@ export function createOutflowDetailConfig({
     },
     updateDocument: updateOrder,
     deleteDocument: deleteOrder,
+    addItem,
+    removeItem,
     getInitialState: (document) => {
       return {
-        selectedWarehouse: document.sourceWarehouse,
+        selectedWarehouse: document.sourceWarehouse.id,
         createdDate: document.createdDate,
         actualDispatchDate: document.actualDispatchDate,
         confirmedDate: document.confirmedDate,
@@ -119,10 +124,7 @@ export function createOutflowDetailConfig({
         label: "Bodega de Origen",
         type: "select",
         key: "selectedWarehouse",
-        options: (_, data) => {
-          if (!data.warehouses) return [];
-          return data.warehouses.map((w) => ({ label: w.name, value: w.id }));
-        },
+        options: warehouses.map((w) => ({ label: w.name, value: w.id })),
         searchable: true,
       },
       {},
@@ -139,54 +141,48 @@ export function createOutflowDetailConfig({
         disabled: true,
       },
     ],
-    // Product columns con acceso al estado
-    productColumns: [
-      {
-        key: "product",
-        label: "Producto",
-        type: "select",
-        options: (state, data, row, index, availableProducts) => {
-          return availableProducts.map((p) => ({ label: p.name, value: p.id }));
-        },
-        searchable: true,
-        onChange: (product, row, state) => {
-          return { ...row, product };
-        },
+    productColumns: createProductColumnsDetailForm({
+      useProductIdAsValue: true,
+      includePrice: false,
+      includeIVA: false,
+      quantityKey: "requestedQuantity",
+      quantityLabel: "Cantidad requerida",
+      itemsLabel: "Cantidad confirmada",
+      includeInvoicePercentage: true,
+      includeItemsConfirmed: true,
+      productFooter: "Total",
+      includeUnit: true,
+      quantityFooter: (data) =>
+        format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0)),
+      itemsFooter: (data) => {
+        const total =
+          data
+            .flatMap((p) => p.items)
+            .reduce((acc, item) => acc + Number(item?.quantity || 0), 0) || 0;
+        return format(total) || "-";
       },
-
-      {
-        key: "requestedQuantity",
-        label: "Cantidad requerida",
-        type: "input",
-        editable: true,
-        placeholder: "Cantidad",
-        className: "md:max-w-28",
+      includeTotal: true,
+      totalFooter: (data) =>
+        format(
+          data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
+          "$"
+        ),
+      onProductChange: (product, row, state) => {
+        const priceData = state.selectedCustomerForInvoice?.prices?.find(
+          (p) => p.product.id === product.id
+        );
+        if (priceData) {
+          return {
+            ...row,
+            product,
+            price: String(priceData.unitPrice),
+            ivaIncluded: priceData.ivaIncluded || false,
+            invoicePercentage: priceData.invoicePercentage || 100,
+          };
+        }
+        return { ...row, product };
       },
-      {
-        key: "items",
-        label: "Cantidad confirmada",
-        type: "computed",
-        compute: (row) =>
-          row.items?.reduce(
-            (acc, item) => acc + Number(item?.quantity || 0),
-            0
-          ) || 0,
-        format: (value) => format(value) || "-",
-      },
-      {
-        key: "itemsConfirmed",
-        label: "Items Confirmados",
-        type: "computed",
-        compute: (row) => row.items?.filter((i) => i.quantity > 0).length || 0,
-        format: (value) => format(value) || "-",
-      },
-      {
-        key: "unit",
-        label: "Unidad",
-        type: "computed",
-        compute: (row) => row?.product?.unit || "-",
-      },
-    ],
+    }),
     actions: [
       {
         label: "Confirmar salida",
@@ -272,7 +268,7 @@ export function createOutflowDetailConfig({
             })
         );
       return {
-        sourceWarehouse: state.selectedWarehouse?.id,
+        sourceWarehouse: state.selectedWarehouse,
         createdDate: state.createdDate,
         confirmedDate: state.confirmedDate,
         completedDate: state.completedDate,

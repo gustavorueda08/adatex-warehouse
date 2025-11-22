@@ -35,7 +35,7 @@ export default function NewTransformPage() {
     {
       filters: selectedWarehouse
         ? {
-            warehouse: selectedWarehouse.id,
+            warehouse: selectedWarehouse?.id || selectedWarehouse,
           }
         : {},
       populate: ["product", "warehouse"],

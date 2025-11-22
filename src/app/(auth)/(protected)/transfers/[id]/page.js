@@ -5,9 +5,9 @@ import DocumentDetail from "@/components/documents/DocumentDetail";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useProducts } from "@/lib/hooks/useProducts";
-import { createOutflowDetailConfig } from "@/lib/config/outflowDocumentConfigs";
+import { createTransferDetailConfig } from "@/lib/config/transferDocumentConfigs";
 
-export default function OutflowDetailPage({ params }) {
+export default function TransferDetailPage({ params }) {
   const { id } = use(params);
 
   // Solo fetch del documento con todas sus relaciones
@@ -19,6 +19,7 @@ export default function OutflowDetailPage({ params }) {
         "orderProducts.product",
         "orderProducts.items",
         "sourceWarehouse",
+        "destinationWarehouse",
       ],
     });
 
@@ -29,7 +30,7 @@ export default function OutflowDetailPage({ params }) {
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
     if (!order) return null;
-    return createOutflowDetailConfig({
+    return createTransferDetailConfig({
       warehouses,
       products,
       updateOrder,

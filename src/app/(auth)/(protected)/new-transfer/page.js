@@ -18,7 +18,7 @@ export default function NewTransferPage() {
       enabled: false,
       onCreate: (createdOrder) => {
         console.log("Orden creada exitosamente:", createdOrder);
-        router.push(`/outflows/${createdOrder.id}`);
+        router.push(`/transfers/${createdOrder.id}`);
       },
       onError: (error) => {
         console.log(error);
