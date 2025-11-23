@@ -6,6 +6,7 @@ import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Checkbox from "@/components/ui/Checkbox";
 import Table from "@/components/ui/Table";
+import MobileList from "@/components/ui/MobileList";
 import Textarea from "@/components/ui/Textarea";
 import Badge from "@/components/ui/Badge";
 import Card, {
@@ -700,14 +701,24 @@ export default function DocumentDetail({ config, initialData }) {
           </div>
         </CardHeader>
         <CardContent>
-          <Table
-            columns={productColumns}
-            data={products}
-            mobileBlock
-            getRowId={(row) => row.id}
-            canDeleteRow={() => !isReadOnly}
-            onRowDelete={(id, index) => handleDeleteProductRow(index)}
-          />
+          <div className="md:hidden">
+            <MobileList
+              columns={productColumns}
+              data={products}
+              getRowId={(row) => row.id}
+              canDeleteRow={() => !isReadOnly}
+              onRowDelete={(id, index) => handleDeleteProductRow(index)}
+            />
+          </div>
+          <div className="hidden md:block">
+            <Table
+              columns={productColumns}
+              data={products}
+              getRowId={(row) => row.id}
+              canDeleteRow={() => !isReadOnly}
+              onRowDelete={(id, index) => handleDeleteProductRow(index)}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -822,16 +833,33 @@ export default function DocumentDetail({ config, initialData }) {
                 </CardDescription>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-12 md:col-span-8">
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-12 md:col-span-8">
+              <div className="md:hidden">
+                <MobileList
+                  columns={invoiceColumns}
+                  data={products.filter((p) => p.product)}
+                  footerFilter={(_, value) => value !== "-" && value !== ""}
+                />
+              </div>
+              <div className="hidden md:block">
                 <Table
                   columns={invoiceColumns}
                   data={products.filter((p) => p.product)}
                 />
               </div>
-              <div className="col-span-12 md:col-span-4">
+            </div>
+            <div className="col-span-12 md:col-span-4">
+              <div className="md:hidden">
+                <MobileList
+                  columns={invoiceResumeColumns}
+                  data={invoiceData}
+                  footerFilter={(_, value) => value !== "-" && value !== ""}
+                />
+              </div>
+              <div className="hidden md:block">
                 <Table
                   columns={invoiceResumeColumns}
                   data={invoiceData}
@@ -839,8 +867,9 @@ export default function DocumentDetail({ config, initialData }) {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
       )}
 
       {/* Comentarios Card */}

@@ -4,6 +4,7 @@ import Button from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
 import Select from "@/components/ui/Select";
 import Table from "@/components/ui/Table";
+import MobileList from "@/components/ui/MobileList";
 import Badge from "@/components/ui/Badge";
 import Card, {
   CardHeader,
@@ -276,16 +277,26 @@ export default function DocumentForm({ config, onFormStateChange }) {
         </CardHeader>
 
         <CardContent>
-          <Table
-            columns={productColumns}
-            data={formState.products}
-            mobileBlock
-            getRowId={(row) => row.id}
-            canDeleteRow={() => true}
-            onRowDelete={(id, index) => handleDeleteProductRow(index)}
-            canSelectRow={() => true}
-            onRowEdit={() => true}
-          />
+          <div className="md:hidden">
+            <MobileList
+              columns={productColumns}
+              data={formState.products}
+              getRowId={(row) => row.id}
+              canDeleteRow={() => true}
+              onRowDelete={(id, index) => handleDeleteProductRow(index)}
+            />
+          </div>
+          <div className="hidden md:block">
+            <Table
+              columns={productColumns}
+              data={formState.products}
+              getRowId={(row) => row.id}
+              canDeleteRow={() => true}
+              onRowDelete={(id, index) => handleDeleteProductRow(index)}
+              canSelectRow={() => true}
+              onRowEdit={() => true}
+            />
+          </div>
 
           {/* Mensaje de ayuda si no hay productos */}
           {productStats.totalProducts === 0 && (

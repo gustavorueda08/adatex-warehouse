@@ -53,8 +53,6 @@ export default function Select({
   const [internalValue, setInternalValue] = useState(multiple ? [] : null);
   const currentValue = isControlled ? value : internalValue;
 
-  console.log(options);
-
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm.trim()) return options;
     const q = searchTerm.toLowerCase();
@@ -81,6 +79,7 @@ export default function Select({
     const rect = selectRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
+    const isMobileViewport = viewportWidth < 640;
 
     // Constantes
     const PADDING = 8;
@@ -119,24 +118,29 @@ export default function Select({
       topPosition = rect.bottom + 4;
     }
 
-    // Calcular ancho mínimo basado en contenido
-    const longestLabel = options.reduce((max, opt) => {
-      const len = String(opt.label).length;
-      return len > max ? len : max;
-    }, 0);
-    const estimatedMinWidth = Math.max(
-      rect.width,
-      Math.min(longestLabel * 8 + 60, viewportWidth - rect.left - 16)
+    // Calcular ancho (preferir pantalla completa en móvil)
+    const longestLabel = options.reduce(
+      (max, opt) => Math.max(max, String(opt.label).length),
+      0
     );
+    const estimatedMinWidth = Math.min(
+      Math.max(rect.width, longestLabel * 8 + 60),
+      viewportWidth - PADDING * 2
+    );
+    const dropdownWidth = isMobileViewport
+      ? viewportWidth - PADDING * 2
+      : Math.max(rect.width, estimatedMinWidth);
 
     setDropdownPosition({
       top: topPosition,
-      left: Math.max(
-        PADDING,
-        Math.min(rect.left, viewportWidth - estimatedMinWidth - PADDING)
-      ),
-      width: rect.width,
-      minWidth: estimatedMinWidth,
+      left: isMobileViewport
+        ? PADDING
+        : Math.max(
+            PADDING,
+            Math.min(rect.left, viewportWidth - dropdownWidth - PADDING)
+          ),
+      width: dropdownWidth,
+      minWidth: dropdownWidth,
       openUpwards: shouldOpenUpwards,
       maxHeight: availableHeight - SEARCH_BAR_HEIGHT - 20, // Restar altura del searchbar
     });
@@ -268,9 +272,11 @@ export default function Select({
         disabled={disabled}
         className={classNames(
           "w-full flex items-center justify-between rounded-md bg-zinc-900 text-white",
+          "min-h-[44px] md:min-h-[36px] gap-2",
           sizeStyles[size],
           { "bg-zinc-900 cursor-not-allowed": disabled }
         )}
+        aria-expanded={isOpen}
       >
         <div className="flex items-center flex-1 min-w-0 py-0.5">
           {multiple && selectedOptions.length > 0 ? (
@@ -356,7 +362,8 @@ export default function Select({
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
               minWidth: `${dropdownPosition.minWidth}px`,
-              maxWidth: "90vw",
+              width: `${dropdownPosition.width}px`,
+              maxWidth: "100vw",
             }}
           >
             {searchable && (

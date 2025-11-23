@@ -31,7 +31,7 @@ const Input = memo(function Input({
         className
       )}
     >
-      <div className="relative w-full flex flex-row gap-2">
+      <div className="relative w-full flex flex-row gap-1.5">
         {loading && (
           <ArrowPathIcon className="w-5 h-5 self-center transition-all animate-spin" />
         )}
@@ -40,7 +40,7 @@ const Input = memo(function Input({
           type={type}
           id="simple-search"
           className={classNames(
-            "bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-md block w-full p-2.5 focus:outline-none focus:ring-0 focus:border-transparent",
+            "bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-md block w-full p-2 sm:p-2.5 focus:outline-none focus:ring-0 focus:border-transparent",
             {
               "bg-zinc-900 hover:bg-zinc-800 cursor-not-allowed": disabled,
               "animate-pulse": bounce,
