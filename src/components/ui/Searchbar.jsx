@@ -8,13 +8,15 @@ export default function Searchbar({
   placeHolder = "Buscar",
   className = "",
   ref = null,
+  autoWidth = true,
 }) {
   return (
     <div
       ref={ref}
       className={classNames(
-        `flex items-center max-w-lg lg:min-w-xs mx-auto border-none`,
-        className
+        `flex items-center  lg:min-w-xs mx-auto border-none`,
+        className,
+        { "max-w-lg": autoWidth }
       )}
     >
       <div className="relative w-full">

@@ -135,25 +135,41 @@ async function createMainWorksheet(workbook, packingList, data) {
   // Fecha
   const dateRow = worksheet.addRow(
     hasMultipleProducts
-      ? [`FECHA: ${moment(data.createdDate, "DD/MM/YYYY").format("DD/MM/YY")}`, ""]
+      ? [
+          `FECHA: ${moment(data.createdDate, "DD/MM/YYYY").format("DD/MM/YY")}`,
+          "",
+        ]
       : [`FECHA: ${moment(data.createdDate, "DD/MM/YYYY").format("DD/MM/YY")}`]
   );
   worksheet.mergeCells("A7:B7");
-  applyCellStyle(dateRow, { ...STYLES.boldText, border: STYLES.borderMediumBottom });
+  applyCellStyle(dateRow, {
+    ...STYLES.boldText,
+    border: STYLES.borderMediumBottom,
+  });
 
   worksheet.addRow([""]);
 
   // Cliente/Proveedor/Bodega
-  const entityRow = worksheet.addRow([`${data.entityLabel}: ${data.entityName}`]);
-  applyCellStyle(entityRow, { ...STYLES.boldText, border: STYLES.borderMediumBottom });
+  const entityRow = worksheet.addRow([
+    `${data.entityLabel}: ${data.entityName}`,
+  ]);
+  applyCellStyle(entityRow, {
+    ...STYLES.boldText,
+    border: STYLES.borderMediumBottom,
+  });
 
   // Dirección
   const addressRow = worksheet.addRow([`DIRECCIÓN: ${data.entityAddress}`]);
   applyCellStyle(addressRow, STYLES.boldText);
 
   // Código
-  const codeRow = worksheet.addRow([`${data.type === "sale" ? "FACTURA" : "CÓDIGO"}: ${data.code}`]);
-  applyCellStyle(codeRow, { ...STYLES.boldText, border: STYLES.borderMediumBottom });
+  const codeRow = worksheet.addRow([
+    `${data.type === "sale" ? "FACTURA" : "CÓDIGO"}: ${data.code}`,
+  ]);
+  applyCellStyle(codeRow, {
+    ...STYLES.boldText,
+    border: STYLES.borderMediumBottom,
+  });
 
   // Merge de celdas de encabezado
   if (hasMultipleProducts) {
@@ -224,7 +240,10 @@ async function createMainWorksheet(workbook, packingList, data) {
 
   // Encabezados de productos
   const headerRow = worksheet.addRow(namesRow);
-  applyCellStyle(headerRow, { ...STYLES.boldCentered, border: STYLES.borderThin });
+  applyCellStyle(headerRow, {
+    ...STYLES.boldCentered,
+    border: STYLES.borderThin,
+  });
 
   // Agregar datos transpuestos
   quantitiesRows.forEach((rowData) => {
@@ -239,7 +258,9 @@ async function createMainWorksheet(workbook, packingList, data) {
   worksheet.addRows([[], []]);
 
   // Total por columna
-  const totalLabelRow = worksheet.addRow([getTotalUnitString(packingList, true)]);
+  const totalLabelRow = worksheet.addRow([
+    getTotalUnitString(packingList, true),
+  ]);
   applyCellStyle(totalLabelRow, STYLES.boldText);
 
   const totalValuesRow = worksheet.addRow(totalByColumn);
@@ -272,7 +293,11 @@ async function createMainWorksheet(workbook, packingList, data) {
   });
 
   // Intentar agregar logo si existe
-  await addLogoToWorksheet(workbook, worksheet, hasMultipleProducts ? namesRow.length - 2 : 0);
+  await addLogoToWorksheet(
+    workbook,
+    worksheet,
+    hasMultipleProducts ? namesRow.length - 2 : 0
+  );
 }
 
 /**
@@ -294,13 +319,25 @@ async function createResumeWorksheet(workbook, packingList, data) {
   worksheet.addRow([""]);
 
   // Fecha
-  const dateRow = worksheet.addRow([`FECHA: ${moment(data.createdDate, "DD/MM/YYYY").format("DD/MM/YY")}`, "", ""]);
-  applyCellStyle(dateRow, { ...STYLES.boldText, border: STYLES.borderMediumBottom });
+  const dateRow = worksheet.addRow([
+    `FECHA: ${moment(data.createdDate, "DD/MM/YYYY").format("DD/MM/YY")}`,
+    "",
+    "",
+  ]);
+  applyCellStyle(dateRow, {
+    ...STYLES.boldText,
+    border: STYLES.borderMediumBottom,
+  });
   worksheet.mergeCells("A7:C7");
 
   // Cliente/Proveedor/Bodega
-  const entityRow = worksheet.addRow([`${data.entityLabel}: ${data.entityName}`]);
-  applyCellStyle(entityRow, { ...STYLES.boldText, border: STYLES.borderMediumBottom });
+  const entityRow = worksheet.addRow([
+    `${data.entityLabel}: ${data.entityName}`,
+  ]);
+  applyCellStyle(entityRow, {
+    ...STYLES.boldText,
+    border: STYLES.borderMediumBottom,
+  });
   worksheet.mergeCells("A8:C8");
 
   // Dirección
@@ -309,14 +346,22 @@ async function createResumeWorksheet(workbook, packingList, data) {
   worksheet.mergeCells("A9:C9");
 
   // Código
-  const codeRow = worksheet.addRow([`${data.type === "sale" ? "FACTURA" : "CÓDIGO"}: ${data.code}`]);
-  applyCellStyle(codeRow, { ...STYLES.boldText, border: STYLES.borderMediumBottom });
+  const codeRow = worksheet.addRow([
+    `${data.type === "sale" ? "FACTURA" : "CÓDIGO"}: ${data.code}`,
+  ]);
+  applyCellStyle(codeRow, {
+    ...STYLES.boldText,
+    border: STYLES.borderMediumBottom,
+  });
   worksheet.mergeCells("A10:C10");
 
   // Encabezados de tabla
   worksheet.addRow(["", "", ""]);
   const headerRow = worksheet.addRow(["PRODUCTO", "CANTIDAD", "ROLLOS"]);
-  applyCellStyle(headerRow, { ...STYLES.boldCentered, border: STYLES.borderThin });
+  applyCellStyle(headerRow, {
+    ...STYLES.boldCentered,
+    border: STYLES.borderThin,
+  });
 
   // Obtener resumen de productos
   const products = getResumeItemsFromPackingList(packingList);
@@ -340,7 +385,10 @@ async function createResumeWorksheet(workbook, packingList, data) {
     format(products.reduce((acc, p) => p.totalQuantity + acc, 0)),
     products.reduce((acc, p) => p.count + acc, 0),
   ]);
-  applyCellStyle(totalRow, { ...STYLES.boldCentered, border: STYLES.borderThin });
+  applyCellStyle(totalRow, {
+    ...STYLES.boldCentered,
+    border: STYLES.borderThin,
+  });
 
   // Ajustar anchos de columna
   worksheet.getColumn(1).width = 40; // Producto
@@ -357,7 +405,7 @@ async function createResumeWorksheet(workbook, packingList, data) {
  */
 async function addLogoToWorksheet(workbook, worksheet, colOffset = 0) {
   try {
-    const imageUrl = "/logo-horizontal.png";
+    const imageUrl = "/logo-gray.png";
     const response = await fetch(imageUrl);
 
     if (!response.ok) {

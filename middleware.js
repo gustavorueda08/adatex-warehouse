@@ -6,6 +6,15 @@ export function middleware(request) {
   const token = request.cookies.get(NAME)?.value;
   const { pathname } = request.nextUrl;
 
+  // Deja pasar archivos estáticos y assets del core de Next
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon.ico") ||
+    /\.(?:png|jpg|jpeg|svg|gif|ico|webp|avif|ttf|otf|woff|woff2)$/.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
   console.log("🔐 Middleware ejecutándose:", { pathname, hasToken: !!token });
 
   // Rutas públicas que no requieren autenticación
@@ -35,7 +44,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - archivos estáticos como imágenes o fuentes
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpg|jpeg|svg|gif|ico|webp|avif|ttf|otf|woff|woff2)).*)",
   ],
 };

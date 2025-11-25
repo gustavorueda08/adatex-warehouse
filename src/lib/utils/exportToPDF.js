@@ -282,7 +282,7 @@ export async function exportDocumentToPDF(document, _options = {}) {
  */
 async function addLogoToPDF(doc, pageWidth, margin) {
   try {
-    const imageUrl = "/logo-horizontal.png";
+    const imageUrl = "/logo-gray.png";
     const response = await fetch(imageUrl);
 
     if (!response.ok) {

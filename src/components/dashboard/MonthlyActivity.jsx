@@ -16,6 +16,7 @@ import {
 const generateMockData = (days, seed) => {
   const data = [];
   const today = new Date();
+  const demo = true;
 
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date(today);

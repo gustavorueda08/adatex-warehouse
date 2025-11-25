@@ -16,16 +16,19 @@ import {
   WrenchIcon,
 } from "@heroicons/react/24/outline";
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/solid";
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  memo,
-} from "react";
+import Image from "next/image";
+import React, { useEffect, useMemo, useRef, useState, memo } from "react";
+import logo from "../../../public/logo.png";
 
 // Componente memoizado para el menú de usuario
-const UserMenu = memo(function UserMenu({ user, loading, initials, openUserMenu, setOpenUserMenu, onSignOut }) {
+const UserMenu = memo(function UserMenu({
+  user,
+  loading,
+  initials,
+  openUserMenu,
+  setOpenUserMenu,
+  onSignOut,
+}) {
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -98,7 +101,6 @@ const UserMenu = memo(function UserMenu({ user, loading, initials, openUserMenu,
 });
 
 function Sidebar({
-  brand = "Adatex",
   links = [
     { label: "Dashboard", href: "/", icon: ChartIcon },
     {
@@ -131,11 +133,12 @@ function Sidebar({
       icon: ArrowsRightLeftIcon,
       href: "/transfers",
     },
+    /*
     {
       label: "Transformaciones",
       icon: WrenchIcon,
       href: "/transformations",
-    },
+    },*/
     {
       label: "Terceros",
       icon: UserIcon,
@@ -145,6 +148,7 @@ function Sidebar({
         { label: "Vendedores", href: "/sellers" },
       ],
     },
+    /*
     {
       label: "Reportes",
       icon: ReportsIcon,
@@ -157,7 +161,7 @@ function Sidebar({
       label: "Configuración",
       icon: SettingsIcon,
       href: "/settings",
-    },
+    },*/
   ],
   onSignOut,
   children,
@@ -217,10 +221,8 @@ function Sidebar({
                 <span className="sr-only">Open sidebar</span>
                 <DefaultIconMenu className="w-6 h-6" />
               </button>
-              <a href="#" className="flex ms-2 md:me-24">
-                <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap text-white">
-                  {brand}
-                </span>
+              <a href="#" className="flex items-center ms-2 md:me-24 max-w-50">
+                <Image src={logo} alt="Logo" objectFit="contain" priority />
               </a>
             </div>
 

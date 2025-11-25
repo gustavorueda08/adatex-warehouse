@@ -26,6 +26,7 @@ export default function Dashboard() {
   const stats = dashboardData.stats || {};
   const recentSales = dashboardData.recentSales || [];
   const topProducts = dashboardData.topProducts || [];
+  const monthlyActivity = false;
 
   return (
     <div className="space-y-6">
@@ -194,7 +195,9 @@ export default function Dashboard() {
             <>
               <CardHeader>
                 <CardTitle>Productos Top</CardTitle>
-                <CardDescription>Productos más vendidos del mes</CardDescription>
+                <CardDescription>
+                  Productos más vendidos del mes
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -241,7 +244,11 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <MonthlyActivity />
+              {monthlyActivity ? (
+                <MonthlyActivity />
+              ) : (
+                <p>Graficos proximamente</p>
+              )}
             </CardContent>
           </>
         )}
