@@ -9,6 +9,8 @@ import Card, {
   CardTitle,
 } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import icon from "../../../../public/icon-white.png";
+import Image from "next/image";
 
 export default function LoginPage() {
   return (
@@ -64,20 +66,8 @@ function LoginPageContent() {
         <Card className="border-zinc-700/50 backdrop-blur-sm">
           <CardHeader className="text-center space-y-2">
             {/* Logo o Icono */}
-            <div className="mx-auto w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-2">
-              <svg
-                className="w-10 h-10 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
+            <div className="mx-auto w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-2 p-2">
+              <Image src={icon} alt="Icon" objectFit="contain" priority />
             </div>
             <CardTitle className="text-2xl">Bienvenido</CardTitle>
             <CardDescription>
