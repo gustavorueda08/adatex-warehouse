@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@/lib/hooks/useUser";
 import Card, {
@@ -11,6 +11,14 @@ import Card, {
 import Button from "@/components/ui/Button";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
