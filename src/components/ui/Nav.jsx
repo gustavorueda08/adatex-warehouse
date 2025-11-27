@@ -6,7 +6,7 @@ import {
   DropDownIcon,
   ArrowUpIcon,
   UserIcon,
-} from "@/components/ui/icons";
+} from "@/components/ui/Icons";
 import { useUser } from "@/lib/hooks/useUser";
 import { BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/solid";

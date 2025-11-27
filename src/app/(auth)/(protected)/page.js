@@ -9,7 +9,7 @@ import Card, {
   ListCardSkeleton,
   TopProductsSkeleton,
 } from "@/components/ui/Card";
-import { ArrowUpIcon, TransferIcon, ChartIcon } from "@/components/ui/icons";
+import { ArrowUpIcon, TransferIcon, ChartIcon } from "@/components/ui/Icons";
 import { useDashboard } from "@/lib/hooks/useDashboard";
 import MonthlyActivity from "@/components/dashboard/MonthlyActivity";
 
