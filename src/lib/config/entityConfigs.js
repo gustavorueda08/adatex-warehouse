@@ -568,6 +568,8 @@ export function createSupplierFormConfig({ onSubmit, loading }) {
     },
 
     prepareSubmitData: (formData) => {
+      console.log("SUPP", formData);
+
       return formData;
     },
   };

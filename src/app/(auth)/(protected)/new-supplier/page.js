@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
 import toast from "react-hot-toast";
 import { useSuppliers } from "@/lib/hooks/useSuppliers";
-import { createSupplierFormConfig } from "@/lib/config/entityConfigs";
+import { createSupplierFormConfig } from "@/lib/config/supplierConfigs";
 
 export default function NewSupplierPage() {
   const router = useRouter();
