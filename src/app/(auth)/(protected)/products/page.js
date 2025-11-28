@@ -12,19 +12,28 @@ import Card, {
 } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import BulkProductUploader from "@/components/products/BulkProductUploader";
 import {
   MagnifyingGlassIcon,
   PlusIcon,
   CubeIcon,
   CheckCircleIcon,
   XCircleIcon,
+  ArrowDownTrayIcon,
+  PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
+import * as XLSX from "xlsx";
 import Link from "next/link";
 
 export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [exporting, setExporting] = useState(false);
+  const [bulkProducts, setBulkProducts] = useState([]);
+  const [resetBulkUpload, setResetBulkUpload] = useState(null);
+  const [sendingBulk, setSendingBulk] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 300);
 
   // Reset page cuando cambian los filtros
@@ -32,23 +41,156 @@ export default function ProductsPage() {
     setCurrentPage(1);
   }, [debouncedSearch, activeFilter]);
 
-  // Construir filtros
-  const buildFilters = () => {
-    const filters = {};
+  const { products, loading, pagination, syncAllProductsFromSiigo, syncing } =
+    useProducts({
+      pagination: { page: currentPage, pageSize: 25 },
+      sort: ["name:asc"],
+      filters: {
+        ...(debouncedSearch
+          ? {
+              $or: [
+                {
+                  code: {
+                    $containsi: debouncedSearch,
+                  },
+                },
+                {
+                  name: {
+                    $containsi: debouncedSearch,
+                  },
+                },
+                {
+                  barcode: {
+                    $containsi: debouncedSearch,
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+    });
 
-    if (activeFilter !== "all") {
-      filters.isActive = activeFilter === "active";
-    }
+  const normalizeProduct = (product) => {
+    if (!product) return {};
+    const attributes = product.attributes || {};
 
-    return filters;
+    return {
+      id: product.id ?? attributes.id,
+      documentId: product.documentId ?? attributes.documentId ?? attributes.id,
+      code: product.code ?? attributes.code,
+      name: product.name ?? attributes.name,
+      barcode: product.barcode ?? attributes.barcode,
+      description: product.description ?? attributes.description,
+      unit: product.unit ?? attributes.unit,
+      unitsPerPackage:
+        product.unitsPerPackage ?? attributes.unitsPerPackage ?? null,
+      isActive: product.isActive ?? attributes.isActive ?? true,
+      createdAt: product.createdAt ?? attributes.createdAt,
+      updatedAt: product.updatedAt ?? attributes.updatedAt,
+    };
   };
 
-  const { products, loading, pagination } = useProducts({
-    pagination: { page: currentPage, pageSize: 25 },
-    sort: ["name:asc"],
-    filters: buildFilters(),
-    q: debouncedSearch || undefined,
-  });
+  const handleExportProducts = async () => {
+    setExporting(true);
+    try {
+      const pageSize = 200;
+      let page = 1;
+      let pageCount = 1;
+      const allProducts = [];
+
+      do {
+        const response = await fetch(
+          `/api/strapi/products?pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=name:asc`
+        );
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error?.message ||
+              result.message ||
+              `Error ${response.status}: ${response.statusText}`
+          );
+        }
+
+        const pageData = Array.isArray(result.data) ? result.data : [];
+        pageData.forEach((product) => allProducts.push(normalizeProduct(product)));
+
+        const paginationData = result.meta?.pagination;
+        pageCount = Math.max(paginationData?.pageCount || 1, page);
+        page += 1;
+      } while (page <= pageCount);
+
+      if (allProducts.length === 0) {
+        toast.error("No hay productos para exportar");
+        return;
+      }
+
+      const formatDate = (value) => {
+        const date = value ? new Date(value) : null;
+        return date && !Number.isNaN(date.getTime())
+          ? date.toLocaleString("es-ES")
+          : "";
+      };
+
+      const exportRows = allProducts.map((product) => ({
+        Codigo: product.code || "-",
+        Nombre: product.name || "-",
+        Unidad: product.unit || "-",
+        "Unidades por paquete": product.unitsPerPackage ?? "",
+        Barcode: product.barcode || "",
+        Descripcion: product.description || "",
+        Estado: product.isActive ? "Activo" : "Inactivo",
+        "Creado el": formatDate(product.createdAt),
+        "Actualizado el": formatDate(product.updatedAt),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
+      const fileName = `productos-${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success(`Descargados ${allProducts.length} productos en Excel`);
+    } catch (error) {
+      console.error("Error exportando productos:", error);
+      toast.error(
+        error.message || "No se pudo exportar la base de productos"
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleBulkUploadLoaded = (data, removeCallback) => {
+    setBulkProducts(data || []);
+    setResetBulkUpload(() => removeCallback);
+  };
+
+  const handleBulkUploadCleared = () => {
+    setBulkProducts([]);
+    setResetBulkUpload(null);
+  };
+
+  const handleSendBulkList = async () => {
+    if (!bulkProducts.length) {
+      toast.error("Primero carga un archivo de productos");
+      return;
+    }
+
+    setSendingBulk(true);
+    try {
+      console.log("Lista masiva de productos lista para envío:", bulkProducts);
+      toast.success(
+        "Lista preparada para enviar. Conecta aquí tu petición masiva."
+      );
+    } catch (error) {
+      console.error("Error preparando el envío masivo:", error);
+      toast.error("No se pudo preparar el envío masivo");
+    } finally {
+      setSendingBulk(false);
+    }
+  };
 
   // Columnas de la tabla
   const productColumns = [
@@ -91,9 +233,7 @@ export default function ProductsPage() {
       key: "unitsPerPackage",
       label: "Unid/Paquete",
       render: (_, product) => (
-        <span className="text-white">
-          {product.unitsPerPackage || "-"}
-        </span>
+        <span className="text-white">{product.unitsPerPackage || "-"}</span>
       ),
     },
     {
@@ -224,39 +364,9 @@ export default function ProductsPage() {
                 />
               </div>
             </div>
-
-            {/* Filtro de estado */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Estado
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={activeFilter === "all" ? "emerald" : "gray"}
-                  onClick={() => setActiveFilter("all")}
-                  className="flex-1"
-                >
-                  Todos
-                </Button>
-                <Button
-                  variant={activeFilter === "active" ? "emerald" : "gray"}
-                  onClick={() => setActiveFilter("active")}
-                  className="flex-1"
-                >
-                  Activos
-                </Button>
-                <Button
-                  variant={activeFilter === "inactive" ? "emerald" : "gray"}
-                  onClick={() => setActiveFilter("inactive")}
-                  className="flex-1"
-                >
-                  Inactivos
-                </Button>
-              </div>
-            </div>
           </div>
 
-          {(search || activeFilter !== "all") && (
+          {search && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-400">
                 {products.length} producto(s) encontrado(s)
@@ -297,6 +407,74 @@ export default function ProductsPage() {
           />
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Acciones</CardTitle>
+          <CardDescription>
+            Sincroniza el catálogo o descárgalo completo en Excel
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row md:items-center gap-3">
+          <Button
+            className="flex items-center gap-2"
+            loading={syncing}
+            onClick={() => syncAllProductsFromSiigo()}
+          >
+            Sincronizar con Siigo
+          </Button>
+          <Button
+            variant="cyan"
+            className="flex items-center gap-2"
+            loading={exporting}
+            onClick={handleExportProducts}
+          >
+            <ArrowDownTrayIcon className="w-5 h-5" />
+            Descargar base en Excel
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <BulkProductUploader
+          onFileLoaded={handleBulkUploadLoaded}
+          onClear={handleBulkUploadCleared}
+        />
+
+        {bulkProducts.length > 0 && (
+          <Card className="border border-emerald-700/50 bg-emerald-900/20">
+            <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <p className="text-white font-semibold">Enviar lista masiva</p>
+                <p className="text-sm text-gray-300">
+                  {bulkProducts.length} productos listos desde el archivo
+                  cargado.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="zinc"
+                  onClick={() => {
+                    resetBulkUpload?.();
+                    handleBulkUploadCleared();
+                  }}
+                >
+                  Limpiar
+                </Button>
+                <Button
+                  variant="emerald"
+                  className="flex items-center gap-2"
+                  onClick={handleSendBulkList}
+                  loading={sendingBulk}
+                >
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                  Enviar lista masiva
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

@@ -23,6 +23,7 @@ export function createPurchaseFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva orden de compra",
@@ -64,6 +65,7 @@ export function createPurchaseFormConfig({
       createProductColumnsForm({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: true,
         includeIVA: true,
         includeInvoicePercentage: false,

@@ -1,22 +1,16 @@
 "use client";
 
 import DocumentForm from "@/components/documents/DocumentForm";
-import {
-  createOutflowFormConfig,
-  createPurchaseFormConfig,
-  createSaleFormConfig,
-} from "@/lib/config/documentConfigs";
-import { useCustomers } from "@/lib/hooks/useCustomers";
+import { createOutflowFormConfig } from "@/lib/config/documentConfigs";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useProducts } from "@/lib/hooks/useProducts";
-import { useSuppliers } from "@/lib/hooks/useSuppliers";
+import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 export default function NewOutflowPage() {
   const router = useRouter();
-  const { products: productsData = [] } = useProducts({});
+  const productSelector = useProductSelector({ pageSize: 25 });
   const { warehouses = [] } = useWarehouses({});
   const { createOrder, creating } = useOrders(
     {},
@@ -38,7 +32,15 @@ export default function NewOutflowPage() {
   // Crear la configuración para el formulario de venta
   const config = createOutflowFormConfig({
     warehouses,
-    productsData,
+    productsData: productSelector.products,
+    productSelectProps: {
+      onSearchProducts: productSelector.setSearch,
+      productsSearchTerm: productSelector.search,
+      onLoadMoreProducts: productSelector.loadMore,
+      productsHasMore: productSelector.hasMore,
+      productsLoading: productSelector.loading,
+      productsLoadingMore: productSelector.loadingMore,
+    },
     onSubmit: createOrder,
     loading: creating,
   });

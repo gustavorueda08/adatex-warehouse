@@ -15,6 +15,7 @@ export function createSaleFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva orden de venta",
@@ -77,6 +78,7 @@ export function createSaleFormConfig({
       createProductColumns({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: true,
         includeIVA: true,
         includeInvoicePercentage: true,

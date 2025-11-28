@@ -20,6 +20,8 @@ export default function Select({
   onChange,
   multiple = false,
   searchable = false,
+  onSearch,
+  searchValue,
   placeholder = "Seleccionar...",
   disabled = false,
   clearable = false,
@@ -33,9 +35,13 @@ export default function Select({
   menuTitle = "Agregar",
   onClickMenu = () => {},
   menuVariant = "emerald",
+  hasMore = false,
+  onLoadMore,
+  loading = false,
+  loadingMore = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [internalSearch, setInternalSearch] = useState("");
   const [dropdownPosition, setDropdownPosition] = useState({
     top: 0,
     left: 0,
@@ -53,15 +59,21 @@ export default function Select({
   const [internalValue, setInternalValue] = useState(multiple ? [] : null);
   const currentValue = isControlled ? value : internalValue;
 
+  const effectiveSearch =
+    searchValue !== undefined ? searchValue : internalSearch;
+
   const filteredOptions = useMemo(() => {
-    if (!searchable || !searchTerm.trim()) return options;
-    const q = searchTerm.toLowerCase();
+    // Si hay onSearch, asumimos que ya vienen filtradas desde el servidor
+    if (onSearch) return options;
+
+    if (!searchable || !effectiveSearch?.trim()) return options;
+    const q = effectiveSearch.toLowerCase();
     return options.filter(
       (o) =>
         String(o.label).toLowerCase().includes(q) ||
         String(o.value).toLowerCase().includes(q)
     );
-  }, [options, searchTerm, searchable]);
+  }, [options, searchable, effectiveSearch, onSearch]);
 
   const normalizedValue = useMemo(() => {
     if (multiple) return Array.isArray(currentValue) ? currentValue : [];
@@ -153,7 +165,9 @@ export default function Select({
       const insideDropdown = dropdownRef.current?.contains(t);
       if (insideTrigger || insideDropdown) return;
       setIsOpen(false);
-      setSearchTerm("");
+      if (searchValue === undefined) {
+        setInternalSearch("");
+      }
     };
 
     const handleScrollOrResize = () => {
@@ -199,7 +213,9 @@ export default function Select({
     } else {
       commitValue(option.value);
       setIsOpen(false);
-      setSearchTerm("");
+      if (searchValue === undefined) {
+        setInternalSearch("");
+      }
     }
   };
 
@@ -219,7 +235,9 @@ export default function Select({
     if (disabled) return;
     setIsOpen((v) => {
       const next = !v;
-      if (next === true) setSearchTerm("");
+      if (next === true && searchValue === undefined) {
+        setInternalSearch("");
+      }
       return next;
     });
   };
@@ -371,8 +389,13 @@ export default function Select({
                 <div className="flex-1 min-w-0">
                   <Searchbar
                     ref={searchRef}
-                    search={searchTerm}
-                    setSearch={setSearchTerm}
+                    search={effectiveSearch}
+                    setSearch={(value) => {
+                      if (searchValue === undefined) {
+                        setInternalSearch(value);
+                      }
+                      onSearch?.(value);
+                    }}
                   />
                 </div>
                 {hasMenu && (
@@ -392,9 +415,13 @@ export default function Select({
               className="overflow-y-auto overflow-x-hidden"
               style={{ maxHeight: `${dropdownPosition.maxHeight}px` }}
             >
-              {filteredOptions.length === 0 ? (
+              {loading && filteredOptions.length === 0 ? (
                 <div className="px-3 py-4 text-sm text-gray-400 text-center">
-                  {searchTerm ? "No se encontraron resultados" : emptyMessage}
+                  Cargando opciones...
+                </div>
+              ) : filteredOptions.length === 0 ? (
+                <div className="px-3 py-4 text-sm text-gray-400 text-center">
+                  {effectiveSearch ? "No se encontraron resultados" : emptyMessage}
                 </div>
               ) : (
                 <>
@@ -421,6 +448,20 @@ export default function Select({
                   })}
                   <div className="h-2"></div>
                 </>
+              )}
+
+              {hasMore && (
+                <div className="px-3 pb-3">
+                  <Button
+                    variant="zinc"
+                    className="w-full"
+                    onClick={onLoadMore}
+                    loading={loadingMore}
+                    disabled={loadingMore}
+                  >
+                    Cargar más
+                  </Button>
+                </div>
               )}
             </div>
           </div>,

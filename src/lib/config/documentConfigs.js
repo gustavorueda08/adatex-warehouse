@@ -1065,7 +1065,17 @@ export function createProductColumns({
   includeIVA = false,
   includeInvoicePercentage = false,
   currency = "$",
+  productSelectProps = {},
 }) {
+  const {
+    onSearchProducts,
+    productsSearchTerm,
+    onLoadMoreProducts,
+    productsHasMore,
+    productsLoading,
+    productsLoadingMore,
+  } = productSelectProps;
+
   const columns = [
     {
       key: "name",
@@ -1097,6 +1107,12 @@ export function createProductColumns({
                   handleProductSelect(selectedProduct, index)
                 }
                 searchable
+                onSearch={onSearchProducts}
+                searchValue={productsSearchTerm}
+                hasMore={productsHasMore}
+                onLoadMore={onLoadMoreProducts}
+                loading={productsLoading}
+                loadingMore={productsLoadingMore}
               />
             </div>
 
@@ -1111,6 +1127,12 @@ export function createProductColumns({
                   handleProductSelect(selectedProduct, index)
                 }
                 searchable
+                onSearch={onSearchProducts}
+                searchValue={productsSearchTerm}
+                hasMore={productsHasMore}
+                onLoadMore={onLoadMoreProducts}
+                loading={productsLoading}
+                loadingMore={productsLoadingMore}
               />
             </div>
           </>
@@ -1235,6 +1257,7 @@ export function createSaleFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva orden de venta",
@@ -1299,6 +1322,7 @@ export function createSaleFormConfig({
       createProductColumns({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: true,
         includeIVA: true,
         includeInvoicePercentage: true,
@@ -1368,6 +1392,7 @@ export function createPurchaseFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva orden de compra",
@@ -1411,6 +1436,7 @@ export function createPurchaseFormConfig({
       createProductColumns({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: true,
         includeIVA: true,
         includeInvoicePercentage: false,
@@ -1458,6 +1484,7 @@ export function createInflowFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva entrada de inventario",
@@ -1488,6 +1515,7 @@ export function createInflowFormConfig({
       createProductColumns({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: false,
         includeIVA: false,
         includeInvoicePercentage: false,
@@ -1531,6 +1559,7 @@ export function createOutflowFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva salida de inventario",
@@ -1561,6 +1590,7 @@ export function createOutflowFormConfig({
       createProductColumns({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: false,
         includeIVA: false,
         includeInvoicePercentage: false,

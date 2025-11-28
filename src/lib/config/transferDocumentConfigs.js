@@ -11,6 +11,7 @@ export function createTransferFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva orden de transferencia",
@@ -46,6 +47,7 @@ export function createTransferFormConfig({
       createProductColumnsForm({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: false,
         includeIVA: false,
         includeInvoicePercentage: false,

@@ -2,7 +2,7 @@
 import DocumentForm from "@/components/documents/DocumentForm";
 import { createPurchaseFormConfig } from "@/lib/config/purchaseDocumentConfigs";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useProducts } from "@/lib/hooks/useProducts";
+import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useSuppliers } from "@/lib/hooks/useSuppliers";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
@@ -22,7 +22,7 @@ export default function NewPurchasePage() {
   const router = useRouter();
 
   // Hooks para obtener datos
-  const { products: productsData = [] } = useProducts({});
+  const productSelector = useProductSelector({ pageSize: 25 });
   const { warehouses = [] } = useWarehouses({});
   const { suppliers = [] } = useSuppliers({});
 
@@ -48,7 +48,15 @@ export default function NewPurchasePage() {
   const config = createPurchaseFormConfig({
     suppliers,
     warehouses,
-    productsData,
+    productsData: productSelector.products,
+    productSelectProps: {
+      onSearchProducts: productSelector.setSearch,
+      productsSearchTerm: productSelector.search,
+      onLoadMoreProducts: productSelector.loadMore,
+      productsHasMore: productSelector.hasMore,
+      productsLoading: productSelector.loading,
+      productsLoadingMore: productSelector.loadingMore,
+    },
     onSubmit: createOrder,
     loading: creating,
   });

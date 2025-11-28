@@ -4,7 +4,7 @@ import DocumentForm from "@/components/documents/DocumentForm";
 import { createSaleFormConfig } from "@/lib/config/saleDocumentConfigs";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useProducts } from "@/lib/hooks/useProducts";
+import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
 
@@ -22,7 +22,7 @@ export default function NewSalePage() {
   const router = useRouter();
 
   // Hooks para obtener datos
-  const { products: productsData = [] } = useProducts({});
+  const productSelector = useProductSelector({ pageSize: 25 });
   const { warehouses = [] } = useWarehouses({});
   const { customers = [] } = useCustomers({
     populate: ["prices", "prices.product", "parties"],
@@ -44,7 +44,15 @@ export default function NewSalePage() {
   const config = createSaleFormConfig({
     customers,
     warehouses,
-    productsData,
+    productsData: productSelector.products,
+    productSelectProps: {
+      onSearchProducts: productSelector.setSearch,
+      productsSearchTerm: productSelector.search,
+      onLoadMoreProducts: productSelector.loadMore,
+      productsHasMore: productSelector.hasMore,
+      productsLoading: productSelector.loading,
+      productsLoadingMore: productSelector.loadingMore,
+    },
     onSubmit: createOrder,
     loading: creating,
   });

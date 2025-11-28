@@ -12,6 +12,7 @@ export function createOutflowFormConfig({
   productsData,
   onSubmit,
   loading,
+  productSelectProps = {},
 }) {
   return {
     title: "Nueva salida de inventario",
@@ -41,6 +42,7 @@ export function createOutflowFormConfig({
       createProductColumns({
         ...context,
         productsData,
+        productSelectProps,
         includePrice: false,
         includeIVA: false,
         includeInvoicePercentage: false,

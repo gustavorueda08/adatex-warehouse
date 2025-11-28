@@ -15,7 +15,17 @@ export function createProductColumnsForm({
   includeIVA = false,
   includeInvoicePercentage = false,
   currency = "$",
+  productSelectProps = {},
 }) {
+  const {
+    onSearchProducts,
+    productsSearchTerm,
+    onLoadMoreProducts,
+    productsHasMore,
+    productsLoading,
+    productsLoadingMore,
+  } = productSelectProps;
+
   const columns = [
     {
       key: "name",
@@ -47,6 +57,12 @@ export function createProductColumnsForm({
                   handleProductSelect(selectedProduct, index)
                 }
                 searchable
+                onSearch={onSearchProducts}
+                searchValue={productsSearchTerm}
+                hasMore={productsHasMore}
+                onLoadMore={onLoadMoreProducts}
+                loading={productsLoading}
+                loadingMore={productsLoadingMore}
               />
             </div>
 
@@ -61,6 +77,12 @@ export function createProductColumnsForm({
                   handleProductSelect(selectedProduct, index)
                 }
                 searchable
+                onSearch={onSearchProducts}
+                searchValue={productsSearchTerm}
+                hasMore={productsHasMore}
+                onLoadMore={onLoadMoreProducts}
+                loading={productsLoading}
+                loadingMore={productsLoadingMore}
               />
             </div>
           </>
