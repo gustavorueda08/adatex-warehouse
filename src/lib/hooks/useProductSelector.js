@@ -46,10 +46,22 @@ export function useProductSelector({ pageSize = 25, baseFilters = {} } = {}) {
     filters,
   });
 
+  const areProductsEqual = (a = [], b = []) => {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i]?.id !== b[i]?.id) return false;
+    }
+    return true;
+  };
+
   // Acumular resultados y evitar duplicados al paginar
   useEffect(() => {
     setProductOptions((prev) => {
-      if (page === 1) return products;
+      if (page === 1) {
+        if (areProductsEqual(prev, products)) return prev;
+        return products;
+      }
 
       const map = new Map(prev.map((p) => [p.id, p]));
       products.forEach((p) => {
@@ -57,7 +69,9 @@ export function useProductSelector({ pageSize = 25, baseFilters = {} } = {}) {
           map.set(p.id, p);
         }
       });
-      return Array.from(map.values());
+      const merged = Array.from(map.values());
+      if (areProductsEqual(prev, merged)) return prev;
+      return merged;
     });
   }, [products, page]);
 

@@ -16,6 +16,7 @@ import {
   createProductColumnsDetailForm,
   createProductColumnsForm,
 } from "../utils/createProductColumnsForDocuments";
+import { mapBulkItems } from "../utils/mapBulkItems";
 
 export function createPurchaseFormConfig({
   suppliers,
@@ -73,12 +74,12 @@ export function createPurchaseFormConfig({
     validateForm: (formState) => {
       const hasSupplier = formState.selectedSupplier;
       const hasWarehouse = formState.selectedWarehouse;
-      const hasProducts = formState.products.some((p) => p.product);
+      //const hasProducts = formState.products.some((p) => p.product);
       const allProductsValid = formState.products
         .filter((p) => p.product)
         .every((p) => p.quantity && Number(p.quantity) > 0);
 
-      return hasSupplier && hasWarehouse && hasProducts && allProductsValid;
+      return hasSupplier && hasWarehouse && allProductsValid;
     },
     prepareSubmitData: (formState, user) => ({
       type: ORDER_TYPES.PURCHASE,
@@ -243,49 +244,47 @@ export function createPurchaseDetailConfig({
       {
         visible: (document) =>
           document.state !== "completed" && document.state !== "canceled",
-        render: (document, state) => (
-          <div className="mt-4">
-            <BulkPackingListUploader
-              onFileLoaded={(data, remove, setProducts) => {
-                if (!Array.isArray(data)) return;
+        render: (document, state, helpers) => {
+          const handleBulkUpload = async (data) => {
+            if (!Array.isArray(data)) return;
 
-                const items = data.map((item) => ({
-                  productId: item["id"] || item["ID"] || null,
-                  name: item["NOMBRE"] || null,
-                  quantity: Number(item["CANTIDAD"]) || null,
-                  lotNumber: item["LOTE"] || "",
-                  itemNumber: item["NUMERO"] || "",
-                }));
+            const parsedItems = data.map((item) => ({
+              productId: item["id"] || item["ID"] || item["Code"] || null,
+              name: item["NOMBRE"] || item["Nombre"] || null,
+              quantity: Number(item["CANTIDAD"]) || null,
+              lotNumber: item["LOTE"] || "",
+              itemNumber: item["NUMERO"] || "",
+            }));
 
-                if (items.some((item) => !item.quantity)) {
-                  toast.error("El formato del archivo no es válido");
-                  remove();
-                  return;
+            await mapBulkItems({
+              items: parsedItems,
+              currentProducts: helpers?.products || [],
+              fetchedProducts: helpers?.fetchedData?.products || [],
+              setProducts: helpers?.setProducts,
+              toast,
+            });
+          };
+
+          return (
+            <div className="mt-4">
+              <BulkPackingListUploader
+                onFileLoaded={handleBulkUpload}
+                context={helpers}
+                isReadOnly={
+                  document.state === "completed" ||
+                  document.state === "canceled"
                 }
-
-                setProducts((currentProducts) => {
-                  return currentProducts.map((product) => {
-                    const productItems = items
-                      .filter(
-                        (item) =>
-                          item?.productId == product.product?.id ||
-                          item.name == product.product?.name
-                      )
-                      .map((item) => ({ ...item, id: v4(), key: v4() }));
-
-                    return productItems.length > 0
-                      ? { ...product, items: productItems }
-                      : product;
-                  });
-                });
-
-                toast.success(
-                  `Se han añadido ${items.length} items a la orden`
-                );
-              }}
-              isReadOnly={
-                document.state === "completed" || document.state === "canceled"
-              }
+              />
+            </div>
+          );
+        },
+      },
+      {
+        visible: () => true,
+        render: (document, state, helpers) => (
+          <div className="mt-4">
+            <LabelGenerator
+              products={(helpers?.products || []).filter((p) => p.product)}
             />
           </div>
         ),

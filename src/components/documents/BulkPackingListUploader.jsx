@@ -22,10 +22,12 @@ import toast from "react-hot-toast";
  *
  * @param {Function} onFileLoaded - Callback (data, removeCallback) cuando el archivo se carga exitosamente
  * @param {Boolean} isReadOnly - Si el componente está en modo solo lectura
+ * @param {Object} context - Contexto opcional que se retorna al callback
  */
 export default function BulkPackingListUploader({
   onFileLoaded,
   isReadOnly = false,
+  context = {},
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,7 +104,7 @@ export default function BulkPackingListUploader({
 
       const reader = new FileReader();
 
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: "array" });
@@ -130,7 +132,9 @@ export default function BulkPackingListUploader({
           setPreviewData(jsonData.slice(0, 5));
 
           // Llamar al callback con función para remover
-          onFileLoaded(jsonData, handleRemoveFile);
+          if (onFileLoaded) {
+            await onFileLoaded(jsonData, handleRemoveFile, context);
+          }
 
           toast.success(`${jsonData.length} items cargados exitosamente`);
         } catch (error) {
@@ -148,7 +152,7 @@ export default function BulkPackingListUploader({
 
       reader.readAsArrayBuffer(file);
     },
-    [onFileLoaded]
+    [onFileLoaded, context]
   );
 
   // Handlers para drag & drop

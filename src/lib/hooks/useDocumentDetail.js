@@ -59,20 +59,46 @@ export function useDocumentDetail(config) {
         } agregado a la orden`
       );
       const { currentQuantity, ...itemData } = item;
-      setProducts((current) =>
-        current.map((product) => {
+      setProducts((current) => {
+        let found = false;
+        const updated = current.map((product) => {
           if (product?.product?.id === itemData?.product?.id) {
+            found = true;
+            const existingItems = product.items || [];
+            const hasItem = existingItems.some(
+              (i) => i.id && itemData.id && i.id === itemData.id
+            );
+            if (hasItem) return product;
             return {
               ...product,
               items: [
                 { ...itemData, quantity: currentQuantity },
-                ...product.items,
+                ...existingItems,
               ],
             };
           }
           return product;
-        })
-      );
+        });
+        const newRows =
+          !found && itemData?.product
+            ? [
+                ...updated,
+                {
+                  id: v4(),
+                  key: v4(),
+                  product: itemData.product,
+                  name: itemData.product?.name,
+                  requestedQuantity: currentQuantity,
+                  quantity: currentQuantity,
+                  price: 0,
+                  ivaIncluded: false,
+                  invoicePercentage: 100,
+                  items: [{ ...itemData, quantity: currentQuantity }],
+                },
+              ]
+            : updated;
+        return dedupeProductsList(newRows, allowAutoCreateItems);
+      });
     });
 
     // Escuchar cuando se elimina un item
@@ -85,15 +111,20 @@ export function useDocumentDetail(config) {
         )} ${removedItem.product.unit} agregado a la orden`
       );
       setProducts((current) =>
-        current.map((product) => {
-          if (product?.product?.id === removedItem?.product?.id) {
-            return {
-              ...product,
-              items: product.items.filter((item) => item.id !== removedItem.id),
-            };
-          }
-          return product;
-        })
+        dedupeProductsList(
+          current.map((product) => {
+            if (product?.product?.id === removedItem?.product?.id) {
+              return {
+                ...product,
+                items: product.items.filter(
+                  (item) => item.id !== removedItem.id
+                ),
+              };
+            }
+            return product;
+          }),
+          allowAutoCreateItems
+        )
       );
     });
 
@@ -120,21 +151,22 @@ export function useDocumentDetail(config) {
     if (document) {
       const productsKey = getProductsKey(documentType);
       const documentProducts = document[productsKey] || [];
-      setProducts([
-        ...documentProducts.map((op) => ({
-          ...op,
-          items:
-            Array.isArray(op.items) && op.items.length > 0
-              ? op.items.map((item) => ({
-                  ...item,
-                  key: v4(),
-                  quantity: item.currentQuantity,
-                  currentQuantity: item.currentQuantity,
-                }))
-              : [createEmptyItem()],
-        })),
-        ...(allowAutoCreateItems ? [createEmptyProduct()] : []),
-      ]);
+      const mapped = documentProducts.map((op) => ({
+        ...op,
+        items:
+          Array.isArray(op.items) && op.items.length > 0
+            ? op.items.map((item) => ({
+                ...item,
+                key: v4(),
+                quantity: item.currentQuantity,
+                currentQuantity: item.currentQuantity,
+              }))
+            : [createEmptyItem()],
+      }));
+      const withEmpty = allowAutoCreateItems
+        ? [...mapped, createEmptyProduct()]
+        : mapped;
+      setProducts(dedupeProductsList(withEmpty, allowAutoCreateItems));
       setNotes(document.notes || "");
     }
   }, [document, documentType, allowAutoCreateItems]);
@@ -413,6 +445,11 @@ export function useDocumentDetail(config) {
     },
     [products, availableProducts]
   );
+
+  const dedupeProductsListMemo = useCallback(
+    (list) => dedupeProductsList(list, allowAutoCreateItems),
+    [allowAutoCreateItems]
+  );
   return {
     products,
     setProducts,
@@ -430,6 +467,7 @@ export function useDocumentDetail(config) {
     handleDeleteDocument,
     toggleExpanded,
     getAvailableProductsForRow,
+    dedupeProductsList: dedupeProductsListMemo,
   };
 }
 
@@ -496,4 +534,74 @@ function getProductsKey(documentType) {
     out: "orderProducts",
   };
   return keys[documentType] || "orderProducts";
+}
+
+function dedupeProductsList(products = [], allowAutoCreateItems = true) {
+  const map = new Map();
+  const result = [];
+  let emptyRow = null;
+
+  products.forEach((row) => {
+    if (!row?.product) {
+      if (!emptyRow) emptyRow = row;
+      return;
+    }
+
+    const productObj =
+      typeof row.product === "object" ? row.product : { id: row.product };
+    const key = String(productObj.id || productObj.code || "").toLowerCase();
+    if (!key) {
+      result.push(row);
+      return;
+    }
+
+    if (!map.has(key)) {
+      const copy = { ...row, items: [...(row.items || [])] };
+      map.set(key, copy);
+      result.push(copy);
+    } else {
+      const existing = map.get(key);
+      const itemMap = new Map();
+      (existing.items || []).forEach((i) => {
+        const itemKey = i.id || `${i.itemNumber || ""}-${i.lotNumber || i.lot || ""}`;
+        itemMap.set(itemKey, i);
+      });
+      (row.items || []).forEach((i) => {
+        const itemKey = i.id || `${i.itemNumber || ""}-${i.lotNumber || i.lot || ""}`;
+        if (!itemMap.has(itemKey)) {
+          itemMap.set(itemKey, i);
+        }
+      });
+      existing.items = Array.from(itemMap.values());
+
+      if (
+        existing.requestedQuantity === undefined ||
+        existing.requestedQuantity === null ||
+        existing.requestedQuantity === ""
+      ) {
+        existing.requestedQuantity =
+          row.requestedQuantity ?? row.quantity ?? existing.requestedQuantity;
+      }
+      if (
+        existing.quantity === undefined ||
+        existing.quantity === null ||
+        existing.quantity === ""
+      ) {
+        existing.quantity = row.quantity ?? existing.quantity;
+      }
+      if (existing.price === undefined || existing.price === null) {
+        existing.price = row.price ?? existing.price ?? 0;
+      }
+    }
+  });
+
+  if (emptyRow) {
+    result.push(emptyRow);
+  }
+
+  if (allowAutoCreateItems && !result.some((r) => !r.product)) {
+    result.push(createEmptyProduct());
+  }
+
+  return result;
 }

@@ -905,10 +905,19 @@ export default function DocumentDetail({ config, initialData }) {
 
           if (!isVisible) return null;
 
+          const sectionContext = {
+            updateState,
+            setProducts,
+            products,
+            fetchedData,
+            isReadOnly,
+            actions: visibleActions,
+          };
+
           return (
             <div key={index}>
               {section.render &&
-                section.render(initialData, documentState, visibleActions)}
+                section.render(initialData, documentState, sectionContext)}
             </div>
           );
         })}

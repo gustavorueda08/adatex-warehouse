@@ -6,6 +6,10 @@ import Swal from "sweetalert2";
 import { exportDocumentToPDF } from "../utils/exportToPDF";
 import { exportDocumentToExcel } from "../utils/exportToExcel";
 import { createProductColumnsDetailForm } from "../utils/createProductColumnsForDocuments";
+import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
+import toast from "react-hot-toast";
+import { mapBulkItems } from "../utils/mapBulkItems";
+import LabelGenerator from "@/components/documents/LabelGenerator";
 
 export function createInflowFormConfig({
   warehouses,
@@ -261,6 +265,55 @@ export function createInflowDetailConfig({
         state: confirmed && state.state === "draft" ? "confirmed" : state.state,
       };
     },
-    customSections: [],
+    customSections: [
+      {
+        visible: (document) =>
+          document.state !== "completed" && document.state !== "canceled",
+        render: (document, state, helpers) => {
+          const handleBulkUpload = async (data) => {
+            if (!Array.isArray(data)) return;
+
+            const parsedItems = data.map((item) => ({
+              productId: item["id"] || item["ID"] || item["Code"] || null,
+              name: item["NOMBRE"] || item["Nombre"] || null,
+              quantity: Number(item["CANTIDAD"]) || null,
+              lotNumber: item["LOTE"] || "",
+              itemNumber: item["NUMERO"] || "",
+            }));
+
+            await mapBulkItems({
+              items: parsedItems,
+              currentProducts: helpers?.products || [],
+              fetchedProducts: helpers?.fetchedData?.products || [],
+              setProducts: helpers?.setProducts,
+              toast,
+            });
+          };
+
+          return (
+            <div className="mt-4">
+              <BulkPackingListUploader
+                onFileLoaded={handleBulkUpload}
+                context={helpers}
+                isReadOnly={
+                  document.state === "completed" ||
+                  document.state === "canceled"
+                }
+              />
+            </div>
+          );
+        },
+      },
+      {
+        visible: () => true,
+        render: (document, state, helpers) => (
+          <div className="mt-4">
+            <LabelGenerator
+              products={(helpers?.products || []).filter((p) => p.product)}
+            />
+          </div>
+        ),
+      },
+    ],
   };
 }
