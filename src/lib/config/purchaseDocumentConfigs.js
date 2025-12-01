@@ -109,6 +109,7 @@ export function createPurchaseDetailConfig({
   products,
   updateOrder,
   deleteOrder,
+  productSelectProps = {},
 }) {
   return {
     type: "purchase",
@@ -187,6 +188,7 @@ export function createPurchaseDetailConfig({
           "$"
         ),
       includeUnit: false,
+      productSelectProps,
     }),
     actions: [
       {

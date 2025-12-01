@@ -4,7 +4,7 @@ import { use, useMemo } from "react";
 import DocumentDetail from "@/components/documents/DocumentDetail";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
-import { useProducts } from "@/lib/hooks/useProducts";
+import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { createOutflowDetailConfig } from "@/lib/config/outflowDocumentConfigs";
 
 export default function OutflowDetailPage({ params }) {
@@ -24,7 +24,33 @@ export default function OutflowDetailPage({ params }) {
 
   const order = orders[0] || null;
   const { warehouses } = useWarehouses({});
-  const { products } = useProducts({});
+  const {
+    products,
+    search: productsSearchTerm,
+    setSearch: onSearchProducts,
+    hasMore: productsHasMore,
+    loadMore: onLoadMoreProducts,
+    loading: productsLoading,
+    loadingMore: productsLoadingMore,
+  } = useProductSelector({});
+  const productSelectProps = useMemo(
+    () => ({
+      onSearchProducts,
+      productsSearchTerm,
+      onLoadMoreProducts,
+      productsHasMore,
+      productsLoading,
+      productsLoadingMore,
+    }),
+    [
+      onSearchProducts,
+      productsSearchTerm,
+      onLoadMoreProducts,
+      productsHasMore,
+      productsLoading,
+      productsLoadingMore,
+    ]
+  );
 
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
@@ -37,16 +63,18 @@ export default function OutflowDetailPage({ params }) {
       refetch,
       addItem,
       removeItem,
+      productSelectProps,
     });
   }, [
     orders,
     order,
     warehouses,
-    products,
     updateOrder,
     deleteOrder,
     addItem,
     removeItem,
+    products,
+    productSelectProps,
   ]);
 
   // Loading state

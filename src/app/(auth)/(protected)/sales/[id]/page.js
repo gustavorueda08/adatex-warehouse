@@ -5,7 +5,7 @@ import DocumentDetail from "@/components/documents/DocumentDetail";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
-import { useProducts } from "@/lib/hooks/useProducts";
+import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { createSaleDetailConfig } from "@/lib/config/saleDocumentConfigs";
 
 /**
@@ -43,7 +43,33 @@ export default function SaleDetailPageV2({ params }) {
     populate: ["prices", "prices.product", "parties", "taxes"],
   });
   const { warehouses } = useWarehouses({});
-  const { products } = useProducts({});
+  const {
+    products,
+    search: productsSearchTerm,
+    setSearch: onSearchProducts,
+    hasMore: productsHasMore,
+    loadMore: onLoadMoreProducts,
+    loading: productsLoading,
+    loadingMore: productsLoadingMore,
+  } = useProductSelector({});
+  const productSelectProps = useMemo(
+    () => ({
+      onSearchProducts,
+      productsSearchTerm,
+      onLoadMoreProducts,
+      productsHasMore,
+      productsLoading,
+      productsLoadingMore,
+    }),
+    [
+      onSearchProducts,
+      productsSearchTerm,
+      onLoadMoreProducts,
+      productsHasMore,
+      productsLoading,
+      productsLoadingMore,
+    ]
+  );
 
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
@@ -57,16 +83,18 @@ export default function SaleDetailPageV2({ params }) {
       addItem,
       removeItem,
       refetch,
+      productSelectProps,
     });
   }, [
     order,
     customers,
     warehouses,
-    products,
     updateOrder,
     deleteOrder,
     addItem,
     removeItem,
+    products,
+    productSelectProps,
   ]);
 
   // Loading state

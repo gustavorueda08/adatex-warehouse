@@ -221,7 +221,17 @@ export function createProductColumnsDetailForm({
   totalFooter,
   currency = "$",
   onProductChange,
+  productSelectProps = {},
 } = {}) {
+  const {
+    onSearchProducts,
+    productsSearchTerm,
+    onLoadMoreProducts,
+    productsHasMore,
+    productsLoading,
+    productsLoadingMore,
+  } = productSelectProps;
+
   const mapProductOption = (product) => ({
     label: product.name,
     value: useProductIdAsValue ? product.id : product,
@@ -239,20 +249,25 @@ export function createProductColumnsDetailForm({
           row.product && typeof row.product === "object"
             ? row.product
             : availableProducts?.find((p) => p.id === row.product);
-        console.log(currentProduct, "CURRENT PRODUCT", availableProducts);
 
         if (currentProduct) {
           return [
             mapProductOption(currentProduct),
-            ...availableProducts
+            ...(availableProducts || [])
               .filter((p) => p.id !== currentProduct.id)
               .map((p) => mapProductOption(p)),
           ];
         }
-        return availableProducts.map(mapProductOption);
+        return (availableProducts || []).map(mapProductOption);
       },
       footer: productFooter,
       onChange: onProductChange,
+      onSearch: onSearchProducts,
+      searchValue: productsSearchTerm,
+      hasMore: productsHasMore,
+      onLoadMore: onLoadMoreProducts,
+      loading: productsLoading,
+      loadingMore: productsLoadingMore,
     },
   ];
 

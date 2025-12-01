@@ -148,6 +148,7 @@ export function createSaleDetailConfig({
   addItem,
   removeItem,
   refetch,
+  productSelectProps = {},
 }) {
   return {
     type: "sale",
@@ -319,6 +320,7 @@ export function createSaleDetailConfig({
         }
         return { ...row, product };
       },
+      productSelectProps,
     }),
     actions: [
       {

@@ -88,6 +88,7 @@ export function createInflowDetailConfig({
   warehouses,
   products,
   refetch,
+  productSelectProps = {},
 }) {
   return {
     // Tipo de la orden
@@ -172,6 +173,7 @@ export function createInflowDetailConfig({
           "$"
         ),
       includeUnit: false,
+      productSelectProps,
     }),
     actions: [
       {

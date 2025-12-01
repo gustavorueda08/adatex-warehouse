@@ -107,6 +107,7 @@ export function createTransferDetailConfig({
   products,
   addItem,
   removeItem,
+  productSelectProps = {},
 }) {
   return {
     type: "transfer",
@@ -215,6 +216,7 @@ export function createTransferDetailConfig({
         }
         return { ...row, product };
       },
+      productSelectProps,
     }),
     actions: [
       {

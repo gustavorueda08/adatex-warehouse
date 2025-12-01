@@ -85,6 +85,7 @@ export function createOutflowDetailConfig({
   products,
   addItem,
   removeItem,
+  productSelectProps = {},
 }) {
   return {
     type: "outflow",
@@ -184,6 +185,7 @@ export function createOutflowDetailConfig({
         }
         return { ...row, product };
       },
+      productSelectProps,
     }),
     actions: [
       {
