@@ -59,8 +59,7 @@ export function useSocket(options = {}) {
 
         if (cancelled) return;
 
-        const socketUrl =
-          process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337";
+        const socketUrl = process.env.STRAPI_URL || "http://localhost:1337";
 
         // Crear conexión con token
         const socket = io(socketUrl, {
@@ -97,7 +96,10 @@ export function useSocket(options = {}) {
           callbacksRef.current.onDisconnect?.(reason);
 
           // Si la desconexión es por el servidor, intentar reconectar con token fresco
-          if (reason === "io server disconnect" || reason === "transport close") {
+          if (
+            reason === "io server disconnect" ||
+            reason === "transport close"
+          ) {
             reconnectTimeout = setTimeout(async () => {
               if (!cancelled && socketRef.current) {
                 try {
@@ -123,7 +125,11 @@ export function useSocket(options = {}) {
           setIsAuthenticating(false);
 
           // Si es error de autenticación, intentar renovar token
-          if (err.message.includes("auth") || err.message.includes("token") || err.message.includes("jwt")) {
+          if (
+            err.message.includes("auth") ||
+            err.message.includes("token") ||
+            err.message.includes("jwt")
+          ) {
             try {
               const newToken = await getToken();
               if (!cancelled && socketRef.current) {
@@ -149,7 +155,6 @@ export function useSocket(options = {}) {
           setError(err);
           callbacksRef.current.onError?.(err);
         });
-
       } catch (err) {
         if (!cancelled) {
           console.error("Error al inicializar socket:", err.message);
@@ -173,7 +178,13 @@ export function useSocket(options = {}) {
         socketRef.current = null;
       }
     };
-  }, [autoConnect, reconnection, reconnectionDelay, reconnectionAttempts, getToken]);
+  }, [
+    autoConnect,
+    reconnection,
+    reconnectionDelay,
+    reconnectionAttempts,
+    getToken,
+  ]);
 
   const emit = useCallback((event, data) => {
     if (socketRef.current?.connected) {
