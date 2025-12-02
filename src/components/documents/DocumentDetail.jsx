@@ -258,7 +258,6 @@ export default function DocumentDetail({ config, initialData }) {
                   )
                 : column.options;
 
-            const useIdValue = column.useProductIdAsValue === true;
             const value =
               column.useProductIdAsValue !== false &&
               typeof row[column.key] === "object"
@@ -267,7 +266,7 @@ export default function DocumentDetail({ config, initialData }) {
 
             return (
               <Select
-                className="md:min-w-80"
+                className={column.className || "md:min-w-80"}
                 options={options || []}
                 value={value}
                 onChange={(value) => {
@@ -278,7 +277,18 @@ export default function DocumentDetail({ config, initialData }) {
                   }
                 }}
                 searchable={column.searchable}
-                disabled={isReadOnly}
+                onSearch={column.onSearch}
+                searchValue={column.searchValue}
+                hasMore={column.hasMore}
+                onLoadMore={column.onLoadMore}
+                loading={column.loading}
+                loadingMore={column.loadingMore}
+                placeholder={column.placeholder}
+                size={column.size || "md"}
+                renderOption={column.renderOption}
+                renderValue={column.renderValue}
+                clearable={column.clearable}
+                disabled={isReadOnly || column.disabled}
               />
             );
           },
