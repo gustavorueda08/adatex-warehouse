@@ -1,5 +1,13 @@
 import { v4 } from "uuid";
 
+const isNumericId = (value) => {
+  if (value === null || value === undefined) return false;
+  const trimmed = String(value).trim();
+  if (trimmed === "") return false;
+  const asNumber = Number(trimmed);
+  return Number.isInteger(asNumber) && String(asNumber) === trimmed;
+};
+
 const normalizeProduct = (product) => {
   if (!product) return null;
   const attributes = product.attributes || {};
@@ -41,12 +49,19 @@ const findLocalProduct = (
 const fetchProductByIdentifier = async (identifier, name) => {
   try {
     const params = new URLSearchParams();
+    let orIndex = 0;
+
     if (identifier) {
-      params.append("filters[$or][0][id][$eq]", identifier);
-      params.append("filters[$or][1][code][$eq]", identifier);
+      if (isNumericId(identifier)) {
+        params.append(`filters[$or][${orIndex}][id][$eq]`, identifier);
+        orIndex += 1;
+      }
+      params.append(`filters[$or][${orIndex}][code][$eq]`, identifier);
+      orIndex += 1;
     }
+
     if (name) {
-      params.append("filters[$or][2][name][$eqi]", name);
+      params.append(`filters[$or][${orIndex}][name][$eqi]`, name);
     }
     params.append("pagination[pageSize]", "1");
 
