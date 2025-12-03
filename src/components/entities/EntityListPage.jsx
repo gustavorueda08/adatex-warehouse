@@ -13,6 +13,7 @@ import { useEffect, useState, memo } from "react";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useUser } from "@/lib/hooks/useUser";
 
 /**
  * Componente reutilizable para listado de entidades (customers, suppliers, sellers, etc.)
@@ -81,6 +82,7 @@ function EntityListPage({
   const debouncedSearch = useDebouncedValue(search, 300);
   const [range, setRange] = useState({ from: null, to: null });
   const [bulkLoading, setBulkLoading] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     setCurrentPage(1);
@@ -278,6 +280,8 @@ function EntityListPage({
     refetch,
     setSelectedEntities,
     setBulkLoading,
+    toast,
+    user,
     ...restOfHook, // Spread de todas las propiedades adicionales del hook
   };
 

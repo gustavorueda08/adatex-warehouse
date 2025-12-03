@@ -92,8 +92,6 @@ export default function CustomerDetailPage() {
     );
   }
 
-  console.log(customer, "FDFDFDFDF");
-
   return (
     <div className="space-y-6">
       {/* Formulario de Cliente */}

@@ -140,9 +140,11 @@ export function createCustomerDetailConfig({
     // Preparar datos para enviar al backend
     const dataToSubmit = {
       name: formData.name,
+      lastName: formData.lastName || null,
       email: formData.email || null,
       phone: formData.phone || null,
       identification: formData.identification || null,
+      identificationType: formData.identificationType || null,
       address: formData.address || null,
       // Enviar solo los IDs para las relaciones
       taxes: formData.taxes || [],
@@ -248,6 +250,44 @@ export const customersListConfig = {
 
   // Acciones masivas disponibles
   bulkActions: ["delete"],
+  getCustomActions: ({
+    helpers: { syncAllCustomersFromSiigo, syncing, toast, user },
+  }) => {
+    if (user?.type !== "admin") return [];
+
+    return [
+      {
+        label: "Sincronizar",
+        disabled: () => syncing,
+        loading: syncing,
+        onClick: async () => {
+          const loadingToast = toast.loading(
+            "Sincronizando clientes desde Siigo..."
+          );
+          try {
+            const result = await syncAllCustomersFromSiigo();
+            if (result.success) {
+              toast.success("Clientes sincronizados exitosamente", {
+                id: loadingToast,
+              });
+            } else {
+              toast.error(
+                `Error al sincronizar: ${
+                  result.error?.message || "Error desconocido"
+                }`,
+                { id: loadingToast }
+              );
+            }
+          } catch (error) {
+            console.error("Error en sincronización:", error);
+            toast.error("Error inesperado al sincronizar", {
+              id: loadingToast,
+            });
+          }
+        },
+      },
+    ];
+  },
 
   // Función para determinar si un cliente puede ser eliminado
   canDeleteEntity: () => true,
