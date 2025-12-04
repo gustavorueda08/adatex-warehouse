@@ -31,9 +31,13 @@ export function PricesSection({
   prices = [],
   onChange,
   entityType = "customer",
+  productSelectProps = {},
 }) {
-  // Fetch products
-  const { products = [], isLoading: isLoadingProducts } = useProducts();
+  // Fetch products only if productSelectProps.products is not provided
+  const { products: fetchedProducts = [], isLoading: isLoadingProducts } =
+    useProducts({}, { enabled: !productSelectProps.products });
+
+  const products = productSelectProps.products || fetchedProducts;
 
   // Colores según el tipo de entidad
   const themeColors = {
@@ -181,6 +185,13 @@ export function PricesSection({
                   ? "Cargando..."
                   : "No hay productos disponibles"
               }
+              // Async props
+              onSearch={productSelectProps?.onSearchProducts}
+              searchValue={productSelectProps?.productsSearchTerm}
+              onLoadMore={productSelectProps?.onLoadMoreProducts}
+              hasMore={productSelectProps?.productsHasMore}
+              loading={productSelectProps?.productsLoading}
+              loadingMore={productSelectProps?.productsLoadingMore}
             />
           );
         },

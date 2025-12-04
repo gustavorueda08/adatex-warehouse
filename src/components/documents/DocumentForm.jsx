@@ -452,6 +452,11 @@ function renderField(field, formState, updateField) {
           }}
           size={field.size || "md"}
           placeholder={field.placeholder}
+          onSearch={field.onSearch}
+          onLoadMore={field.onLoadMore}
+          hasMore={field.hasMore}
+          loading={field.loading}
+          loadingMore={field.loadingMore}
         />
       );
 

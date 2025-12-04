@@ -7,8 +7,6 @@ export default function OutflowsPage() {
     <DocumentListPage
       documentType="out"
       title="Ordenes de Salida"
-      relationField="supplier"
-      relationLabel="Proveedor"
       getDetailPath={(order) => `/outflows/${order.id}`}
       showPricing={true}
       bulkActions={["confirm", "complete", "delete"]}

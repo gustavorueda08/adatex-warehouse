@@ -16,6 +16,7 @@ export function createSaleFormConfig({
   onSubmit,
   loading,
   productSelectProps = {},
+  customerSelectProps = {},
 }) {
   return {
     title: "Nueva orden de venta",
@@ -29,7 +30,10 @@ export function createSaleFormConfig({
           label: "Cliente",
           type: "select",
           searchable: true,
-          options: customers.map((c) => ({ label: c.name, value: c })),
+          options: customers.map((c) => ({
+            label: `${c.name} ${c.lastName}`,
+            value: c,
+          })),
           onChange: (customer, formState, updateField) => {
             const parties = customer.parties || [];
             updateField("parties", [...parties, customer]);
@@ -44,6 +48,11 @@ export function createSaleFormConfig({
               );
             }
           },
+          onSearch: customerSelectProps.onSearch,
+          onLoadMore: customerSelectProps.onLoadMore,
+          hasMore: customerSelectProps.hasMore,
+          loading: customerSelectProps.loading,
+          loadingMore: customerSelectProps.loadingMore,
         },
         {
           key: "selectedCustomerForInvoice",
@@ -52,7 +61,7 @@ export function createSaleFormConfig({
           searchable: true,
           options: (formState) =>
             (formState.parties || []).map((p) => ({
-              label: p.name,
+              label: `${p.name} ${p.lastName}`,
               value: p,
             })),
         },
@@ -149,6 +158,7 @@ export function createSaleDetailConfig({
   removeItem,
   refetch,
   productSelectProps = {},
+  customerSelectProps = {},
 }) {
   return {
     type: "sale",
@@ -235,9 +245,17 @@ export function createSaleDetailConfig({
         label: "Cliente",
         type: "select",
         key: "selectedCustomer",
-        options: customers.map((c) => ({ label: c.name, value: c.id })),
+        options: customers.map((c) => ({
+          label: `${c.name} ${c.lastName}`,
+          value: c.id,
+        })),
         searchable: true,
         onChange: "onCustomerChange", // Referencia al state handler
+        onSearch: customerSelectProps.onSearch,
+        onLoadMore: customerSelectProps.onLoadMore,
+        hasMore: customerSelectProps.hasMore,
+        loading: customerSelectProps.loading,
+        loadingMore: customerSelectProps.loadingMore,
       },
       {
         label: "Cliente para la factura",
@@ -245,7 +263,10 @@ export function createSaleDetailConfig({
         key: "selectedCustomerForInvoice",
         options: (state, data) => {
           if (!state.parties) return [];
-          return state.parties.map((p) => ({ label: p.name, value: p.id }));
+          return state.parties.map((p) => ({
+            label: `${p.name} ${p.lastName}`,
+            value: p.id,
+          }));
         },
         searchable: true,
         onChange: "onCustomerForInvoiceChange",

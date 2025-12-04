@@ -3,7 +3,7 @@ import DocumentForm from "@/components/documents/DocumentForm";
 import { createPurchaseFormConfig } from "@/lib/config/purchaseDocumentConfigs";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
-import { useSuppliers } from "@/lib/hooks/useSuppliers";
+import { useSupplierSelector } from "@/lib/hooks/useSupplierSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -24,7 +24,7 @@ export default function NewPurchasePage() {
   // Hooks para obtener datos
   const productSelector = useProductSelector({ pageSize: 25 });
   const { warehouses = [] } = useWarehouses({});
-  const { suppliers = [] } = useSuppliers({});
+  const supplierSelector = useSupplierSelector({ pageSize: 25 });
 
   // Hook para crear la orden
   const { createOrder, creating } = useOrders(
@@ -46,7 +46,7 @@ export default function NewPurchasePage() {
 
   // Crear la configuración para el formulario de venta
   const config = createPurchaseFormConfig({
-    suppliers,
+    suppliers: supplierSelector.suppliers,
     warehouses,
     productsData: productSelector.products,
     productSelectProps: {
@@ -56,6 +56,13 @@ export default function NewPurchasePage() {
       productsHasMore: productSelector.hasMore,
       productsLoading: productSelector.loading,
       productsLoadingMore: productSelector.loadingMore,
+    },
+    supplierSelectProps: {
+      onSearch: supplierSelector.setSearch,
+      onLoadMore: supplierSelector.loadMore,
+      hasMore: supplierSelector.hasMore,
+      loading: supplierSelector.loading,
+      loadingMore: supplierSelector.loadingMore,
     },
     onSubmit: createOrder,
     loading: creating,

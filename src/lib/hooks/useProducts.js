@@ -12,8 +12,11 @@ import { useState } from "react";
  * @returns {Object} Estado y funciones del hook
  */
 export function useProducts(queryParams = {}, options = {}) {
-  const strapiResult = useStrapi("products", queryParams, {
-    ...options,
+  const { withInventory, ...strapiOptions } = options;
+  const endpoint = withInventory ? "products/inventory" : "products";
+
+  const strapiResult = useStrapi(endpoint, queryParams, {
+    ...strapiOptions,
     singularName: "product",
     pluralName: "products",
     customNormalizer: normalizeFilters,

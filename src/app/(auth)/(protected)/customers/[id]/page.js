@@ -7,8 +7,10 @@ import ConsignmentBalance from "@/components/customers/ConsignmentBalance";
 import toast from "react-hot-toast";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useTaxes } from "@/lib/hooks/useTaxes";
-import { createCustomerDetailConfig } from "@/lib/config/entityConfigs";
+import { createCustomerDetailConfig } from "@/lib/config/customerConfigs";
 import { useTerritories } from "@/lib/hooks/useTerritories";
+import { useProductSelector } from "@/lib/hooks/useProductSelector";
+import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -46,21 +48,21 @@ export default function CustomerDetailPage() {
     }));
   }, [taxes]);
 
+  // Selectors for async search
+  const productSelector = useProductSelector({ pageSize: 20 });
+  const customerSelector = useCustomerSelector({ pageSize: 20 });
+
   // Obtener parties disponibles (otros clientes)
-
-  const { customers: allCustomers } = useCustomers({});
-  const { territories = [] } = useTerritories({});
-
   const availableParties = useMemo(() => {
-    if (!allCustomers) return [];
-    // Filtrar el cliente actual de la lista de parties posibles
-    return allCustomers
+    return customerSelector.customers
       .filter((c) => c.id != customerId)
       .map((c) => ({
         value: c.id,
-        label: c.name,
+        label: `${c.name} ${c.lastName || ""}`,
       }));
-  }, [allCustomers, customerId]);
+  }, [customerSelector.customers, customerId]);
+
+  const { territories = [] } = useTerritories({});
 
   // Obtener configuración del formulario
   const formConfig = useMemo(
@@ -73,6 +75,22 @@ export default function CustomerDetailPage() {
         router,
         updating,
         territories,
+        productSelectProps: {
+          onSearchProducts: productSelector.setSearch,
+          productsSearchTerm: productSelector.search,
+          onLoadMoreProducts: productSelector.loadMore,
+          productsHasMore: productSelector.hasMore,
+          productsLoading: productSelector.loading,
+          productsLoadingMore: productSelector.loadingMore,
+          products: productSelector.products,
+        },
+        partySelectProps: {
+          onSearch: customerSelector.setSearch,
+          onLoadMore: customerSelector.loadMore,
+          hasMore: customerSelector.hasMore,
+          loading: customerSelector.loading,
+          loadingMore: customerSelector.loadingMore,
+        },
       }),
     [
       customerId,
@@ -81,6 +99,9 @@ export default function CustomerDetailPage() {
       updateCustomer,
       router,
       updating,
+      territories,
+      productSelector,
+      customerSelector,
     ]
   );
 

@@ -9,6 +9,8 @@ import {
   useInvoiceableItems,
   useCreatePartialInvoice,
 } from "@/lib/hooks/useConsignment";
+import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
+import Select from "@/components/ui/Select";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 
@@ -20,9 +22,24 @@ export default function CreatePartialInvoicePage({ params }) {
   const { creating, createByItems, createByQuantity } =
     useCreatePartialInvoice();
 
+  const customerSelector = useCustomerSelector({ pageSize: 25 });
+
   const [mode, setMode] = useState("quantity"); // "items" | "quantity"
   const [selectedData, setSelectedData] = useState(null);
   const [notes, setNotes] = useState("");
+  const [selectedCustomerForInvoice, setSelectedCustomerForInvoice] =
+    useState(null);
+
+  // Set initial customer for invoice when data loads
+  useEffect(() => {
+    if (invoiceableData?.order?.customerForInvoice) {
+      setSelectedCustomerForInvoice(
+        invoiceableData.order.customerForInvoice.id
+      );
+    } else if (invoiceableData?.order?.customer) {
+      setSelectedCustomerForInvoice(invoiceableData.order.customer.id);
+    }
+  }, [invoiceableData]);
 
   const handleSelectionChange = (data) => {
     setSelectedData(data);
@@ -70,7 +87,7 @@ export default function CreatePartialInvoicePage({ params }) {
         response = await createByQuantity({
           parentOrder: parseInt(id),
           customer: invoiceableData.order?.customer?.id,
-          customerForInvoice: invoiceableData.order?.customer?.id,
+          customerForInvoice: selectedCustomerForInvoice,
           notes,
           products,
         });
@@ -105,7 +122,7 @@ export default function CreatePartialInvoicePage({ params }) {
           type: "partial-invoice",
           parentOrder: parseInt(id),
           customer: invoiceableData.order?.customer?.id,
-          customerForInvoice: invoiceableData.order?.customer?.id,
+          customerForInvoice: selectedCustomerForInvoice,
           notes,
           products,
         });
@@ -185,7 +202,27 @@ export default function CreatePartialInvoicePage({ params }) {
             {invoiceableData.order?.customer?.name}
           </span>
         </p>
-        <p className="text-zinc-400">
+        <div className="mt-4 max-w-md">
+          <label className="block text-sm font-medium text-gray-400 mb-1">
+            Cliente para la factura
+          </label>
+          <Select
+            value={selectedCustomerForInvoice}
+            options={customerSelector.customers.map((c) => ({
+              label: `${c.name} ${c.lastName}`,
+              value: c.id,
+            }))}
+            onChange={(val) => setSelectedCustomerForInvoice(val)}
+            searchable
+            onSearch={customerSelector.setSearch}
+            onLoadMore={customerSelector.loadMore}
+            hasMore={customerSelector.hasMore}
+            loading={customerSelector.loading}
+            loadingMore={customerSelector.loadingMore}
+            placeholder="Seleccionar cliente para factura"
+          />
+        </div>
+        <p className="text-zinc-400 mt-2">
           Fecha de despacho:{" "}
           {invoiceableData.order?.dispatchDate
             ? new Date(invoiceableData.order.dispatchDate).toLocaleDateString()

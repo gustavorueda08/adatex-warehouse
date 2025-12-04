@@ -1,3 +1,103 @@
+import { PricesSection } from "@/components/entities/PricesSection";
+import {
+  ReceiptPercentIcon,
+  UserGroupIcon,
+  UserIcon,
+} from "@heroicons/react/24/outline";
+import moment from "moment-timezone";
+
+export const customersListConfig = {
+  entityType: "customer",
+  title: "Clientes",
+  description: "Gestiona y visualiza todos los clientes",
+  entityName: "cliente",
+  entityNamePlural: "clientes",
+  searchPlaceholder: "Buscar cliente (nombre, email, teléfono, NIT)...",
+  showDatePicker: false,
+
+  // Path para crear nuevos clientes
+  createPath: "/new-customer",
+
+  // Función para obtener el path de detalle de un cliente
+  getDetailPath: (customer) => `/customers/${customer.id}`,
+
+  // Columnas de la tabla
+  columns: [
+    {
+      key: "identification",
+      label: "Identificación",
+      render: (identification) => identification || "-",
+    },
+    {
+      key: "name",
+      label: "Nombre",
+      render: (_, customer) => `${customer.name} ${customer.lastName || ""}`,
+    },
+    {
+      key: "territory",
+      label: "Ciudad",
+      render: (_, customer) => customer?.territory?.city || "-",
+    },
+    {
+      key: "address",
+      label: "Dirección",
+      render: (address) => address || "-",
+    },
+    {
+      key: "updatedAt",
+      label: "Última actualización",
+      render: (date) =>
+        moment(date).tz("America/Bogota").format("DD-MM-YYYY | h:mm a"),
+    },
+  ],
+
+  populate: ["territory"],
+
+  // Acciones masivas disponibles
+  bulkActions: ["delete"],
+  getCustomActions: ({
+    helpers: { syncAllCustomersFromSiigo, syncing, toast, user },
+  }) => {
+    if (user?.type !== "admin") return [];
+
+    return [
+      {
+        label: "Sincronizar",
+        disabled: () => syncing,
+        loading: syncing,
+        onClick: async () => {
+          const loadingToast = toast.loading(
+            "Sincronizando clientes desde Siigo..."
+          );
+          try {
+            const result = await syncAllCustomersFromSiigo();
+            if (result.success) {
+              toast.success("Clientes sincronizados exitosamente", {
+                id: loadingToast,
+              });
+            } else {
+              toast.error(
+                `Error al sincronizar: ${
+                  result.error?.message || "Error desconocido"
+                }`,
+                { id: loadingToast }
+              );
+            }
+          } catch (error) {
+            console.error("Error en sincronización:", error);
+            toast.error("Error inesperado al sincronizar", {
+              id: loadingToast,
+            });
+          }
+        },
+      },
+    ];
+  },
+
+  // Función para determinar si un cliente puede ser eliminado
+  canDeleteEntity: () => true,
+};
+
 export function createCustomerFormConfig({
   onSubmit,
   loading,
@@ -133,6 +233,8 @@ export function createCustomerDetailConfig({
   updateCustomer,
   updating = false,
   territories = [],
+  productSelectProps = {},
+  partySelectProps = {},
 }) {
   const fieldSections = [
     {
@@ -245,6 +347,11 @@ export function createCustomerDetailConfig({
           placeholder: "Seleccionar partes...",
           emptyMessage: "No hay partes disponibles",
           fullWidth: true,
+          onSearch: partySelectProps.onSearch,
+          onLoadMore: partySelectProps.onLoadMore,
+          hasMore: partySelectProps.hasMore,
+          loading: partySelectProps.loading,
+          loadingMore: partySelectProps.loadingMore,
         },
       ],
     },
@@ -254,9 +361,11 @@ export function createCustomerDetailConfig({
     // Preparar datos para enviar al backend
     const dataToSubmit = {
       name: formData.name,
+      lastName: formData.lastName || null,
       email: formData.email || null,
       phone: formData.phone || null,
       identification: formData.identification || null,
+      identificationType: formData.identificationType || null,
       address: formData.address || null,
       // Enviar solo los IDs para las relaciones
       taxes: formData.taxes || [],
@@ -301,6 +410,7 @@ export function createCustomerDetailConfig({
             prices={formData.prices || []}
             onChange={(prices) => updateField("prices", prices)}
             entityType="customer"
+            productSelectProps={productSelectProps}
           />
         ),
       },

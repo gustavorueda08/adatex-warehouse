@@ -220,7 +220,12 @@ function DocumentListPage({
             key: relationField,
             label: relationLabel || "Relacionado",
             render: (relation) =>
-              relation ? `${relation.name || buildInvoiceLabel(relation)}` : "-",
+              relation
+                ? `${
+                    `${relation.name} ${relation.lastName || ""}` ||
+                    buildInvoiceLabel(relation)
+                  }`
+                : "-",
           },
         ]
       : []),

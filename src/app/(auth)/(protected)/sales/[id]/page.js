@@ -3,7 +3,7 @@
 import { use, useMemo } from "react";
 import DocumentDetail from "@/components/documents/DocumentDetail";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { createSaleDetailConfig } from "@/lib/config/saleDocumentConfigs";
@@ -12,7 +12,7 @@ import { createSaleDetailConfig } from "@/lib/config/saleDocumentConfigs";
  * Sales Detail Page V2 - Versión simplificada usando DocumentDetailBaseV2
  * Reducido de 340 líneas a ~70 líneas (79% reducción)
  */
-export default function SaleDetailPageV2({ params }) {
+export default function SaleDetailPage({ params }) {
   const { id } = use(params);
 
   // Solo fetch del documento con todas sus relaciones
@@ -39,9 +39,7 @@ export default function SaleDetailPageV2({ params }) {
   const order = orders[0] || null;
 
   // Fetch data needed by the document (hooks must be called at top level)
-  const { customers } = useCustomers({
-    populate: ["prices", "prices.product", "parties", "taxes"],
-  });
+  const customerSelector = useCustomerSelector({});
   const { warehouses } = useWarehouses({});
   const {
     products,
@@ -71,11 +69,22 @@ export default function SaleDetailPageV2({ params }) {
     ]
   );
 
+  const customerSelectProps = useMemo(
+    () => ({
+      onSearch: customerSelector.setSearch,
+      onLoadMore: customerSelector.loadMore,
+      hasMore: customerSelector.hasMore,
+      loading: customerSelector.loading,
+      loadingMore: customerSelector.loadingMore,
+    }),
+    [customerSelector]
+  );
+
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
     if (!order) return null;
     return createSaleDetailConfig({
-      customers,
+      customers: customerSelector.customers,
       warehouses,
       products,
       updateOrder,
@@ -84,10 +93,10 @@ export default function SaleDetailPageV2({ params }) {
       removeItem,
       refetch,
       productSelectProps,
+      customerSelectProps,
     });
   }, [
     order,
-    customers,
     warehouses,
     updateOrder,
     deleteOrder,
@@ -95,6 +104,8 @@ export default function SaleDetailPageV2({ params }) {
     removeItem,
     products,
     productSelectProps,
+    customerSelectProps,
+    customerSelector.customers,
   ]);
 
   // Loading state

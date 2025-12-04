@@ -482,6 +482,12 @@ function renderField(field, formData, updateField, errors) {
             placeholder={field.placeholder}
             disabled={field.disabled}
             emptyMessage={field.emptyMessage || "No hay opciones disponibles"}
+            // Async props
+            onSearch={field.onSearch}
+            onLoadMore={field.onLoadMore}
+            hasMore={field.hasMore}
+            loading={field.loading}
+            loadingMore={field.loadingMore}
           />
           {errors[field.name] && (
             <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>
@@ -520,6 +526,12 @@ function renderField(field, formData, updateField, errors) {
             menuTitle={field.menuTitle}
             onClickMenu={field.onClickMenu}
             menuVariant={field.menuVariant}
+            // Async props
+            onSearch={field.onSearch}
+            onLoadMore={field.onLoadMore}
+            hasMore={field.hasMore}
+            loading={field.loading}
+            loadingMore={field.loadingMore}
           />
           {errors[field.name] && (
             <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>

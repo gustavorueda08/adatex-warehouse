@@ -2,7 +2,7 @@
 
 import { use, useMemo } from "react";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useSuppliers } from "@/lib/hooks/useSuppliers";
+import { useSupplierSelector } from "@/lib/hooks/useSupplierSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import DocumentDetail from "@/components/documents/DocumentDetail";
@@ -31,7 +31,7 @@ export default function PurchaseDetailPage({ params }) {
   const order = orders[0] || null;
 
   // Fetch data needed by the document (hooks must be called at top level)
-  const { suppliers } = useSuppliers({
+  const supplierSelector = useSupplierSelector({
     populate: ["prices", "prices.product"],
   });
   const { warehouses } = useWarehouses({});
@@ -63,25 +63,38 @@ export default function PurchaseDetailPage({ params }) {
     ]
   );
 
+  const supplierSelectProps = useMemo(
+    () => ({
+      onSearch: supplierSelector.setSearch,
+      onLoadMore: supplierSelector.loadMore,
+      hasMore: supplierSelector.hasMore,
+      loading: supplierSelector.loading,
+      loadingMore: supplierSelector.loadingMore,
+    }),
+    [supplierSelector]
+  );
+
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
     if (!order) return null;
     return createPurchaseDetailConfig({
-      suppliers,
+      suppliers: supplierSelector.suppliers,
       warehouses,
       products,
       updateOrder,
       deleteOrder,
       productSelectProps,
+      supplierSelectProps,
     });
   }, [
     order,
-    suppliers,
+    supplierSelector.suppliers,
     warehouses,
     products,
     updateOrder,
     deleteOrder,
     productSelectProps,
+    supplierSelectProps,
   ]);
 
   // Loading state

@@ -63,6 +63,8 @@ function EntityListPage({
   customActions: customActionsProp = [],
   canDeleteEntity: canDeleteEntityProp = () => true,
   searchPlaceholder: searchPlaceholderProp = "Buscar...",
+  populate: populateProp = [],
+  selectable: selectableProp = true,
 }) {
   // Determinar si usar config o props individuales
   const title = config?.title || titleProp;
@@ -75,6 +77,15 @@ function EntityListPage({
   const bulkActions = config?.bulkActions || bulkActionsProp;
   const canDeleteEntity = config?.canDeleteEntity || canDeleteEntityProp;
   const searchPlaceholder = config?.searchPlaceholder || searchPlaceholderProp;
+  const populate = config?.populate || populateProp;
+  const hookOptions = config?.hookOptions || {};
+  const customSections = config?.customSections || [];
+  const selectable =
+    config?.selectable !== undefined
+      ? config.selectable
+      : selectableProp !== undefined
+      ? selectableProp
+      : true;
 
   const [selectedEntities, setSelectedEntities] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -112,6 +123,14 @@ function EntityListPage({
     return { createdAt: dateFilter };
   };
 
+  const searchFields = config?.searchFields || [
+    "name",
+    "email",
+    "phone",
+    "identification",
+    "address",
+  ];
+
   const {
     entities,
     meta,
@@ -119,45 +138,25 @@ function EntityListPage({
     pagination,
     deleteEntity,
     refetch,
-    ...restOfHook // Captura todas las propiedades adicionales del hook (ej: syncAllCustomersFromSiigo, syncing, etc.)
-  } = useHook({
-    pagination: { page: currentPage, pageSize: 20 },
-    sort: ["updatedAt:desc"],
-    filters: {
-      ...(debouncedSearch
-        ? {
-            $or: [
-              {
-                name: {
-                  $containsi: debouncedSearch,
-                },
-              },
-              {
-                email: {
-                  $containsi: debouncedSearch,
-                },
-              },
-              {
-                phone: {
-                  $containsi: debouncedSearch,
-                },
-              },
-              {
-                identification: {
-                  $containsi: debouncedSearch,
-                },
-              },
-              {
-                address: {
-                  $containsi: debouncedSearch,
-                },
-              },
-            ],
-          }
-        : {}),
-      ...buildDateFilter(range),
+    ...restOfHook
+  } = useHook(
+    {
+      pagination: { page: currentPage, pageSize: 20 },
+      sort: ["updatedAt:desc"],
+      filters: {
+        ...(debouncedSearch
+          ? {
+              $or: searchFields.map((field) => ({
+                [field]: { $containsi: debouncedSearch },
+              })),
+            }
+          : {}),
+        ...buildDateFilter(range),
+      },
+      populate,
     },
-  });
+    { ...hookOptions }
+  );
 
   const handleEntitySelection = (selectedIds) => {
     setSelectedEntities(selectedIds);
@@ -351,7 +350,7 @@ function EntityListPage({
             <Table
               columns={columns}
               data={entities}
-              onRowSelect={handleEntitySelection}
+              onRowSelect={selectable ? handleEntitySelection : undefined}
               onRowEdit={handleEntityEdit}
               loading={loading}
               pagination={pagination}
@@ -368,6 +367,15 @@ function EntityListPage({
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Sections */}
+      {customSections && customSections.length > 0 && (
+        <div className="mt-6 space-y-6">
+          {customSections.map((section, index) => (
+            <div key={index}>{section.render({ helpers: actionHelpers })}</div>
+          ))}
+        </div>
+      )}
 
       {/* Custom Actions - Card flotante (siempre visible si hay customActions) */}
       {customActions.length > 0 && (

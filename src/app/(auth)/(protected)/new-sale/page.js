@@ -2,7 +2,7 @@
 
 import DocumentForm from "@/components/documents/DocumentForm";
 import { createSaleFormConfig } from "@/lib/config/saleDocumentConfigs";
-import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
@@ -24,9 +24,7 @@ export default function NewSalePage() {
   // Hooks para obtener datos
   const productSelector = useProductSelector({ pageSize: 25 });
   const { warehouses = [] } = useWarehouses({});
-  const { customers = [] } = useCustomers({
-    populate: ["prices", "prices.product", "parties"],
-  });
+  const customerSelector = useCustomerSelector({ pageSize: 25 });
 
   // Hook para crear la orden
   const { createOrder, creating } = useOrders(
@@ -42,7 +40,7 @@ export default function NewSalePage() {
 
   // Crear la configuración para el formulario de venta
   const config = createSaleFormConfig({
-    customers,
+    customers: customerSelector.customers,
     warehouses,
     productsData: productSelector.products,
     productSelectProps: {
@@ -52,6 +50,13 @@ export default function NewSalePage() {
       productsHasMore: productSelector.hasMore,
       productsLoading: productSelector.loading,
       productsLoadingMore: productSelector.loadingMore,
+    },
+    customerSelectProps: {
+      onSearch: customerSelector.setSearch,
+      onLoadMore: customerSelector.loadMore,
+      hasMore: customerSelector.hasMore,
+      loading: customerSelector.loading,
+      loadingMore: customerSelector.loadingMore,
     },
     onSubmit: createOrder,
     loading: creating,

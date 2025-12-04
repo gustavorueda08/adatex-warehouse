@@ -1,7 +1,7 @@
 "use client";
 
 import EntityListPage from "@/components/entities/EntityListPage";
-import { customersListConfig } from "@/lib/config/entityConfigs";
+import { customersListConfig } from "@/lib/config/customerConfigs";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 
 export default function CustomersPage() {

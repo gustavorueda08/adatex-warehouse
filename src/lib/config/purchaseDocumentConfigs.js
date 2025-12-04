@@ -25,6 +25,7 @@ export function createPurchaseFormConfig({
   onSubmit,
   loading,
   productSelectProps = {},
+  supplierSelectProps = {},
 }) {
   return {
     title: "Nueva orden de compra",
@@ -39,6 +40,11 @@ export function createPurchaseFormConfig({
           type: "select",
           searchable: true,
           options: suppliers.map((s) => ({ label: s.name, value: s })),
+          onSearch: supplierSelectProps.onSearch,
+          onLoadMore: supplierSelectProps.onLoadMore,
+          hasMore: supplierSelectProps.hasMore,
+          loading: supplierSelectProps.loading,
+          loadingMore: supplierSelectProps.loadingMore,
         },
         {
           key: "containerCode",
@@ -110,6 +116,7 @@ export function createPurchaseDetailConfig({
   updateOrder,
   deleteOrder,
   productSelectProps = {},
+  supplierSelectProps = {},
 }) {
   return {
     type: "purchase",
@@ -142,6 +149,11 @@ export function createPurchaseDetailConfig({
         key: "selectedSupplier",
         searchable: true,
         options: suppliers.map((s) => ({ label: s.name, value: s.id })),
+        onSearch: supplierSelectProps.onSearch,
+        onLoadMore: supplierSelectProps.onLoadMore,
+        hasMore: supplierSelectProps.hasMore,
+        loading: supplierSelectProps.loading,
+        loadingMore: supplierSelectProps.loadingMore,
       },
       {
         label: "Bodega destino",

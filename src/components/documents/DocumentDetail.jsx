@@ -212,6 +212,11 @@ export default function DocumentDetail({ config, initialData }) {
               onChange={(val) => handleFieldChange(field, val)}
               searchable={field.searchable}
               size="md"
+              onSearch={field.onSearch}
+              onLoadMore={field.onLoadMore}
+              hasMore={field.hasMore}
+              loading={field.loading}
+              loadingMore={field.loadingMore}
             />
           )}
 
@@ -843,43 +848,43 @@ export default function DocumentDetail({ config, initialData }) {
                 </CardDescription>
               </div>
             </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-12 md:col-span-8">
-              <div className="md:hidden">
-                <MobileList
-                  columns={invoiceColumns}
-                  data={products.filter((p) => p.product)}
-                  footerFilter={(_, value) => value !== "-" && value !== ""}
-                />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-12 md:col-span-8">
+                <div className="md:hidden">
+                  <MobileList
+                    columns={invoiceColumns}
+                    data={products.filter((p) => p.product)}
+                    footerFilter={(_, value) => value !== "-" && value !== ""}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <Table
+                    columns={invoiceColumns}
+                    data={products.filter((p) => p.product)}
+                  />
+                </div>
               </div>
-              <div className="hidden md:block">
-                <Table
-                  columns={invoiceColumns}
-                  data={products.filter((p) => p.product)}
-                />
+              <div className="col-span-12 md:col-span-4">
+                <div className="md:hidden">
+                  <MobileList
+                    columns={invoiceResumeColumns}
+                    data={invoiceData}
+                    footerFilter={(_, value) => value !== "-" && value !== ""}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <Table
+                    columns={invoiceResumeColumns}
+                    data={invoiceData}
+                    hiddenHeader
+                  />
+                </div>
               </div>
             </div>
-            <div className="col-span-12 md:col-span-4">
-              <div className="md:hidden">
-                <MobileList
-                  columns={invoiceResumeColumns}
-                  data={invoiceData}
-                  footerFilter={(_, value) => value !== "-" && value !== ""}
-                />
-              </div>
-              <div className="hidden md:block">
-                <Table
-                  columns={invoiceResumeColumns}
-                  data={invoiceData}
-                  hiddenHeader
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       )}
 
       {/* Comentarios Card */}

@@ -3,6 +3,7 @@
 import { use, useMemo } from "react";
 import ReturnDetailView from "@/components/documents/ReturnDetailView";
 import { useOrders } from "@/lib/hooks/useOrders";
+import { useOrderSelector } from "@/lib/hooks/useOrderSelector";
 import { useProducts } from "@/lib/hooks/useProducts";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { createReturnDetailConfig } from "@/lib/config/returnDocumentConfigs";
@@ -35,6 +36,32 @@ export default function ReturnDetailPage({ params }) {
       ?.map((op) => op.product)
       .filter(Boolean) || [];
 
+  const orderSelector = useOrderSelector({
+    baseFilters: {
+      type: ["sale"],
+      state: ["completed"],
+    },
+    populate: [
+      "orderProducts",
+      "orderProducts.items",
+      "orderProducts.items.warehouse",
+      "orderProducts.product",
+      "customer",
+      "sourceWarehouse",
+    ],
+  });
+
+  const orderSelectProps = useMemo(
+    () => ({
+      onSearch: orderSelector.setSearch,
+      onLoadMore: orderSelector.loadMore,
+      hasMore: orderSelector.hasMore,
+      loading: orderSelector.loading,
+      loadingMore: orderSelector.loadingMore,
+    }),
+    [orderSelector]
+  );
+
   const config = useMemo(() => {
     if (!order) return null;
     return createReturnDetailConfig({
@@ -45,6 +72,8 @@ export default function ReturnDetailPage({ params }) {
       deleteOrder,
       addItem,
       removeItem,
+      orderSelectProps,
+      orders: orderSelector.orders,
     });
   }, [
     order,
@@ -54,6 +83,8 @@ export default function ReturnDetailPage({ params }) {
     deleteOrder,
     addItem,
     removeItem,
+    orderSelectProps,
+    orderSelector.orders,
   ]);
 
   if (!order || !config) {

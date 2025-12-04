@@ -93,7 +93,7 @@ const TableRow = memo(
                 colIndex === 0
                   ? "font-medium text-gray-900 whitespace-nowrap dark:text-white"
                   : ""
-              }`}
+              } ${colIndex === 0 && !onRowSelect ? "pl-6" : ""}`}
             >
               {detailPath && colIndex === 0 ? (
                 <Link

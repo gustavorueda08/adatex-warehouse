@@ -44,6 +44,7 @@ export function createReturnFormConfig({
   onSubmit,
   loading,
   onOrderSelect,
+  orderSelectProps = {},
 }) {
   return {
     title: "Nueva devolución",
@@ -64,6 +65,11 @@ export function createReturnFormConfig({
             }`,
             value: order,
           })),
+          onSearch: orderSelectProps.onSearch,
+          onLoadMore: orderSelectProps.onLoadMore,
+          hasMore: orderSelectProps.hasMore,
+          loading: orderSelectProps.loading,
+          loadingMore: orderSelectProps.loadingMore,
           onChange: (order, formState, updateField) => {
             if (!order) {
               updateField("selectedItems", []);
@@ -174,6 +180,8 @@ export function createReturnDetailConfig({
   deleteOrder,
   addItem,
   removeItem,
+  orderSelectProps = {},
+  orders = [],
 }) {
   return {
     type: ORDER_TYPES.RETURN,
@@ -201,19 +209,29 @@ export function createReturnDetailConfig({
         const warehouse = warehouses.find((w) => w.id == warehouseId);
         updateState({ selectedWarehouse: warehouse || null });
       },
+      onParentOrderChange: (orderId, state, updateState) => {
+        const order = orders.find((o) => o.id == orderId);
+        updateState({ parentOrder: order || null });
+      },
     },
     headerFields: [
       {
         key: "parentOrder",
         label: "Orden de venta original",
-        type: "input",
-        render: (_, state) => (
-          <div className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md">
-            <p className="text-white">
-              {buildInvoiceLabel(state.parentOrder) || "-"}
-            </p>
-          </div>
-        ),
+        type: "select",
+        searchable: true,
+        options: orders.map((order) => ({
+          label: `${buildInvoiceLabel(order)} - ${
+            order.customer?.name || "Sin cliente"
+          }`,
+          value: order.id,
+        })),
+        onSearch: orderSelectProps.onSearch,
+        onLoadMore: orderSelectProps.onLoadMore,
+        hasMore: orderSelectProps.hasMore,
+        loading: orderSelectProps.loading,
+        loadingMore: orderSelectProps.loadingMore,
+        onChange: "onParentOrderChange",
       },
       {
         key: "sourceCustomer",
