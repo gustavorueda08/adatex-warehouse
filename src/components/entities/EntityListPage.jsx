@@ -131,6 +131,51 @@ function EntityListPage({
     "address",
   ];
 
+  const filterConfig = config?.filterConfig;
+  const [selectedFilterOptions, setSelectedFilterOptions] = useState([]);
+
+  // Fetch filter options if configured
+  const { entities: filterEntities } = filterConfig?.hook
+    ? filterConfig.hook({
+        pagination: { pageSize: 100 },
+        sort: [`${filterConfig.labelField}:asc`],
+      })
+    : { entities: [] };
+
+  const filterOptions = filterEntities.map((entity) => ({
+    value: entity[filterConfig.valueField],
+    label: entity[filterConfig.labelField],
+  }));
+
+  if (filterConfig) {
+    console.log("🔍 Filter Config:", filterConfig);
+    console.log("🔍 Filter Options:", filterOptions);
+    console.log("🔍 Selected Options:", selectedFilterOptions);
+    console.log("🔍 Filter Condition:", selectedFilterOptions.length > 0);
+  }
+
+  const filters = {
+    ...(debouncedSearch
+      ? {
+          $or: searchFields.map((field) => ({
+            [field]: { $containsi: debouncedSearch },
+          })),
+        }
+      : {}),
+    ...buildDateFilter(range),
+    ...(filterConfig && selectedFilterOptions.length > 0
+      ? {
+          [filterConfig.queryField]: {
+            [filterConfig.valueField]: {
+              $in: selectedFilterOptions,
+            },
+          },
+        }
+      : {}),
+  };
+
+  console.log("🔍 Active Filters:", JSON.stringify(filters, null, 2));
+
   const {
     entities,
     meta,
@@ -143,16 +188,7 @@ function EntityListPage({
     {
       pagination: { page: currentPage, pageSize: 20 },
       sort: ["updatedAt:desc"],
-      filters: {
-        ...(debouncedSearch
-          ? {
-              $or: searchFields.map((field) => ({
-                [field]: { $containsi: debouncedSearch },
-              })),
-            }
-          : {}),
-        ...buildDateFilter(range),
-      },
+      filters,
       populate,
     },
     { ...hookOptions }
@@ -311,13 +347,17 @@ function EntityListPage({
             setSearch={setSearch}
             range={range}
             setRange={setRange}
-            options={[]}
-            setSelectedOptions={() => {}}
+            options={filterOptions}
+            selectedOptions={selectedFilterOptions}
+            setSelectedOptions={setSelectedFilterOptions}
             linkPath={createPath}
+            useSelect={filterConfig?.useSelect}
+            multiple={true}
             placeHolder={searchPlaceholder}
             dropdownOptions={[]}
             showDatePicker={false}
-            showDropdownSelector={false}
+            showDropdownSelector={!!filterConfig}
+            dropdownTitle={filterConfig?.label}
           />
         </CardContent>
       </Card>

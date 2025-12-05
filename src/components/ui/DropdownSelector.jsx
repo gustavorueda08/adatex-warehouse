@@ -14,6 +14,15 @@ export default function DropdownSelector({
   const [selectedOptions, setSelectedOptions] = useState(
     new Set(options.map((o) => o.key))
   );
+
+  // Auto-select all when options are loaded
+  useEffect(() => {
+    if (options.length > 0) {
+      const allKeys = new Set(options.map((o) => o.key));
+      setSelectedOptions(allKeys);
+      setExternalSelectedOptions?.(allKeys);
+    }
+  }, [options.length]);
   const [dropdownPosition, setDropdownPosition] = useState({});
   const ref = useRef(null);
   const dropdownRef = useRef(null);

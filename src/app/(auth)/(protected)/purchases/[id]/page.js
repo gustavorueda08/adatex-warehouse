@@ -85,6 +85,7 @@ export default function PurchaseDetailPage({ params }) {
       deleteOrder,
       productSelectProps,
       supplierSelectProps,
+      currentSupplier: order.supplier,
     });
   }, [
     order,

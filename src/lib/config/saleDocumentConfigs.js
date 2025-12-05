@@ -159,7 +159,13 @@ export function createSaleDetailConfig({
   refetch,
   productSelectProps = {},
   customerSelectProps = {},
+  currentCustomer = null,
 }) {
+  const allCustomers =
+    currentCustomer && !customers.find((c) => c.id === currentCustomer.id)
+      ? [currentCustomer, ...customers]
+      : customers;
+
   return {
     type: "sale",
     title: (document) => buildInvoiceLabel(document),
@@ -168,7 +174,7 @@ export function createSaleDetailConfig({
     showItemInput: true,
     allowManualEntry: false,
     data: {
-      customers,
+      customers: allCustomers,
       warehouses,
       products,
     },
@@ -207,7 +213,7 @@ export function createSaleDetailConfig({
     },
     stateHandlers: {
       onCustomerChange: (customerId, state, updateState) => {
-        const customer = customers.find((c) => c.id == customerId);
+        const customer = allCustomers.find((c) => c.id == customerId);
         const customerParties = Array.isArray(customer.parties)
           ? customer.parties
           : [];
@@ -245,7 +251,7 @@ export function createSaleDetailConfig({
         label: "Cliente",
         type: "select",
         key: "selectedCustomer",
-        options: customers.map((c) => ({
+        options: allCustomers.map((c) => ({
           label: `${c.name} ${c.lastName}`,
           value: c.id,
         })),

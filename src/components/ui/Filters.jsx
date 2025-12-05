@@ -3,6 +3,7 @@
 import DatePicker from "./DatePicker";
 import Searchbar from "./Searchbar";
 import DropdownSelector from "./DropdownSelector";
+import Select from "./Select";
 import { orderStatesArray } from "@/lib/utils/orderStates";
 import { useState, memo } from "react";
 import Link from "next/link";
@@ -20,6 +21,10 @@ function Filters(props) {
     linkPath = "/new-purchase",
     showDatePicker = true,
     showDropdownSelector = true,
+    dropdownTitle = "Estado",
+    useSelect = false,
+    selectedOptions = [],
+    multiple = false,
   } = props;
 
   const [loading, setLoading] = useState(false);
@@ -46,12 +51,24 @@ function Filters(props) {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-2 align-middle w-full lg:w-auto mt-2 lg:mt-0 min-h-[42px]">
-        {showDropdownSelector && (
-          <DropdownSelector
+        {useSelect ? (
+          <Select
             options={options}
-            setSelectedOptions={setSelectedOptions}
-            className="w-full md:min-w-[180px]"
+            value={selectedOptions}
+            onChange={setSelectedOptions}
+            multiple={multiple}
+            placeholder={dropdownTitle}
+            className="w-full md:min-w-[300px]"
           />
+        ) : (
+          showDropdownSelector && (
+            <DropdownSelector
+              options={options}
+              setSelectedOptions={setSelectedOptions}
+              className="w-full md:min-w-[180px]"
+              title={dropdownTitle}
+            />
+          )
         )}
         <Link href={linkPath}>
           <Button

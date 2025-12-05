@@ -11,6 +11,7 @@ import Card, { CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import format from "@/lib/utils/format";
+import { useCollections } from "@/lib/hooks/useCollections";
 
 export function createProductListConfig({ bulkProps = {} } = {}) {
   return {
@@ -25,7 +26,16 @@ export function createProductListConfig({ bulkProps = {} } = {}) {
     hookOptions: {
       withInventory: true,
     },
-
+    populate: ["collections"],
+    filterConfig: {
+      hook: useCollections,
+      labelField: "name",
+      valueField: "id",
+      queryField: "collections",
+      label: "Colecciones",
+      useSelect: true,
+    },
+    populate: ["collections"],
     columns: [
       {
         key: "code",
@@ -101,6 +111,19 @@ export function createProductListConfig({ bulkProps = {} } = {}) {
         },
       },
       {
+        key: "required",
+        label: "Requerido",
+        render: (_, product) => {
+          const val = product.inventory?.required;
+          if (val === undefined || val === null) return "-";
+          return (
+            <span className="text-white font-bold text-emerald-400">
+              {format(val)} {product.unit}
+            </span>
+          );
+        },
+      },
+      {
         key: "production",
         label: "En Producción",
         render: (_, product) => {
@@ -118,6 +141,19 @@ export function createProductListConfig({ bulkProps = {} } = {}) {
         label: "En Transito",
         render: (_, product) => {
           const val = product.inventory?.transit;
+          if (val === undefined || val === null) return "-";
+          return (
+            <span className="text-white">
+              {format(val)} {product.unit}
+            </span>
+          );
+        },
+      },
+      {
+        key: "netAvailable",
+        label: "Disponible Neto",
+        render: (_, product) => {
+          const val = product.inventory?.netAvailable;
           if (val === undefined || val === null) return "-";
           return (
             <span className="text-white">

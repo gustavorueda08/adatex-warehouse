@@ -117,7 +117,13 @@ export function createPurchaseDetailConfig({
   deleteOrder,
   productSelectProps = {},
   supplierSelectProps = {},
+  currentSupplier = null,
 }) {
+  const allSuppliers =
+    currentSupplier && !suppliers.find((s) => s.id === currentSupplier.id)
+      ? [currentSupplier, ...suppliers]
+      : suppliers;
+
   return {
     type: "purchase",
     redirectPath: "/purchases",
@@ -130,7 +136,7 @@ export function createPurchaseDetailConfig({
       return parts.filter(Boolean).join(" | ");
     },
     data: {
-      suppliers,
+      suppliers: allSuppliers,
       warehouses,
       products,
     },
@@ -148,7 +154,7 @@ export function createPurchaseDetailConfig({
         type: "select",
         key: "selectedSupplier",
         searchable: true,
-        options: suppliers.map((s) => ({ label: s.name, value: s.id })),
+        options: allSuppliers.map((s) => ({ label: s.name, value: s.id })),
         onSearch: supplierSelectProps.onSearch,
         onLoadMore: supplierSelectProps.onLoadMore,
         hasMore: supplierSelectProps.hasMore,

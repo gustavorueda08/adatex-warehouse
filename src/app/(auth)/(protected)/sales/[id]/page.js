@@ -94,6 +94,7 @@ export default function SaleDetailPage({ params }) {
       refetch,
       productSelectProps,
       customerSelectProps,
+      currentCustomer: order.customer,
     });
   }, [
     order,
