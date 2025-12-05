@@ -19,14 +19,17 @@ export default function Searchbar({
         { "max-w-lg": autoWidth }
       )}
     >
-      <div className="relative w-full">
+      <div className="relative w-full text-white">
         <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-          <MagnifyingGlassIcon className="w-5 h-5" />
+          <MagnifyingGlassIcon
+            className="w-5 h-5 !text-white fill-white"
+            style={{ color: "white" }}
+          />
         </div>
         <input
           type="text"
           id="simple-search"
-          className=" bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-lg  block w-full ps-10 p-2.5 focus:outline-none focus:ring-0 focus:border-transparent"
+          className=" bg-zinc-900 hover:bg-zinc-700 transition-colors dark:text-white !text-white placeholder-gray-400 text-sm rounded-lg  block w-full ps-10 p-2.5 focus:outline-none focus:ring-0 focus:border-transparent"
           placeholder={placeHolder}
           required
           value={search ?? search}

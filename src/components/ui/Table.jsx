@@ -90,9 +90,7 @@ const TableRow = memo(
             <td
               key={column.key}
               className={`p-4 ${column.className || ""} ${
-                colIndex === 0
-                  ? "font-medium text-gray-900 whitespace-nowrap dark:text-white"
-                  : ""
+                colIndex === 0 ? "font-medium text-white whitespace-nowrap" : ""
               } ${colIndex === 0 && !onRowSelect ? "pl-6" : ""}`}
             >
               {detailPath && colIndex === 0 ? (
