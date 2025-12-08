@@ -61,7 +61,8 @@ export function createReturnFormConfig({
           searchable: true,
           options: orders.map((order) => ({
             label: `${buildInvoiceLabel(order)} - ${
-              order.customer?.name || "Sin cliente"
+              `${order.customer?.name} ${order.customer?.lastName || ""}` ||
+              "Sin cliente"
             }`,
             value: order,
           })),

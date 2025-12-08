@@ -11,7 +11,7 @@ import Card, {
 } from "@/components/ui/Card";
 import { ArrowUpIcon, TransferIcon, ChartIcon } from "@/components/ui/Icons";
 import { useDashboard } from "@/lib/hooks/useDashboard";
-import MonthlyActivity from "@/components/dashboard/MonthlyActivity";
+import ActivityChart from "@/components/dashboard/ActivityChart";
 
 export default function Dashboard() {
   const { dashboard, loading } = useDashboard({}, { enabled: true });
@@ -238,17 +238,13 @@ export default function Dashboard() {
         {!loading && (
           <>
             <CardHeader>
-              <CardTitle>Actividad del Mes</CardTitle>
+              <CardTitle>Actividad de Ventas</CardTitle>
               <CardDescription>
-                Resumen de ventas, compras y movimientos de inventario
+                Resumen de ventas por periodo
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {monthlyActivity ? (
-                <MonthlyActivity />
-              ) : (
-                <p>Graficos proximamente</p>
-              )}
+              <ActivityChart data={dashboardData.salesChart} />
             </CardContent>
           </>
         )}

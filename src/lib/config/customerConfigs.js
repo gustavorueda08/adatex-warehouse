@@ -5,6 +5,7 @@ import {
   UserIcon,
 } from "@heroicons/react/24/outline";
 import moment from "moment-timezone";
+import toast from "react-hot-toast";
 
 export const customersListConfig = {
   entityType: "customer",

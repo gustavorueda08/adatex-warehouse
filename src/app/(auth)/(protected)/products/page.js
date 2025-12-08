@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useProducts } from "@/lib/hooks/useProducts";
 import EntityListPage from "@/components/entities/EntityListPage";
-import { createProductListConfig } from "@/lib/config/productConfigs";
+import { useProductListConfig } from "@/lib/config/productConfigs";
 import BulkProductUploader from "@/components/products/BulkProductUploader";
 import Card, { CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -45,7 +45,7 @@ export default function ProductsPage() {
     }
   };
 
-  const config = createProductListConfig({
+  const config = useProductListConfig({
     bulkProps: {
       onFileLoaded: handleBulkUploadLoaded,
       onClear: handleBulkUploadCleared,

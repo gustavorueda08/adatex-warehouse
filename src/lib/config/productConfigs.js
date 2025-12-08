@@ -12,8 +12,11 @@ import Button from "@/components/ui/Button";
 import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import format from "@/lib/utils/format";
 import { useCollections } from "@/lib/hooks/useCollections";
+import { useUser } from "@/lib/hooks/useUser";
 
-export function createProductListConfig({ bulkProps = {} } = {}) {
+export function useProductListConfig({ bulkProps = {} } = {}) {
+  const { user } = useUser();
+
   return {
     title: "Productos",
     description: "Gestiona el catálogo de productos de tu inventario",
@@ -291,53 +294,57 @@ export function createProductListConfig({ bulkProps = {} } = {}) {
       },
     ],
 
-    customSections: [
-      {
-        render: () => (
-          <div className="space-y-4">
-            <BulkProductUploader
-              onFileLoaded={bulkProps.onFileLoaded}
-              onClear={bulkProps.onClear}
-            />
+    customSections:
+      user?.type === "admin"
+        ? [
+            {
+              render: () => (
+                <div className="space-y-4">
+                  <BulkProductUploader
+                    onFileLoaded={bulkProps.onFileLoaded}
+                    onClear={bulkProps.onClear}
+                  />
 
-            {bulkProps.bulkProducts && bulkProps.bulkProducts.length > 0 && (
-              <Card className="border border-emerald-700/50 bg-emerald-900/20">
-                <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <p className="text-white font-semibold">
-                      Enviar lista masiva
-                    </p>
-                    <p className="text-sm text-gray-300">
-                      {bulkProps.bulkProducts.length} productos listos desde el
-                      archivo cargado.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="zinc"
-                      onClick={() => {
-                        bulkProps.resetBulkUpload?.();
-                        bulkProps.onClear();
-                      }}
-                    >
-                      Limpiar
-                    </Button>
-                    <Button
-                      variant="emerald"
-                      className="flex items-center gap-2"
-                      onClick={bulkProps.handleSendBulkList}
-                      loading={bulkProps.sendingBulk}
-                    >
-                      <PaperAirplaneIcon className="w-4 h-4" />
-                      Enviar lista masiva
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ),
-      },
-    ],
+                  {bulkProps.bulkProducts &&
+                    bulkProps.bulkProducts.length > 0 && (
+                      <Card className="border border-emerald-700/50 bg-emerald-900/20">
+                        <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div>
+                            <p className="text-white font-semibold">
+                              Enviar lista masiva
+                            </p>
+                            <p className="text-sm text-gray-300">
+                              {bulkProps.bulkProducts.length} productos listos
+                              desde el archivo cargado.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              variant="zinc"
+                              onClick={() => {
+                                bulkProps.resetBulkUpload?.();
+                                bulkProps.onClear();
+                              }}
+                            >
+                              Limpiar
+                            </Button>
+                            <Button
+                              variant="emerald"
+                              className="flex items-center gap-2"
+                              onClick={bulkProps.handleSendBulkList}
+                              loading={bulkProps.sendingBulk}
+                            >
+                              <PaperAirplaneIcon className="w-4 h-4" />
+                              Enviar lista masiva
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                </div>
+              ),
+            },
+          ]
+        : [],
   };
 }

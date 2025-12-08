@@ -31,7 +31,7 @@ export function createSaleFormConfig({
           type: "select",
           searchable: true,
           options: customers.map((c) => ({
-            label: `${c.name} ${c.lastName}`,
+            label: `${c.name} ${c.lastName || ""}`,
             value: c,
           })),
           onChange: (customer, formState, updateField) => {
@@ -61,7 +61,7 @@ export function createSaleFormConfig({
           searchable: true,
           options: (formState) =>
             (formState.parties || []).map((p) => ({
-              label: `${p.name} ${p.lastName}`,
+              label: `${p.name} ${p.lastName || ""}`,
               value: p,
             })),
         },
@@ -252,7 +252,7 @@ export function createSaleDetailConfig({
         type: "select",
         key: "selectedCustomer",
         options: allCustomers.map((c) => ({
-          label: `${c.name} ${c.lastName}`,
+          label: `${c.name} ${c.lastName || ""}`,
           value: c.id,
         })),
         searchable: true,
@@ -270,7 +270,7 @@ export function createSaleDetailConfig({
         options: (state, data) => {
           if (!state.parties) return [];
           return state.parties.map((p) => ({
-            label: `${p.name} ${p.lastName}`,
+            label: `${p.name} ${p.lastName || ""}`,
             value: p.id,
           }));
         },
