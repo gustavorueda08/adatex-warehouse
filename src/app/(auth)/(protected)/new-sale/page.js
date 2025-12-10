@@ -2,10 +2,14 @@
 
 import DocumentForm from "@/components/documents/DocumentForm";
 import { createSaleFormConfig } from "@/lib/config/saleDocumentConfigs";
+import { createCustomerFormConfig } from "@/lib/config/customerConfigs";
 import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
+import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
+import { useTerritories } from "@/lib/hooks/useTerritories";
+import { useSellerSelector } from "@/lib/hooks/useSellerSelector";
 import { useRouter } from "next/navigation";
 
 /**
@@ -25,6 +29,12 @@ export default function NewSalePage() {
   const productSelector = useProductSelector({ pageSize: 25 });
   const { warehouses = [] } = useWarehouses({});
   const customerSelector = useCustomerSelector({ pageSize: 25 });
+  const { territories = [] } = useTerritories();
+  const sellerSelector = useSellerSelector({ pageSize: 25 });
+  const { createCustomer, creating: creatingCustomer } = useCustomers(
+    {},
+    { enabled: false }
+  );
 
   // Hook para crear la orden
   const { createOrder, creating } = useOrders(
@@ -37,6 +47,24 @@ export default function NewSalePage() {
       },
     }
   );
+
+  // Configuración para creación rápida de cliente
+  const quickCreateCustomer = {
+    config: createCustomerFormConfig({
+      onSubmit: createCustomer,
+      loading: creatingCustomer,
+      territories,
+      sellers: sellerSelector.sellers,
+      sellerSelectProps: {
+        onSearch: sellerSelector.setSearch,
+        onLoadMore: sellerSelector.loadMore,
+        hasMore: sellerSelector.hasMore,
+        loading: sellerSelector.loading,
+        loadingMore: sellerSelector.loadingMore,
+      },
+    }),
+    title: "Crear Nuevo Cliente",
+  };
 
   // Crear la configuración para el formulario de venta
   const config = createSaleFormConfig({
@@ -60,6 +88,7 @@ export default function NewSalePage() {
     },
     onSubmit: createOrder,
     loading: creating,
+    quickCreateCustomer,
   });
 
   return <DocumentForm config={config} />;

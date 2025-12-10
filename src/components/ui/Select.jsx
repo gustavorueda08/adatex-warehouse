@@ -8,7 +8,7 @@ import {
   PlusCircleIcon,
 } from "@heroicons/react/24/outline";
 import Input from "./Input";
-import Searchbar from "./Searchbar";
+// import Searchbar from "./Searchbar"; // Removed as we moved search to trigger
 import IconButton from "./IconButton";
 import { TrashIcon } from "@heroicons/react/24/solid";
 import classNames from "classnames";
@@ -54,6 +54,7 @@ export default function Select({
   const selectRef = useRef(null);
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  const inputRef = useRef(null); // New ref for trigger input
 
   const isControlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(multiple ? [] : null);
@@ -186,8 +187,9 @@ export default function Select({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && searchable && searchRef.current) {
-      setTimeout(() => searchRef.current?.focus(), 50);
+    if (isOpen && searchable && inputRef.current) {
+      // Focus the trigger input when opened
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen, searchable]);
 
@@ -231,8 +233,11 @@ export default function Select({
     commitValue(list.filter((v) => v !== optionValue));
   };
 
-  const toggleDropdown = () => {
+  const toggleDropdown = (e) => {
     if (disabled) return;
+    // If clicking the input itself while open, don't close
+    if (isOpen && e?.target === inputRef.current) return;
+
     setIsOpen((v) => {
       const next = !v;
       if (next === true && searchValue === undefined) {
@@ -284,22 +289,26 @@ export default function Select({
   return (
     <div ref={selectRef} className={classNames("relative", className)}>
       {/* Trigger */}
-      <button
-        type="button"
+      <div
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-controls="select-dropdown"
         onClick={toggleDropdown}
-        disabled={disabled}
         className={classNames(
-          "w-full flex items-center justify-between rounded-md bg-zinc-900 text-white",
+          "w-full flex items-center justify-between rounded-md bg-zinc-900 text-white border border-zinc-700 cursor-pointer",
           "min-h-[44px] md:min-h-[36px] gap-2",
           sizeStyles[size],
-          { "bg-zinc-900 cursor-not-allowed": disabled }
+          {
+            "bg-zinc-900 cursor-not-allowed": disabled,
+            "ring-2 ring-blue-500 border-transparent": isOpen,
+          }
         )}
-        aria-expanded={isOpen}
       >
-        <div className="flex items-center flex-1 min-w-0 py-0.5">
-          {multiple && selectedOptions.length > 0 ? (
-            <div className="flex flex-wrap gap-1 mr-2">
-              {selectedOptions.slice(0, 3).map((option, i) => (
+        <div className="flex items-center flex-1 min-w-0 py-0.5 flex-wrap gap-1">
+          {multiple ? (
+            <>
+              {selectedOptions.map((option, i) => (
                 <span
                   key={`SPAN-${option.value}-${i}`}
                   className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-md"
@@ -314,7 +323,7 @@ export default function Select({
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                        if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           handleRemoveOption(option.value, e);
                         }
@@ -325,46 +334,101 @@ export default function Select({
                   )}
                 </span>
               ))}
-              {selectedOptions.length > 3 && (
-                <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">
-                  +{selectedOptions.length - 3} más
-                </span>
+              {/* Input for multiple select */}
+              {searchable && !disabled && (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={effectiveSearch}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (searchValue === undefined) setInternalSearch(val);
+                    onSearch?.(val);
+                    if (!isOpen) setIsOpen(true);
+                  }}
+                  onFocus={() => !isOpen && setIsOpen(true)}
+                  className="bg-transparent border-none outline-none text-white placeholder-gray-500 min-w-[60px] flex-1 h-6 text-sm p-0 focus:ring-0"
+                  placeholder={selectedOptions.length === 0 ? placeholder : ""}
+                />
               )}
-            </div>
+              {!searchable && selectedOptions.length === 0 && (
+                <span className="text-gray-400">{placeholder}</span>
+              )}
+            </>
           ) : (
-            <div
-              className="truncate text-left w-full"
-              title={String(renderSelectedValue())}
-            >
-              {renderSelectedValue()}
-            </div>
+            // Single Select
+            <>
+              {searchable && !disabled ? (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={
+                    isOpen ? effectiveSearch : selectedOptions[0]?.label || ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (searchValue === undefined) setInternalSearch(val);
+                    onSearch?.(val);
+                    if (!isOpen) setIsOpen(true);
+                  }}
+                  onFocus={(e) => {
+                    if (!isOpen) setIsOpen(true);
+                    // Optional: select text on focus or clear it?
+                    // For now, let's clear internal search if it was just the label
+                    if (searchValue === undefined && !isOpen)
+                      setInternalSearch("");
+                  }}
+                  className="bg-transparent border-none outline-none text-white placeholder-gray-500 w-full h-full text-sm p-0 focus:ring-0"
+                  placeholder={
+                    isOpen
+                      ? selectedOptions[0]?.label || placeholder
+                      : placeholder
+                  }
+                />
+              ) : (
+                <div
+                  className="truncate text-left w-full"
+                  title={String(renderSelectedValue())}
+                >
+                  {renderSelectedValue()}
+                </div>
+              )}
+            </>
           )}
         </div>
 
         <div className="flex items-center space-x-1 flex-shrink-0">
-          {clearable && selectedOptions.length > 0 && !disabled && (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={handleClear}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
+          {clearable &&
+            (selectedOptions.length > 0 || effectiveSearch) &&
+            !disabled && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
                   handleClear(e);
-                }
-              }}
-              className="p-1 rounded hover:bg-zinc-700 cursor-pointer"
-            >
-              <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-200" />
-            </span>
-          )}
+                  if (searchable && inputRef.current) {
+                    inputRef.current.focus();
+                    setInternalSearch("");
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleClear(e);
+                  }
+                }}
+                className="p-1 rounded hover:bg-zinc-700 cursor-pointer"
+              >
+                <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-200" />
+              </span>
+            )}
           <ChevronDownIcon
             className={`w-4 h-4 text-gray-400 transition-transform ${
               isOpen ? "rotate-180" : ""
             }`}
           />
         </div>
-      </button>
+      </div>
 
       {/* Portal */}
       {isOpen &&
@@ -384,30 +448,18 @@ export default function Select({
               maxWidth: "100vw",
             }}
           >
-            {searchable && (
-              <div className="flex flex-row gap-2 p-2 w-full justify-between border-b border-zinc-700">
-                <div className="flex-1 min-w-0">
-                  <Searchbar
-                    ref={searchRef}
-                    search={effectiveSearch}
-                    setSearch={(value) => {
-                      if (searchValue === undefined) {
-                        setInternalSearch(value);
-                      }
-                      onSearch?.(value);
-                    }}
-                  />
-                </div>
-                {hasMenu && (
-                  <div className="flex align-middle justify-center flex-shrink-0">
-                    <IconButton
-                      variant={menuVariant}
-                      onClick={() => onClickMenu()}
-                    >
-                      <PlusCircleIcon className="w-6 h-6" />
-                    </IconButton>
-                  </div>
-                )}
+            {/* Searchbar removed from here */}
+            {hasMenu && (
+              <div className="flex items-center justify-end p-2 border-b border-zinc-700">
+                <Button
+                  variant={menuVariant}
+                  size="sm"
+                  onClick={() => onClickMenu()}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <PlusCircleIcon className="w-4 h-4" />
+                  <span>{menuTitle}</span>
+                </Button>
               </div>
             )}
 
@@ -421,7 +473,9 @@ export default function Select({
                 </div>
               ) : filteredOptions.length === 0 ? (
                 <div className="px-3 py-4 text-sm text-gray-400 text-center">
-                  {effectiveSearch ? "No se encontraron resultados" : emptyMessage}
+                  {effectiveSearch
+                    ? "No se encontraron resultados"
+                    : emptyMessage}
                 </div>
               ) : (
                 <>

@@ -143,9 +143,12 @@ function DocumentListPage({
     // OPTIMIZACIÓN: Solo cargar campos mínimos para la lista
     // Los datos adicionales se cargarán solo al expandir
     populate: [
-      "orderProducts", // Solo IDs para contar
+      "orderProducts",
       "orderProducts.items",
-      ...(relationField ? [relationField] : []), // Solo el campo de relación necesario (customer o supplier) si existe
+      "orderProducts.product", // Needed for update payload
+      "customerForInvoice", // Needed for update payload
+      "sourceWarehouse", // Needed for update payload
+      ...(relationField ? [relationField] : []),
     ],
   });
 
@@ -452,6 +455,38 @@ function DocumentListPage({
     );
   };
 
+  // Helper to prepare update payload
+  const prepareUpdatePayload = (order, updates) => {
+    return {
+      ...updates,
+      notes: order.notes,
+      createdDate: order.createdDate,
+      // Relations (as IDs)
+      [relationField]: order[relationField]?.id,
+      customerForInvoice: order.customerForInvoice?.id,
+      sourceWarehouse: order.sourceWarehouse?.id,
+      emitInvoice: order.emitInvoice,
+
+      // Order Products
+      products: order.orderProducts.map((op) => ({
+        id: op.id,
+        product: op.product?.id,
+        requestedQuantity: op.requestedQuantity,
+        price: op.price,
+        ivaIncluded: op.ivaIncluded,
+        invoicePercentage: op.invoicePercentage,
+        items:
+          op.items?.map((item) => ({
+            id: item.id,
+            lot: item.lot,
+            itemNumber: item.itemNumber,
+            parentItem: item.parentItem?.id || item.parentItem || null,
+            quantity: item.quantity,
+          })) || [],
+      })),
+    };
+  };
+
   // Bulk Actions Handlers
   const handleConfirmSelectedOrders = async () => {
     if (selectedOrders.length === 0) {
@@ -476,9 +511,18 @@ function DocumentListPage({
     const loadingToast = toast.loading("Confirmando órdenes...");
     setBulkLoading(true);
     try {
-      const promises = selectedOrders.map((orderId) =>
-        updateOrder(orderId, { state: "confirmed" })
-      );
+      const promises = selectedOrders.map((orderId) => {
+        const order = orders.find((o) => o.id === orderId);
+        if (!order) return Promise.resolve({ success: false }); // Should not happen
+
+        const payload = prepareUpdatePayload(order, {
+          state: "confirmed",
+          confirmedDate: moment.tz("America/Bogota").toDate(),
+        });
+
+        return updateOrder(orderId, payload);
+      });
+
       const results = await Promise.all(promises);
       const allSuccess = results.every((r) => r.success);
       const failedCount = results.filter((r) => !r.success).length;
@@ -531,9 +575,19 @@ function DocumentListPage({
     const loadingToast = toast.loading("Completando órdenes...");
     setBulkLoading(true);
     try {
-      const promises = selectedOrders.map((orderId) =>
-        updateOrder(orderId, { state: "completed" })
-      );
+      const promises = selectedOrders.map((orderId) => {
+        const order = orders.find((o) => o.id === orderId);
+        if (!order) return Promise.resolve({ success: false });
+
+        const payload = prepareUpdatePayload(order, {
+          state: "completed",
+          completedDate: moment.tz("America/Bogota").toDate(),
+          actualDispatchDate: moment.tz("America/Bogota").toDate(),
+        });
+
+        return updateOrder(orderId, payload);
+      });
+
       const results = await Promise.all(promises);
       const allSuccess = results.every((r) => r.success);
       const failedCount = results.filter((r) => !r.success).length;

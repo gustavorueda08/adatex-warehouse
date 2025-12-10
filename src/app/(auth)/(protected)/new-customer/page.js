@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useTerritories } from "@/lib/hooks/useTerritories";
 import { useSellers } from "@/lib/hooks/useSellers";
+import { useSellerSelector } from "@/lib/hooks/useSellerSelector";
 
 /**
  * EJEMPLO DE USO DEL NUEVO SISTEMA
@@ -34,6 +35,7 @@ export default function NewCustomerPage() {
 
   const { territories = [] } = useTerritories();
   const { sellers = [] } = useSellers();
+  const sellerSelector = useSellerSelector({ pageSize: 20 });
 
   // Crear la configuración para el formulario de cliente
   const config = createCustomerFormConfig({
@@ -41,6 +43,13 @@ export default function NewCustomerPage() {
     loading: creating,
     territories,
     sellers,
+    sellerSelectProps: {
+      onSearch: sellerSelector.setSearch,
+      onLoadMore: sellerSelector.loadMore,
+      hasMore: sellerSelector.hasMore,
+      loading: sellerSelector.loading,
+      loadingMore: sellerSelector.loadingMore,
+    },
   });
 
   return <EntityForm config={config} backPath="/customers" />;

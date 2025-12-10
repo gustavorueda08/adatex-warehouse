@@ -17,9 +17,10 @@ export function createSaleFormConfig({
   loading,
   productSelectProps = {},
   customerSelectProps = {},
+  quickCreateCustomer, // New prop
 }) {
   return {
-    title: "Nueva orden de venta",
+    title: "Nueva Venta",
     type: ORDER_TYPES.SALE,
     loading,
     onSubmit,
@@ -34,6 +35,8 @@ export function createSaleFormConfig({
             label: `${c.name} ${c.lastName || ""}`,
             value: c,
           })),
+          placeholder: "Selecciona un cliente",
+          quickCreate: quickCreateCustomer, // Enable quick create
           onChange: (customer, formState, updateField) => {
             const parties = customer.parties || [];
             updateField("parties", [...parties, customer]);
@@ -59,6 +62,7 @@ export function createSaleFormConfig({
           label: "Cliente para factura",
           type: "select",
           searchable: true,
+          hasMenu: false,
           options: (formState) =>
             (formState.parties || []).map((p) => ({
               label: `${p.name} ${p.lastName || ""}`,
@@ -77,6 +81,7 @@ export function createSaleFormConfig({
           label: "Bodega de origen",
           type: "select",
           searchable: true,
+          hasMenu: false,
           options: warehouses
             .filter((w) => w.type === "stock" || w.type === "printlab")
             .map((w) => ({ label: w.name, value: w })),
@@ -160,6 +165,7 @@ export function createSaleDetailConfig({
   productSelectProps = {},
   customerSelectProps = {},
   currentCustomer = null,
+  quickCreateCustomer,
 }) {
   const allCustomers =
     currentCustomer && !customers.find((c) => c.id === currentCustomer.id)
@@ -256,6 +262,8 @@ export function createSaleDetailConfig({
           value: c.id,
         })),
         searchable: true,
+        placeholder: "Selecciona un cliente",
+        quickCreate: quickCreateCustomer, // Enable quick create
         onChange: "onCustomerChange", // Referencia al state handler
         onSearch: customerSelectProps.onSearch,
         onLoadMore: customerSelectProps.onLoadMore,

@@ -224,10 +224,44 @@ export function createPurchaseDetailConfig({
         },
       },
       {
-        label: "Descargar orden de compra",
+        label: "Descargar Lista de Empaque",
         variant: "cyan",
-        onClick: async (document) => {
-          await handleDocumentExport(document, { includeLot: false });
+        onClick: async (document, state, { showToast }) => {
+          const result = await Swal.fire({
+            title: "Descargar Documento",
+            text: "¿En qué formato deseas descargar?",
+            icon: "question",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: "Excel",
+            denyButtonText: "PDF",
+            cancelButtonText: "Cancelar",
+            background: "#27272a",
+            color: "#fff",
+            confirmButtonColor: "#10b981", // emerald
+            denyButtonColor: "#06b6d4", // cyan
+            cancelButtonColor: "#71717a", // zinc
+          });
+
+          if (result.isConfirmed) {
+            // Usuario seleccionó Excel
+            try {
+              await exportDocumentToExcel(document, { includeLot: false });
+              showToast.success("Documento exportado a Excel exitosamente");
+            } catch (error) {
+              console.error("Error exportando a Excel:", error);
+              showToast.error("Error al exportar el documento a Excel");
+            }
+          } else if (result.isDenied) {
+            // Usuario seleccionó PDF
+            try {
+              await exportDocumentToPDF(document, { includeLot: false });
+              showToast.success("Documento exportado a PDF exitosamente");
+            } catch (error) {
+              console.error("Error exportando a PDF:", error);
+              showToast.error("Error al exportar el documento a PDF");
+            }
+          }
         },
       },
     ],

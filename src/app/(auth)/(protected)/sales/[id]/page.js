@@ -7,6 +7,10 @@ import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { createSaleDetailConfig } from "@/lib/config/saleDocumentConfigs";
+import { createCustomerFormConfig } from "@/lib/config/customerConfigs";
+import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useTerritories } from "@/lib/hooks/useTerritories";
+import { useSellerSelector } from "@/lib/hooks/useSellerSelector";
 
 /**
  * Sales Detail Page V2 - Versión simplificada usando DocumentDetailBaseV2
@@ -40,6 +44,12 @@ export default function SaleDetailPage({ params }) {
 
   // Fetch data needed by the document (hooks must be called at top level)
   const customerSelector = useCustomerSelector({});
+  const { territories = [] } = useTerritories();
+  const sellerSelector = useSellerSelector({ pageSize: 25 });
+  const { createCustomer, creating: creatingCustomer } = useCustomers(
+    {},
+    { enabled: false }
+  );
   const { warehouses } = useWarehouses({});
   const {
     products,
@@ -80,6 +90,27 @@ export default function SaleDetailPage({ params }) {
     [customerSelector]
   );
 
+  // Configuración para creación rápida de cliente
+  const quickCreateCustomer = useMemo(
+    () => ({
+      config: createCustomerFormConfig({
+        onSubmit: createCustomer,
+        loading: creatingCustomer,
+        territories,
+        sellers: sellerSelector.sellers,
+        sellerSelectProps: {
+          onSearch: sellerSelector.setSearch,
+          onLoadMore: sellerSelector.loadMore,
+          hasMore: sellerSelector.hasMore,
+          loading: sellerSelector.loading,
+          loadingMore: sellerSelector.loadingMore,
+        },
+      }),
+      title: "Crear Nuevo Cliente",
+    }),
+    [createCustomer, creatingCustomer, territories, sellerSelector]
+  );
+
   // Crear config con las operaciones CRUD y data fetched
   const config = useMemo(() => {
     if (!order) return null;
@@ -94,7 +125,9 @@ export default function SaleDetailPage({ params }) {
       refetch,
       productSelectProps,
       customerSelectProps,
+      customerSelectProps,
       currentCustomer: order.customer,
+      quickCreateCustomer,
     });
   }, [
     order,
@@ -107,6 +140,7 @@ export default function SaleDetailPage({ params }) {
     productSelectProps,
     customerSelectProps,
     customerSelector.customers,
+    quickCreateCustomer,
   ]);
 
   // Loading state

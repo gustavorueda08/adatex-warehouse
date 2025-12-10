@@ -24,6 +24,11 @@ import {
   TruckIcon,
   ArchiveBoxIcon,
 } from "@heroicons/react/24/outline";
+import dynamic from "next/dynamic";
+
+const QuickCreateModal = dynamic(() => import("./QuickCreateModal"), {
+  ssr: false,
+});
 
 /**
  * Componente genérico para formularios de entidades (customers, suppliers, sellers)
@@ -96,6 +101,8 @@ export default function EntityForm({
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [quickCreateConfig, setQuickCreateConfig] = useState(null);
+  const [extraOptions, setExtraOptions] = useState({}); // To store created items locally
 
   // Inicializar formData con initialData o valores por defecto
   useEffect(() => {
@@ -332,7 +339,48 @@ export default function EntityForm({
                       key={field.name}
                       className={field.fullWidth ? "md:col-span-2" : ""}
                     >
-                      {renderField(field, formData, updateField, errors)}
+                      {renderField(
+                        field,
+                        formData,
+                        updateField,
+                        errors,
+                        (config) => {
+                          // Wrapper for setQuickCreateConfig to inject onSuccess logic
+                          setQuickCreateConfig({
+                            ...config,
+                            config: {
+                              ...config.config,
+                              onSuccess: (newItem) => {
+                                if (newItem) {
+                                  // Add to extra options
+                                  const label =
+                                    newItem.name ||
+                                    newItem.label ||
+                                    "Nuevo Item";
+                                  const option = {
+                                    label,
+                                    value: newItem.id,
+                                    ...newItem,
+                                  };
+                                  setExtraOptions((prev) => ({
+                                    ...prev,
+                                    [field.name]: [
+                                      ...(prev[field.name] || []),
+                                      option,
+                                    ],
+                                  }));
+                                  // Auto select
+                                  updateField(field.name, newItem.id);
+                                }
+                                if (config.config.onSuccess) {
+                                  config.config.onSuccess(newItem);
+                                }
+                              },
+                            },
+                          });
+                        },
+                        extraOptions
+                      )}
                     </div>
                   ))}
                 </div>
@@ -361,7 +409,46 @@ export default function EntityForm({
                     key={field.name}
                     className={field.fullWidth ? "md:col-span-2" : ""}
                   >
-                    {renderField(field, formData, updateField, errors)}
+                    {renderField(
+                      field,
+                      formData,
+                      updateField,
+                      errors,
+                      (config) => {
+                        // Wrapper for setQuickCreateConfig to inject onSuccess logic
+                        setQuickCreateConfig({
+                          ...config,
+                          config: {
+                            ...config.config,
+                            onSuccess: (newItem) => {
+                              if (newItem) {
+                                // Add to extra options
+                                const label =
+                                  newItem.name || newItem.label || "Nuevo Item";
+                                const option = {
+                                  label,
+                                  value: newItem.id,
+                                  ...newItem,
+                                };
+                                setExtraOptions((prev) => ({
+                                  ...prev,
+                                  [field.name]: [
+                                    ...(prev[field.name] || []),
+                                    option,
+                                  ],
+                                }));
+                                // Auto select
+                                updateField(field.name, newItem.id);
+                              }
+                              if (config.config.onSuccess) {
+                                config.config.onSuccess(newItem);
+                              }
+                            },
+                          },
+                        });
+                      },
+                      extraOptions
+                    )}
                   </div>
                 ))}
               </div>
@@ -447,12 +534,29 @@ export default function EntityForm({
           </CardFooter>
         </Card>
       </form>
+
+      {/* Quick Create Modal */}
+      {quickCreateConfig && (
+        <QuickCreateModal
+          isOpen={!!quickCreateConfig}
+          onClose={() => setQuickCreateConfig(null)}
+          config={quickCreateConfig.config}
+          title={quickCreateConfig.title}
+        />
+      )}
     </div>
   );
 }
 
 // Helper para renderizar campos según tipo
-function renderField(field, formData, updateField, errors) {
+function renderField(
+  field,
+  formData,
+  updateField,
+  errors,
+  setQuickCreateConfig,
+  extraOptions
+) {
   const value = formData[field.name];
 
   switch (field.type) {
@@ -462,6 +566,15 @@ function renderField(field, formData, updateField, errors) {
           ? field.options(formData)
           : field.options || [];
 
+      // Merge with extra options if any
+      const currentExtraOptions = extraOptions?.[field.name] || [];
+      const allOptions = [...currentExtraOptions, ...options];
+
+      // Deduplicate by value
+      const uniqueOptions = Array.from(
+        new Map(allOptions.map((item) => [item.value, item])).values()
+      );
+
       return (
         <div key={field.name}>
           <label className="text-sm font-medium text-gray-300 mb-2 block">
@@ -470,7 +583,7 @@ function renderField(field, formData, updateField, errors) {
           </label>
           <Select
             value={value}
-            options={options}
+            options={uniqueOptions}
             searchable={field.searchable}
             clearable={field.clearable}
             onChange={(v) => {
@@ -488,6 +601,43 @@ function renderField(field, formData, updateField, errors) {
             hasMore={field.hasMore}
             loading={field.loading}
             loadingMore={field.loadingMore}
+            // Quick Create
+            hasMenu={
+              field.quickCreate ? field.hasMenu !== false : field.hasMenu
+            }
+            menuTitle={field.quickCreate ? "Crear nuevo" : field.menuTitle}
+            onClickMenu={() => {
+              if (field.quickCreate) {
+                setQuickCreateConfig({
+                  config: {
+                    ...field.quickCreate.config,
+                    onSuccess: (newItem) => {
+                      // Add to extra options
+                      if (newItem && newItem.id) {
+                        // Assuming newItem has id and name/label logic
+                        // We might need a formatter or just use name
+                        const label =
+                          newItem.name || newItem.label || "Nuevo Item";
+                        const option = { label, value: newItem.id, ...newItem };
+
+                        // Update extra options state (we need a setter here, but renderField is outside component)
+                        // We need to pass setExtraOptions to renderField or handle it differently
+                        if (field.quickCreate.onSuccess) {
+                          field.quickCreate.onSuccess(newItem, (opt) => {
+                            // Callback to add option
+                            // This part is tricky because setExtraOptions is not available here directly
+                            // We should pass a wrapper function
+                          });
+                        }
+                      }
+                    },
+                  },
+                  title: "Crear Nuevo",
+                });
+              } else if (field.onClickMenu) {
+                field.onClickMenu();
+              }
+            }}
           />
           {errors[field.name] && (
             <p className="text-sm text-red-500 mt-1">{errors[field.name]}</p>

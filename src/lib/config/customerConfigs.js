@@ -104,6 +104,7 @@ export function createCustomerFormConfig({
   loading,
   territories = [],
   sellers = [],
+  sellerSelectProps = {},
 }) {
   return {
     title: "Crear Nuevo Cliente",
@@ -178,6 +179,11 @@ export function createCustomerFormConfig({
         required: true,
         searchable: true,
         placeholder: "Selecciona un vendedor",
+        onSearch: sellerSelectProps.onSearch,
+        onLoadMore: sellerSelectProps.onLoadMore,
+        hasMore: sellerSelectProps.hasMore,
+        loading: sellerSelectProps.loading,
+        loadingMore: sellerSelectProps.loadingMore,
       },
       {
         name: "address",
@@ -231,11 +237,13 @@ export function createCustomerDetailConfig({
   customerId,
   availableTaxes = [],
   availableParties = [],
+  availableSellers = [],
   updateCustomer,
   updating = false,
   territories = [],
   productSelectProps = {},
   partySelectProps = {},
+  sellerSelectProps = {},
 }) {
   const fieldSections = [
     {
@@ -309,6 +317,23 @@ export function createCustomerDetailConfig({
           placeholder: "Dirección completa del cliente",
           rows: 3,
           fullWidth: true,
+        },
+        {
+          name: "seller",
+          label: "Vendedor",
+          type: "select",
+          required: false,
+          options: (availableSellers || []).map((s) => ({
+            label: s.name,
+            value: s.id,
+          })),
+          searchable: true,
+          placeholder: "Seleccionar vendedor...",
+          onSearch: sellerSelectProps.onSearch,
+          onLoadMore: sellerSelectProps.onLoadMore,
+          hasMore: sellerSelectProps.hasMore,
+          loading: sellerSelectProps.loading,
+          loadingMore: sellerSelectProps.loadingMore,
         },
       ],
     },
@@ -385,6 +410,7 @@ export function createCustomerDetailConfig({
           ivaIncluded: price.ivaIncluded,
           invoicePercentage: price.invoicePercentage,
         })),
+      seller: formData.seller,
     };
 
     const result = await updateCustomer(customerId, dataToSubmit);

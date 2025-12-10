@@ -30,6 +30,11 @@ import { useRouter } from "next/navigation";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { v4 } from "uuid";
 import Input from "../ui/Input";
+import dynamic from "next/dynamic";
+
+const QuickCreateModal = dynamic(() => import("../entities/QuickCreateModal"), {
+  ssr: false,
+});
 
 /**
  * Componente genérico para crear documentos (sales, purchases, inflows, outflows, returns, etc.)
@@ -53,8 +58,12 @@ export default function DocumentForm({ config, onFormStateChange }) {
   const [formState, setFormState] = useState(() => ({
     dateCreated: moment().tz("America/Bogota").toDate(),
     products: [createEmptyProduct()],
+    products: [createEmptyProduct()],
     ...config.initialState,
   }));
+
+  const [quickCreateConfig, setQuickCreateConfig] = useState(null);
+  const [extraOptions, setExtraOptions] = useState({}); // To store created items locally
 
   // Notificar cambios al componente padre
   useEffect(() => {
@@ -171,8 +180,9 @@ export default function DocumentForm({ config, onFormStateChange }) {
 
   // Generar columnas de productos
   const productColumns = useMemo(() => {
+    let columns = [];
     if (config.productColumns) {
-      return config.productColumns({
+      columns = config.productColumns({
         formState,
         updateProductField,
         handleProductSelect,
@@ -180,7 +190,26 @@ export default function DocumentForm({ config, onFormStateChange }) {
         user,
       });
     }
-    return [];
+
+    // Wrap render functions to provide expected context
+    return columns.map((col) => {
+      if (col.render) {
+        return {
+          ...col,
+          render: (value, row, index) => {
+            return col.render({
+              value,
+              row,
+              index,
+              formState,
+              updateField: (field, val) =>
+                updateProductField(row.id, field, val),
+            });
+          },
+        };
+      }
+      return col;
+    });
   }, [
     config,
     formState,
@@ -238,7 +267,47 @@ export default function DocumentForm({ config, onFormStateChange }) {
                   {fieldGroup.map((field) => (
                     <div key={field.key} className={field.className || ""}>
                       <h2 className="font-medium mb-2">{field.label}</h2>
-                      {renderField(field, formState, updateField)}
+
+                      {renderField(
+                        field,
+                        formState,
+                        updateField,
+                        (config) => {
+                          setQuickCreateConfig({
+                            ...config,
+                            config: {
+                              ...config.config,
+                              onSuccess: (newItem) => {
+                                if (newItem) {
+                                  // Add to extra options
+                                  const label =
+                                    newItem.name ||
+                                    newItem.label ||
+                                    "Nuevo Item";
+                                  const option = {
+                                    label,
+                                    value: newItem.id,
+                                    ...newItem,
+                                  };
+                                  setExtraOptions((prev) => ({
+                                    ...prev,
+                                    [field.key]: [
+                                      ...(prev[field.key] || []),
+                                      option,
+                                    ],
+                                  }));
+                                  // Auto select
+                                  updateField(field.key, newItem);
+                                }
+                                if (config.config.onSuccess) {
+                                  config.config.onSuccess(newItem);
+                                }
+                              },
+                            },
+                          });
+                        },
+                        extraOptions
+                      )}
                     </div>
                   ))}
                 </div>
@@ -422,12 +491,28 @@ export default function DocumentForm({ config, onFormStateChange }) {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* Quick Create Modal */}
+      {quickCreateConfig && (
+        <QuickCreateModal
+          isOpen={!!quickCreateConfig}
+          onClose={() => setQuickCreateConfig(null)}
+          config={quickCreateConfig.config}
+          title={quickCreateConfig.title}
+        />
+      )}
     </div>
   );
 }
 
 // Helper para renderizar campos
-function renderField(field, formState, updateField) {
+function renderField(
+  field,
+  formState,
+  updateField,
+  setQuickCreateConfig,
+  extraOptions
+) {
   const value = formState[field.key];
 
   console.log(field);
@@ -439,10 +524,24 @@ function renderField(field, formState, updateField) {
           ? field.options(formState)
           : field.options || [];
 
+      // Merge with extra options if any
+      const currentExtraOptions = extraOptions?.[field.key] || [];
+      const allOptions = [...currentExtraOptions, ...options];
+
+      // Deduplicate by value (assuming value is object with id or just id)
+      const uniqueOptions = Array.from(
+        new Map(
+          allOptions.map((item) => {
+            const key = item.value?.id || item.value;
+            return [key, item];
+          })
+        ).values()
+      );
+
       return (
         <Select
           value={value}
-          options={options}
+          options={uniqueOptions}
           searchable={field.searchable}
           onChange={(v) => {
             updateField(field.key, v);
@@ -457,6 +556,22 @@ function renderField(field, formState, updateField) {
           hasMore={field.hasMore}
           loading={field.loading}
           loadingMore={field.loadingMore}
+          // Quick Create
+          hasMenu={field.quickCreate ? field.hasMenu !== false : field.hasMenu}
+          menuTitle={field.quickCreate ? "Crear nuevo" : field.menuTitle}
+          onClickMenu={() => {
+            if (field.quickCreate) {
+              setQuickCreateConfig({
+                config: {
+                  ...field.quickCreate.config,
+                  // onSuccess is handled in the wrapper passed to renderField
+                },
+                title: "Crear Nuevo",
+              });
+            } else if (field.onClickMenu) {
+              field.onClickMenu();
+            }
+          }}
         />
       );
 

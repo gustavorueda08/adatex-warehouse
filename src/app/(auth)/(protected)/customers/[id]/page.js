@@ -11,6 +11,7 @@ import { createCustomerDetailConfig } from "@/lib/config/customerConfigs";
 import { useTerritories } from "@/lib/hooks/useTerritories";
 import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
+import { useSellerSelector } from "@/lib/hooks/useSellerSelector";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -22,7 +23,14 @@ export default function CustomerDetailPage() {
       {
         filters: { id: { $eq: customerId } },
         pagination: { page: 1, pageSize: 1 },
-        populate: ["taxes", "parties", "prices", "prices.product", "territory"],
+        populate: [
+          "taxes",
+          "parties",
+          "prices",
+          "prices.product",
+          "territory",
+          "seller",
+        ],
       },
       {
         onError: (err) => {
@@ -51,6 +59,7 @@ export default function CustomerDetailPage() {
   // Selectors for async search
   const productSelector = useProductSelector({ pageSize: 20 });
   const customerSelector = useCustomerSelector({ pageSize: 20 });
+  const sellerSelector = useSellerSelector({ pageSize: 20 });
 
   // Obtener parties disponibles (otros clientes)
   const availableParties = useMemo(() => {
@@ -71,6 +80,7 @@ export default function CustomerDetailPage() {
         customerId,
         availableTaxes,
         availableParties,
+        availableSellers: sellerSelector.sellers,
         updateCustomer,
         router,
         updating,
@@ -91,6 +101,13 @@ export default function CustomerDetailPage() {
           loading: customerSelector.loading,
           loadingMore: customerSelector.loadingMore,
         },
+        sellerSelectProps: {
+          onSearch: sellerSelector.setSearch,
+          onLoadMore: sellerSelector.loadMore,
+          hasMore: sellerSelector.hasMore,
+          loading: sellerSelector.loading,
+          loadingMore: sellerSelector.loadingMore,
+        },
       }),
     [
       customerId,
@@ -102,6 +119,7 @@ export default function CustomerDetailPage() {
       territories,
       productSelector,
       customerSelector,
+      sellerSelector,
     ]
   );
 

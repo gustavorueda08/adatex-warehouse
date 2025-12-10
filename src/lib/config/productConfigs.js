@@ -115,7 +115,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
       },
       {
         key: "required",
-        label: "Requerido",
+        label: "Pendiente",
         render: (_, product) => {
           const val = product.inventory?.required;
           if (val === undefined || val === null) return "-";

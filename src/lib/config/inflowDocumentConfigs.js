@@ -59,7 +59,7 @@ export function createInflowFormConfig({
         .filter((p) => p.product)
         .every((p) => p.quantity && Number(p.quantity) > 0);
 
-      return hasWarehouse && hasProducts && allProductsValid;
+      return hasWarehouse; //&& hasProducts; && allProductsValid;
     },
 
     prepareSubmitData: (formState, user) => ({

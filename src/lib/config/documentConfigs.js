@@ -1106,6 +1106,7 @@ export function createProductColumns({
                 onChange={(selectedProduct) =>
                   handleProductSelect(selectedProduct, index)
                 }
+                hasMenu={false}
                 searchable
                 onSearch={onSearchProducts}
                 searchValue={productsSearchTerm}
@@ -1126,6 +1127,7 @@ export function createProductColumns({
                 onChange={(selectedProduct) =>
                   handleProductSelect(selectedProduct, index)
                 }
+                hasMenu={false}
                 searchable
                 onSearch={onSearchProducts}
                 searchValue={productsSearchTerm}
