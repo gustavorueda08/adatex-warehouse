@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
-import { createCustomerFormConfig } from "@/lib/config/entityConfigs";
+import { createCustomerFormConfig } from "@/lib/config/customerConfigs";
 import toast from "react-hot-toast";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useTerritories } from "@/lib/hooks/useTerritories";

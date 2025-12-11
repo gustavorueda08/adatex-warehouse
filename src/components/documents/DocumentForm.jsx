@@ -197,10 +197,7 @@ export default function DocumentForm({ config, onFormStateChange }) {
         return {
           ...col,
           render: (value, row, index) => {
-            return col.render({
-              value,
-              row,
-              index,
+            return col.render(value, row, index, {
               formState,
               updateField: (field, val) =>
                 updateProductField(row.id, field, val),
