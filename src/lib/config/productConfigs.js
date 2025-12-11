@@ -6,6 +6,7 @@ import {
   ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import * as XLSX from "xlsx";
+import Swal from "sweetalert2";
 import BulkProductUploader from "@/components/products/BulkProductUploader";
 import Card, { CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -13,8 +14,10 @@ import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import format from "@/lib/utils/format";
 import { useCollections } from "@/lib/hooks/useCollections";
 import { useUser } from "@/lib/hooks/useUser";
+import { exportInventoryToExcel } from "@/lib/utils/exportInventoryToExcel";
+import { exportItemsToExcel } from "@/lib/utils/exportItemsToExcel";
 
-export function useProductListConfig({ bulkProps = {} } = {}) {
+export function useProductListConfig({ bulkProps = {}, onExportItems } = {}) {
   const { user } = useUser();
 
   return {
@@ -28,6 +31,10 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
     selectable: false,
     hookOptions: {
       withInventory: true,
+    },
+    columnCustomization: {
+      enabled: true,
+      localStorageKey: "productColumnPreferences",
     },
     populate: ["collections"],
     filterConfig: {
@@ -44,6 +51,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
         key: "code",
         label: "Código | Barcode",
         render: (_, product) => `${product.code} | ${product.barcode}`,
+        getValue: (product) => `${product.code} | ${product.barcode || ''}`,
       },
       {
         key: "name",
@@ -59,6 +67,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             )}
           </div>
         ),
+        getValue: (product) => product.name,
       },
       {
         key: "unit",
@@ -66,6 +75,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
         render: (_, product) => (
           <span className="text-white">{product.unit || "-"}</span>
         ),
+        getValue: (product) => product.unit || "-",
       },
       {
         key: "unitsPerPackage",
@@ -73,6 +83,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
         render: (_, product) => (
           <span className="text-white">{product.unitsPerPackage || "-"}</span>
         ),
+        getValue: (product) => product.unitsPerPackage || "-",
       },
       {
         key: "stock",
@@ -86,6 +97,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.stock ?? 0,
       },
       {
         key: "reserved",
@@ -99,6 +111,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.reserved ?? 0,
       },
       {
         key: "available",
@@ -112,6 +125,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.available ?? 0,
       },
       {
         key: "required",
@@ -125,6 +139,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.required ?? 0,
       },
       {
         key: "production",
@@ -138,6 +153,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.production ?? 0,
       },
       {
         key: "transit",
@@ -151,6 +167,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.transit ?? 0,
       },
       {
         key: "netAvailable",
@@ -164,6 +181,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
             </span>
           );
         },
+        getValue: (product) => product.inventory?.netAvailable ?? 0,
       },
       {
         key: "defective",
@@ -173,6 +191,7 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
           if (val === undefined || val === null) return "-";
           return (
             <span className="text-white">
+
               {format(val)} {product.unit}
             </span>
           );
@@ -182,117 +201,94 @@ export function useProductListConfig({ bulkProps = {} } = {}) {
 
     getDetailPath: (product) => `/products/${product.documentId}`,
 
-    getCustomActions: ({ helpers }) => [
-      {
-        label: "Sincronizar con Siigo",
-        variant: "zinc",
-        onClick: () => helpers.syncAllProductsFromSiigo(),
-        loading: helpers.syncing,
-      },
-      {
-        label: "Descargar base en Excel",
+    getCustomActions: ({ helpers }) => {
+      const user = helpers.user;
+      const actions = [];
+
+      // Admin Only Actions
+      if (user?.type === "admin") {
+        actions.push({
+          label: "Sincronizar con Siigo",
+          variant: "zinc",
+          onClick: async () => {
+             const result = await Swal.fire({
+              title: "¿Sincronizar con Siigo?",
+              text: "Esto actualizará todos los productos desde Siigo. Puede tardar unos minutos.",
+              icon: "warning",
+              showCancelButton: true,
+              confirmButtonText: "Sí, sincronizar",
+              cancelButtonText: "Cancelar",
+              confirmButtonColor: "#10b981", // emerald-500
+              background: "#18181b", // zinc-950
+              color: "#fff",
+            });
+
+            if (result.isConfirmed) {
+              helpers.syncAllProductsFromSiigo();
+            }
+          },
+          loading: helpers.syncing,
+        });
+      }
+
+      // Actions for all users
+      actions.push({
+        label: "Exportar Inventario (Excel)",
         variant: "cyan",
         onClick: async () => {
-          const toast = helpers.toast;
-          const normalizeProduct = (product) => {
-            if (!product) return {};
-            const attributes = product.attributes || {};
+             const result = await Swal.fire({
+              title: "¿Exportar Inventario?",
+              text: "Se generará un reporte Excel con el inventario actual filtrado y las columnas visibles.",
+              icon: "question",
+              showCancelButton: true,
+              confirmButtonText: "Sí, exportar",
+              cancelButtonText: "Cancelar",
+              confirmButtonColor: "#06b6d4", // cyan-500
+              background: "#18181b", // zinc-950
+              color: "#fff",
+            });
 
-            return {
-              id: product.id ?? attributes.id,
-              documentId:
-                product.documentId ?? attributes.documentId ?? attributes.id,
-              code: product.code ?? attributes.code,
-              name: product.name ?? attributes.name,
-              barcode: product.barcode ?? attributes.barcode,
-              description: product.description ?? attributes.description,
-              unit: product.unit ?? attributes.unit,
-              unitsPerPackage:
-                product.unitsPerPackage ?? attributes.unitsPerPackage ?? null,
-              isActive: product.isActive ?? attributes.isActive ?? true,
-              createdAt: product.createdAt ?? attributes.createdAt,
-              updatedAt: product.updatedAt ?? attributes.updatedAt,
-            };
-          };
+            if (!result.isConfirmed) return;
 
-          try {
-            const pageSize = 200;
-            let page = 1;
-            let pageCount = 1;
-            const allProducts = [];
-
-            const loadingToast = toast.loading("Descargando productos...");
-
-            do {
-              const response = await fetch(
-                `/api/strapi/products?pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=name:asc`
-              );
-              const result = await response.json();
-
-              if (!response.ok) {
-                throw new Error(
-                  result.error?.message ||
-                    result.message ||
-                    `Error ${response.status}: ${response.statusText}`
-                );
-              }
-
-              const pageData = Array.isArray(result.data) ? result.data : [];
-              pageData.forEach((product) =>
-                allProducts.push(normalizeProduct(product))
-              );
-
-              const paginationData = result.meta?.pagination;
-              pageCount = Math.max(paginationData?.pageCount || 1, page);
-              page += 1;
-            } while (page <= pageCount);
-
-            if (allProducts.length === 0) {
-              toast.dismiss(loadingToast);
-              toast.error("No hay productos para exportar");
-              return;
-            }
-
-            const formatDate = (value) => {
-              const date = value ? new Date(value) : null;
-              return date && !Number.isNaN(date.getTime())
-                ? date.toLocaleString("es-ES")
-                : "";
-            };
-
-            const exportRows = allProducts.map((product) => ({
-              Codigo: product.code || "-",
-              Nombre: product.name || "-",
-              Unidad: product.unit || "-",
-              "Unidades por paquete": product.unitsPerPackage ?? "",
-              Barcode: product.barcode || "",
-              Descripcion: product.description || "",
-              Estado: product.isActive ? "Activo" : "Inactivo",
-              "Creado el": formatDate(product.createdAt),
-              "Actualizado el": formatDate(product.updatedAt),
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(exportRows);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
-            const fileName = `productos-${new Date()
-              .toISOString()
-              .slice(0, 10)}.xlsx`;
-            XLSX.writeFile(workbook, fileName);
-
-            toast.dismiss(loadingToast);
-            toast.success(
-              `Descargados ${allProducts.length} productos en Excel`
-            );
-          } catch (error) {
-            console.error("Error exportando productos:", error);
-            toast.error(
-              error.message || "No se pudo exportar la base de productos"
-            );
-          }
+            await exportInventoryToExcel({
+                 filters: helpers.filters,
+                 columns: helpers.columns,
+                 toast: helpers.toast,
+            });
         },
-      },
-    ],
+      });
+
+      actions.push({
+        label: "Exportar Detalle (Items)",
+        variant: "zinc", // Different color to distinguish
+        onClick: async () => {
+             const result = await Swal.fire({
+              title: "¿Exportar Detalle?",
+              text: "Se generará un reporte detallado con todos los items (rollos/unidades) de los productos filtrados.",
+              icon: "question",
+              showCancelButton: true,
+              confirmButtonText: "Sí, exportar",
+              cancelButtonText: "Cancelar",
+              confirmButtonColor: "#3f3f46", // zinc-700
+              background: "#18181b", // zinc-950
+              color: "#fff",
+            });
+
+            if (!result.isConfirmed) return;
+
+            if (onExportItems) {
+                onExportItems(helpers.filters);
+            } else {
+                 await exportItemsToExcel({
+                     filters: helpers.filters,
+                     toast: helpers.toast,
+                });
+            }
+        },
+      });
+
+      return actions;
+    },
 
     customSections:
       user?.type === "admin"

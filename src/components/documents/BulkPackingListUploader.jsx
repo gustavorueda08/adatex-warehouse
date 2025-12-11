@@ -28,6 +28,7 @@ export default function BulkPackingListUploader({
   onFileLoaded,
   isReadOnly = false,
   context = {},
+  requiredColumns = null,
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,8 +36,8 @@ export default function BulkPackingListUploader({
   const [previewData, setPreviewData] = useState([]);
   const fileInputRef = useRef(null);
 
-  // Columnas requeridas en el Excel
-  const requiredColumns = [
+  // Columnas requeridas en el Excel (Default o Props)
+  const columnsToValidate = requiredColumns || [
     { key: "ID", label: "ID", description: "ID del producto" },
     { key: "NOMBRE", label: "NOMBRE", description: "Nombre del producto" },
     { key: "CANTIDAD", label: "CANTIDAD", description: "Cantidad a recibir" },
@@ -232,7 +233,7 @@ export default function BulkPackingListUploader({
             Formato requerido
           </h4>
           <div className="flex flex-wrap gap-2">
-            {requiredColumns.map((col) => (
+            {columnsToValidate.map((col) => (
               <div
                 key={col.key}
                 className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-600/20 border border-cyan-500/30 rounded-full"

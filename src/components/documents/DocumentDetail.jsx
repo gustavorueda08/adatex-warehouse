@@ -84,9 +84,20 @@ export default function DocumentDetail({ config, initialData }) {
     [config, documentState]
   );
 
-  const allowAddItems = config.allowAddItems;
+  const allowAddItems =
+    typeof config.allowAddItems === "function"
+      ? config.allowAddItems(documentState)
+      : config.allowAddItems;
   const showMainItemInput = config.showItemInput;
   const allowManualEntry = config.allowManualEntry;
+
+  // Preparar documento estable para hook (evitar re-renders infinitos)
+  const stableDocument = useMemo(() => {
+    const initialState = config.getInitialState
+      ? config.getInitialState(initialData)
+      : {};
+    return { ...initialData, ...initialState };
+  }, [initialData, config]);
 
   // Usar el hook existente para manejo de productos/items
   const {
@@ -107,7 +118,7 @@ export default function DocumentDetail({ config, initialData }) {
     toggleExpanded,
     getAvailableProductsForRow,
   } = useDocumentDetail({
-    document: initialData,
+    document: stableDocument,
     updateDocument:
       config.updateDocument || (() => Promise.resolve({ success: false })),
     deleteDocument:
@@ -120,6 +131,7 @@ export default function DocumentDetail({ config, initialData }) {
     redirectPath: config.redirectPath,
     prepareUpdateData,
     allowAutoCreateItems: allowAddItems,
+    disableDedupe: config.disableDedupe,
   });
 
   const resolveProductValue = useCallback(
@@ -627,24 +639,35 @@ export default function DocumentDetail({ config, initialData }) {
   // Calcular estadísticas globales de la lista de empaque
   const packingListStats = useMemo(() => {
     const productsWithItems = products.filter((p) => p.product);
+    
     const totalItems = productsWithItems.reduce(
-      (acc, p) => acc + (p.items?.length || 0),
+      (acc, p) => acc + (Array.isArray(p.items) ? p.items.length : 1),
       0
     );
+    
     const totalQuantity = productsWithItems.reduce(
-      (acc, p) =>
-        acc +
-        (p.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) ||
-          0),
+      (acc, p) => {
+        if (Array.isArray(p.items)) {
+          return acc + p.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        }
+        return acc + Number(p.quantity || p.targetQuantity || 0);
+      },
       0
     );
+    
     const totalRequested = productsWithItems.reduce(
       (acc, p) => acc + Number(p.requestedQuantity || 0),
       0
     );
+    
     const itemsWithQuantity = productsWithItems.reduce(
-      (acc, p) =>
-        acc + (p.items?.filter((item) => item.quantity > 0).length || 0),
+      (acc, p) => {
+        if (Array.isArray(p.items)) {
+          return acc + p.items.filter((item) => item.quantity > 0).length;
+        }
+        const qty = Number(p.quantity || p.targetQuantity || 0);
+        return acc + (qty > 0 ? 1 : 0);
+      },
       0
     );
 
@@ -738,8 +761,9 @@ export default function DocumentDetail({ config, initialData }) {
       </Card>
 
       {/* Lista de empaque Card */}
-      {products.filter((p) => p.product).length > 0 && (
-        <Card>
+      {products.filter((p) => p.product).length > 0 &&
+        config.showPackingList !== false && (
+          <Card>
           <CardHeader>
             <div className="flex items-center gap-3 mb-4">
               <ClipboardDocumentListIcon className="w-6 h-6 text-emerald-400" />

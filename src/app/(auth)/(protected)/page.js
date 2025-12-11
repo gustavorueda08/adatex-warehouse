@@ -12,9 +12,27 @@ import Card, {
 import { ArrowUpIcon, TransferIcon, ChartIcon } from "@/components/ui/Icons";
 import { useDashboard } from "@/lib/hooks/useDashboard";
 import ActivityChart from "@/components/dashboard/ActivityChart";
+import { useUser } from "@/lib/hooks/useUser";
+import { useMemo } from "react";
 
 export default function Dashboard() {
-  const { dashboard, loading } = useDashboard({}, { enabled: true });
+  const { user } = useUser();
+  const sellerId = useMemo(() => {
+    if (user?.type === "seller" && user?.seller?.id) {
+      return user.seller.id;
+    }
+    return null;
+  }, [user]);
+
+  console.log("DEBUG: Dashboard Page - User:", user);
+  console.log("DEBUG: Dashboard Page - Computed sellerId:", sellerId);
+
+  const { dashboard, loading } = useDashboard(
+    {
+      ...(sellerId ? { sellerId } : {}),
+    },
+    { enabled: true }
+  );
   console.log(dashboard, "dashboard data");
 
   // dashboard es un array según el formato de useStrapi

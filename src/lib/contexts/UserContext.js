@@ -17,6 +17,7 @@ export function UserProvider(props) {
 
   const signOut = useCallback(async () => {
     try {
+      await fetch("/api/auth/logout", { method: "POST" });
       localStorage.removeItem(USER_CACHE_KEY);
       localStorage.removeItem(USER_CACHE_TIMESTAMP_KEY);
       setUser(null);
@@ -54,7 +55,7 @@ export function UserProvider(props) {
 
       // Si no hay caché válido o es refetch forzado, hacer fetch
       isFetchingRef.current = true;
-      const response = await fetch("/api/auth/me");
+      const response = await fetch("/api/auth/me?populate=seller");
 
       if (response.ok) {
         const data = await response.json();

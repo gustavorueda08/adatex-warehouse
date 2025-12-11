@@ -19,7 +19,9 @@ import { v4 } from "uuid";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+
 import { buildInvoiceLabel } from "@/lib/utils/invoiceLabel";
+import { useUser } from "@/lib/hooks/useUser";
 
 /**
  * Componente reutilizable para listado de documentos (sales, purchases, returns, etc.)
@@ -61,6 +63,17 @@ function DocumentListPage({
     new Set(states.map((s) => s.key))
   );
   const [bulkLoading, setBulkLoading] = useState(false);
+  const { user } = useUser();
+
+  // Filtros adicionales basados en el rol del usuario
+  const additionalFilters = {};
+  if (documentType === "sale" && user?.type === "seller" && user?.seller?.id) {
+    additionalFilters.customer = {
+      seller: {
+        id: user.seller.id,
+      },
+    };
+  }
 
   useEffect(() => {
     setCurrentPage(1);
@@ -138,7 +151,9 @@ function DocumentListPage({
       ...(selectedStates.size > 0
         ? { state: { $in: Array.from(selectedStates) } }
         : {}),
+
       ...buildDateFilter(range),
+      ...additionalFilters,
     },
     // OPTIMIZACIÓN: Solo cargar campos mínimos para la lista
     // Los datos adicionales se cargarán solo al expandir

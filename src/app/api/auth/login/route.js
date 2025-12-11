@@ -60,7 +60,23 @@ export async function POST(request) {
       );
     }
     await setSessionCookie(data.jwt);
-    return NextResponse.json(data, { status: 201 });
+
+    // Fetch user with seller populate
+    const userRes = await fetch(
+      `${STRAPI_URL}/api/users/me?populate=seller`,
+      {
+        headers: {
+          Authorization: `Bearer ${data.jwt}`,
+        },
+      }
+    );
+
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      return NextResponse.json({ ...data, user: userData }, { status: 200 });
+    }
+
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
     console.error("API Route Error:", error);
     return NextResponse.json(

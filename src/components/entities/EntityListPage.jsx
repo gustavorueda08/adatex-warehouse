@@ -3,6 +3,7 @@
 import Filters from "@/components/ui/Filters";
 import Table from "@/components/ui/Table";
 import Button from "@/components/ui/Button";
+import ColumnCustomizer from "@/components/ui/ColumnCustomizer";
 import Card, {
   CardHeader,
   CardTitle,
@@ -87,6 +88,8 @@ function EntityListPage({
       ? selectableProp
       : true;
 
+
+
   const [selectedEntities, setSelectedEntities] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -94,6 +97,45 @@ function EntityListPage({
   const [range, setRange] = useState({ from: null, to: null });
   const [bulkLoading, setBulkLoading] = useState(false);
   const { user } = useUser();
+
+  // Column Customization Logic
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState([]);
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+  const customizationConfig = config?.columnCustomization;
+
+  useEffect(() => {
+    if (customizationConfig?.enabled && customizationConfig?.localStorageKey) {
+      const saved = localStorage.getItem(customizationConfig.localStorageKey);
+      if (saved) {
+        try {
+          setVisibleColumnKeys(JSON.parse(saved));
+        } catch (e) {
+          setVisibleColumnKeys(columns.map((c) => c.key));
+        }
+      } else {
+        setVisibleColumnKeys(columns.map((c) => c.key));
+      }
+      setIsConfigLoaded(true);
+    } else {
+       // If customization is disabled, just mark as loaded and use all columns
+       // although strictly we don't need this state if disabled, but it simplifies logic
+       setIsConfigLoaded(true); 
+    }
+  }, [customizationConfig, columns]); // Re-run if config changes
+
+  const handleColumnChange = (newKeys) => {
+    setVisibleColumnKeys(newKeys);
+    if (customizationConfig?.localStorageKey) {
+      localStorage.setItem(customizationConfig.localStorageKey, JSON.stringify(newKeys));
+    }
+  };
+
+  const activeColumns = (customizationConfig?.enabled && isConfigLoaded)
+    ? visibleColumnKeys
+        .map((key) => columns.find((col) => col.key === key))
+        .filter(Boolean)
+    : columns; 
+
 
   useEffect(() => {
     setCurrentPage(1);
@@ -317,6 +359,8 @@ function EntityListPage({
     setBulkLoading,
     toast,
     user,
+    filters, // Expose current filters
+    columns: activeColumns, // Expose currently visible columns
     ...restOfHook, // Spread de todas las propiedades adicionales del hook
   };
 
@@ -327,10 +371,19 @@ function EntityListPage({
 
   return (
     <div className="w-full px-4 pb-6">
-      {/* Header con título */}
-      <div className="py-6">
-        <h1 className="text-3xl font-bold text-white mb-2">{title}</h1>
-        {description && <p className="text-gray-400 text-sm">{description}</p>}
+      <div className="py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+           <h1 className="text-3xl font-bold text-white mb-2">{title}</h1>
+           {description && <p className="text-gray-400 text-sm">{description}</p>}
+        </div>
+        
+        {customizationConfig?.enabled && isConfigLoaded && (
+          <ColumnCustomizer
+            allColumns={columns}
+            visibleColumnKeys={visibleColumnKeys}
+            onChange={handleColumnChange}
+          />
+        )}
       </div>
 
       {/* Card principal con filtros */}
@@ -388,7 +441,7 @@ function EntityListPage({
         <CardContent className="p-0">
           <div className="py-4">
             <Table
-              columns={columns}
+              columns={activeColumns}
               data={entities}
               onRowSelect={selectable ? handleEntitySelection : undefined}
               onRowEdit={handleEntityEdit}

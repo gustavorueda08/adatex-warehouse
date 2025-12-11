@@ -317,6 +317,24 @@ export function buildStrapiQuery(params = {}) {
     allParams.q = params.q;
   }
 
+  // Pasar otros parámetros personalizados que no sean los estándar de Strapi
+  const reservedKeys = [
+    "filters",
+    "populate",
+    "sort",
+    "pagination",
+    "fields",
+    "locale",
+    "publicationState",
+    "q",
+  ];
+
+  Object.keys(params).forEach((key) => {
+    if (!reservedKeys.includes(key)) {
+      allParams[key] = params[key];
+    }
+  });
+
   // Convertir a query string SIN usar URLSearchParams para evitar doble encoding
   const queryString = Object.entries(allParams)
     .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
