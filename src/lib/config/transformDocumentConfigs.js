@@ -76,12 +76,10 @@ export function createTransformFormConfig({
         key: "items",
         label: "Items Origen (Consumir)",
         type: "custom",
-        render: ({ value, formState: localFormState, updateField }) => (
+        render: (value, row, index, { updateField }) => (
           <TransformSourceItemsInput
             value={value || []}
-            onChange={(newVal) =>
-              updateProductField(localFormState.id, "items", newVal)
-            }
+            onChange={(newVal) => updateField("items", newVal)}
             availableItems={availableItems}
           />
         ),
@@ -170,7 +168,7 @@ export function createTransformDetailConfig({
         key: "items",
         label: "Detalle Transformación",
         type: "custom",
-        render: ({ value }) => (
+        render: (value) => (
           <TransformSourceItemsInput value={value || []} readOnly={true} />
         ),
       },
