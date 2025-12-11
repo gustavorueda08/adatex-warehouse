@@ -9,7 +9,7 @@ import { useDebouncedValue } from "./useDebouncedValue";
  * @param {number} options.pageSize - Number of items per page
  * @returns {Object} { items, loading, hasMore, onSearch, onLoadMore }
  */
-export function useItemSelector({ warehouseId, pageSize = 20 } = {}) {
+export function useItemSelector({ warehouseId, productId, pageSize = 20 } = {}) {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebouncedValue(searchTerm, 500);
 
@@ -30,6 +30,10 @@ export function useItemSelector({ warehouseId, pageSize = 20 } = {}) {
     if (warehouseId) {
       baseFilters.warehouse = warehouseId;
     }
+
+    if (productId) {
+      baseFilters.product = productId;
+    }
     
     // Default: only show available items
     baseFilters.currentQuantity = { $gt: 0 };
@@ -43,10 +47,7 @@ export function useItemSelector({ warehouseId, pageSize = 20 } = {}) {
     // Base search options
     const orFilters = [
         { id: { $eq: term } }, // Exact ID match
-        { lot: { $containsi: term } }, // Lot match
-        { product: { name: { $containsi: term } } }, // Product Name
-        { product: { code: { $containsi: term } } }, // Product Code
-        { product: { barcode: { $containsi: term } } }, // Product Barcode
+        { currentQuantity: { $eq: term } }, // Product Name
     ];
 
     // If term is a number, allow searching by quantity
@@ -58,7 +59,7 @@ export function useItemSelector({ warehouseId, pageSize = 20 } = {}) {
       ...baseFilters,
       $or: orFilters,
     };
-  }, [warehouseId, debouncedSearch]);
+  }, [warehouseId, productId, debouncedSearch]);
 
   const {
     items: entities,

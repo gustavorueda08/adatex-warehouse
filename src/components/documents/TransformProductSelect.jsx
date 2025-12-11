@@ -18,7 +18,7 @@ export default function TransformProductSelect({
   } = useProductSelector({ pageSize: 20 });
 
   const options = products.map((p) => ({
-    label: `${p.name} - ${p.code || "S/C"}`,
+    label: `${p.name} - ${p.unit}`,
     value: p.id,
     product: p,
   }));
@@ -82,6 +82,7 @@ export default function TransformProductSelect({
       hasMore={hasMore}
       onLoadMore={loadMore}
       disabled={disabled}
+      hasMenu={false}
     />
   );
 }

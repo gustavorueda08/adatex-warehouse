@@ -94,12 +94,31 @@ export function createTransformFormConfig({
     },
     productColumns: ({ formState, updateProductField }) => [
       {
+        key: "sourceProduct",
+        label: "Producto Origen",
+        type: "custom",
+        render: (value, row, index, { updateField }) => (
+          <TransformProductSelect
+            value={value}
+            onChange={(newVal) => {
+              updateField("sourceProduct", newVal);
+              updateField("sourceItem", null); // Reset item when product changes
+              updateField("sourceQuantity", 0);
+            }}
+            placeholder="Selecciona producto origen"
+          />
+        ),
+        className: "min-w-[200px]",
+        required: true,
+      },
+      {
         key: "sourceItem",
-        label: "Item Origen",
+        label: "Item Origen (Lote)",
         type: "custom",
         render: (value, row, index, { updateField, formState }) => (
           <TransformItemSelect
             value={value}
+            productId={row.sourceProduct?.id}
             onChange={(item) => {
               updateField("sourceItem", item?.id);
               updateField("sourceQuantity", item?.currentQuantity ?? item?.quantity ?? 0);

@@ -7,6 +7,7 @@ export default function TransformItemSelect({
   value,
   onChange,
   warehouseId,
+  productId,
   disabled,
   placeholder = "Buscar item...",
 }) {
@@ -18,22 +19,15 @@ export default function TransformItemSelect({
     onLoadMore,
     onSearch,
     searchValue,
-  } = useItemSelector({ warehouseId });
+  } = useItemSelector({ warehouseId, productId });
 
   const itemOptions = useMemo(() => {
-    // If current value is not in availableItems (e.g. initial load), we might want to fetch it or handle it.
-    // However, for now, we rely on search finding it.
-    // Ideally, we should add the current 'value' (if it's an object) to options if not present.
-    // But value here is likely just ID?
-    // If value is ID, Select component usually needs the option to be present to show the label.
-    // If 'value' is passed as the Item object, it's easier.
-    
     return availableItems.map((item) => ({
-      label: `${item.product?.name || "Item"} - ${
+      label: `${
         item.product?.barcode || "S/B"
       } - ${format(item.currentQuantity ?? item.quantity)} ${
         item.product?.unit || ""
-      } - Lote: ${item.lot || "N/A"}`,
+      }`,
       value: item.id,
       item: item,
     }));
@@ -61,9 +55,14 @@ export default function TransformItemSelect({
       hasMore={hasMore}
       onLoadMore={onLoadMore}
       emptyMessage={
-        warehouseId ? "No se encontraron items" : "Selecciona una bodega primero"
+        !warehouseId 
+          ? "Selecciona una bodega primero" 
+          : !productId 
+            ? "Selecciona un producto primero" 
+            : "No se encontraron items"
       }
-      disabled={disabled || !warehouseId}
+      disabled={disabled || !warehouseId || !productId}
+      hasMenu={false}
     />
   );
 }
