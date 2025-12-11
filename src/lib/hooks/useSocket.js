@@ -59,7 +59,12 @@ export function useSocket(options = {}) {
 
         if (cancelled) return;
 
-        const socketUrl = process.env.STRAPI_URL || "http://localhost:1337";
+        if (cancelled) return;
+
+        const socketUrl =
+          process.env.NEXT_PUBLIC_STRAPI_URL ||
+          process.env.STRAPI_URL ||
+          "http://localhost:1337";
 
         // Crear conexión con token
         const socket = io(socketUrl, {

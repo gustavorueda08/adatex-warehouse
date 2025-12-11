@@ -149,9 +149,12 @@ export function useDocumentDetail(config) {
   }, [isConnected, document?.id, joinOrder, leaveOrder, on, disableDedupe, allowAutoCreateItems]);
 
   // Inicializar productos desde el documento
+  const productsKey = getProductsKey(documentType);
+  const documentProductsRaw = document ? document[productsKey] || [] : [];
+  const documentProductsDeep = JSON.stringify(documentProductsRaw);
+
   useEffect(() => {
     if (document) {
-      const productsKey = getProductsKey(documentType);
       const documentProducts = document[productsKey] || [];
       const mapped = documentProducts.map((op) => {
           if (disableDedupe) return op; // Return raw row for flat structures
@@ -174,7 +177,8 @@ export function useDocumentDetail(config) {
       setProducts(dedupeProductsList(withEmpty, allowAutoCreateItems, disableDedupe));
       setNotes(document.notes || "");
     }
-  }, [document, documentType, allowAutoCreateItems, disableDedupe]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document?.id, documentProductsDeep, documentType, allowAutoCreateItems, disableDedupe]);
 
   // Actualizar producto
   const updateProductField = useCallback((productId, field, value) => {
@@ -268,6 +272,7 @@ export function useDocumentDetail(config) {
         toast.dismiss(loadingToast);
         setProducts((current) =>
           current.map((product) => {
+            // Verify if we are targeting by Row ID (product.id) or Product ID (product.product.id)
             if (product?.id === productId) {
               return {
                 ...product,
@@ -315,7 +320,21 @@ export function useDocumentDetail(config) {
         const { currentQuantity, ...item } = response.data;
         setProducts((current) =>
           current.map((product) => {
-            if (product?.product?.id === item.product) {
+            const currentProductId =
+              typeof product?.product === "object"
+                ? product?.product?.id
+                : product?.product;
+
+            const targetProductId =
+              typeof item.product === "object"
+                ? item.product?.id
+                : item.product;
+
+            if (currentProductId === targetProductId) {
+              // Check if item already exists to prevent duplicates (e.g. from socket race condition)
+              const existingItem = product.items.find((i) => i.id === item.id);
+              if (existingItem) return product;
+
               return {
                 ...product,
                 items: [
