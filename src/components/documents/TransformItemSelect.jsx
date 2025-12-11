@@ -24,7 +24,7 @@ export default function TransformItemSelect({
   const itemOptions = useMemo(() => {
     return availableItems.map((item) => ({
       label: `${
-        item.product?.barcode || "S/B"
+        item?.barcode || "S/B"
       } - ${format(item.currentQuantity ?? item.quantity)} ${
         item.product?.unit || ""
       }`,
