@@ -24,6 +24,7 @@ import {
   BoltIcon,
 } from "@heroicons/react/24/outline";
 import { useDocumentDetail } from "@/lib/hooks/useDocumentDetail";
+import { useUser } from "@/lib/hooks/useUser";
 import { PackingListProduct } from "./PackingListProduct";
 import format from "@/lib/utils/format";
 import unitsAreConsistent from "@/lib/utils/unitsConsistency";
@@ -169,9 +170,12 @@ export default function DocumentDetail({ config, initialData }) {
     ]
   );
 
+  const { user } = useUser();
+
   // Determinar si es read-only
   const isReadOnly =
-    initialData?.state === "completed" || initialData?.state === "canceled";
+    user?.type !== "admin" &&
+    (initialData?.state === "completed" || initialData?.state === "canceled");
 
   // Calcular título
   const title = useMemo(() => {
