@@ -353,7 +353,9 @@ export function createSaleDetailConfig({
             ...row,
             product,
             price: String(priceData.unitPrice),
-            ivaIncluded: priceData.ivaIncluded || false,
+            ivaIncluded:
+              priceData.ivaIncluded === true ||
+              String(priceData.ivaIncluded) === "true",
             invoicePercentage: priceData.invoicePercentage || 100,
           };
         }

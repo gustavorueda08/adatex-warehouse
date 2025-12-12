@@ -63,6 +63,7 @@ const TableRow = memo(
             <td className="w-8 p-4">
               {canExpand ? (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggleExpand(rowId);
@@ -545,6 +546,7 @@ export default function Table({
 
                       {onRowDelete && canDelete && (
                         <button
+                          type="button"
                           onClick={() => onRowDelete(row.id, rowIndex)}
                           className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
                         >
@@ -554,6 +556,7 @@ export default function Table({
 
                       {renderExpandedContent && canExpand && (
                         <button
+                          type="button"
                           onClick={() => toggleRowExpansion(rowId)}
                           className="p-2 rounded-lg hover:bg-neutral-800 transition-colors"
                         >
@@ -817,6 +820,7 @@ export default function Table({
               <ul className="inline-flex text-sm h-8 gap-1">
                 <li>
                   <button
+                    type="button"
                     onClick={() =>
                       onPageChange && onPageChange(pagination.page - 1)
                     }
@@ -833,6 +837,7 @@ export default function Table({
                 ).map((pageNum) => (
                   <li key={`page-${pageNum}`}>
                     <button
+                      type="button"
                       onClick={() => onPageChange && onPageChange(pageNum)}
                       className={`flex items-center justify-center px-4 h-8 leading-tight rounded-lg transition-colors ${
                         pagination.page === pageNum
@@ -847,6 +852,7 @@ export default function Table({
 
                 <li>
                   <button
+                    type="button"
                     onClick={() =>
                       onPageChange && onPageChange(pagination.page + 1)
                     }

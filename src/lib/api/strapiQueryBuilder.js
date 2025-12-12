@@ -172,43 +172,20 @@ function buildPopulate(populate) {
             ) {
               // Populate anidado
               processPopulate(configValue, `${currentPath}[${configKey}]`);
-            } else if (configKey === "sort" && Array.isArray(configValue)) {
-              // Sort en populate
-              configValue.forEach((sortItem, index) => {
-                result[`${currentPath}[${configKey}][${index}]`] = sortItem;
+            } else if (configKey === "filters") {
+              const filters = buildFilters(configValue);
+              Object.entries(filters).forEach(([filterKey, filterValue]) => {
+                result[`${currentPath}[filters][${filterKey}]`] = filterValue;
               });
-            } else if (
-              configKey === "filters" &&
-              typeof configValue === "object"
-            ) {
-              // Filtros en populate
-              Object.entries(configValue).forEach(
-                ([filterKey, filterValue]) => {
-                  if (
-                    typeof filterValue === "object" &&
-                    !Array.isArray(filterValue)
-                  ) {
-                    Object.entries(filterValue).forEach(
-                      ([operator, operatorValue]) => {
-                        if (Array.isArray(operatorValue)) {
-                          operatorValue.forEach((item, index) => {
-                            result[
-                              `${currentPath}[${configKey}][${filterKey}][${operator}][${index}]`
-                            ] = String(item);
-                          });
-                        } else {
-                          result[
-                            `${currentPath}[${configKey}][${filterKey}][${operator}]`
-                          ] = String(operatorValue);
-                        }
-                      }
-                    );
-                  } else {
-                    result[`${currentPath}[${configKey}][${filterKey}]`] =
-                      String(filterValue);
-                  }
-                }
-              );
+            } else if (configKey === "sort") {
+              // Sort en populate
+              if (Array.isArray(configValue)) {
+                configValue.forEach((sortItem, index) => {
+                  result[`${currentPath}[${configKey}][${index}]`] = sortItem;
+                });
+              } else {
+                result[`${currentPath}[${configKey}]`] = configValue;
+              }
             } else {
               // Otras configuraciones
               result[`${currentPath}[${configKey}]`] = String(configValue);

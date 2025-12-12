@@ -342,7 +342,9 @@ export default function DocumentDetail({ config, initialData }) {
           render: (_, row) => (
             <Checkbox
               variant="cyan"
-              checked={row[column.key]}
+              checked={
+                row[column.key] === true || String(row[column.key]) === "true"
+              }
               onCheck={(value) => updateProductField(row.id, column.key, value)}
               disabled={isReadOnly}
             />
