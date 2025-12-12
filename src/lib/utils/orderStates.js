@@ -13,8 +13,8 @@ export const orderStatesArray = Object.values(ORDER_STATES).map((state) => {
   };
   switch (state) {
     case ORDER_STATES.DRAFT:
-      data.label = "Borrador";
-      data.variant = "zinc";
+      data.label = "Pendiente";
+      data.variant = "yellow";
       break;
     case ORDER_STATES.CONFIRMED:
       data.label = "Confirmada";

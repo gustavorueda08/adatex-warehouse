@@ -187,7 +187,10 @@ export default function DocumentDetail({ config, initialData }) {
   // Determinar si es read-only
   const isReadOnly =
     user?.type !== "admin" &&
-    (initialData?.state === "completed" || initialData?.state === "canceled");
+    (initialData?.state === "completed" ||
+      initialData?.state === "canceled" ||
+      initialData?.siigoIdTypeA ||
+      initialData?.siigoIdTypeB);
 
   // Calcular título
   const title = useMemo(() => {
@@ -688,9 +691,17 @@ export default function DocumentDetail({ config, initialData }) {
   // Badge de estado
   const getBadgeVariant = () => {
     const state = initialData?.state;
-    if (state === "completed") return "emerald";
+    if (state === "completed") {
+      if (
+        config.type === "sale" &&
+        (initialData.siigoIdTypeA || initialData.siigoIdTypeB)
+      ) {
+        return "purple";
+      }
+      return "emerald";
+    }
     if (state === "confirmed") return "cyan";
-    if (state === "draft") return "zinc";
+    if (state === "draft") return "yellow";
     if (state === "canceled") return "red";
     return "zinc";
   };
@@ -705,10 +716,15 @@ export default function DocumentDetail({ config, initialData }) {
             <h1 className="font-bold text-3xl">{title || initialData?.code}</h1>
             {initialData?.state && (
               <Badge variant={getBadgeVariant()}>
-                {initialData?.state === "draft" && "Borrador"}
+                {initialData?.state === "draft" && "Pendiente"}
                 {initialData?.state === "confirmed" && "Confirmado"}
                 {initialData?.state === "transit" && "En tránsito"}
-                {initialData?.state === "completed" && "Completado"}
+                {initialData?.state === "completed" &&
+                  (config.type === "sale" &&
+                  !initialData.siigoIdTypeA &&
+                  !initialData.siigoIdTypeB
+                    ? "Despachado"
+                    : "Completado")}
                 {initialData?.state === "canceled" && "Cancelado"}
               </Badge>
             )}
@@ -1001,7 +1017,7 @@ export default function DocumentDetail({ config, initialData }) {
               className="flex-1 md:flex-initial"
             >
               {typeof action.label === "function"
-                ? action.label(document)
+                ? action.label(initialData)
                 : action.label}
             </Button>
           ))}

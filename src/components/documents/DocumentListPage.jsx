@@ -58,7 +58,14 @@ function DocumentListPage({
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [range, setRange] = useState({ from: null, to: null });
-  const states = orderStatesArray;
+  const states =
+    documentType === "sale"
+      ? [
+          ...orderStatesArray,
+          { key: "dispatched", label: "Despachada", variant: "emerald" },
+        ]
+      : orderStatesArray;
+
   const [selectedStates, setSelectedStates] = useState(
     new Set(states.map((s) => s.key))
   );
@@ -149,7 +156,58 @@ function DocumentListPage({
           }
         : {}),
       ...(selectedStates.size > 0
-        ? { state: { $in: Array.from(selectedStates) } }
+        ? (() => {
+            // Lógica personalizada para filtros de venta
+            if (documentType === "sale") {
+              const statesArr = Array.from(selectedStates);
+              const hasCompleted = statesArr.includes("completed");
+              const hasDispatched = statesArr.includes("dispatched");
+
+              // Si están ambos seleccionados (o ninguno), comportamiento normal para 'completed'
+              if (hasCompleted && hasDispatched) {
+                const otherStates = statesArr.filter((s) => s !== "dispatched");
+                return { state: { $in: otherStates } };
+              }
+
+              // Si solo está 'completed' (Facturada)
+              if (hasCompleted && !hasDispatched) {
+                const otherStates = statesArr.filter((s) => s !== "completed");
+                return {
+                  $or: [
+                    { state: { $in: otherStates } },
+                    {
+                      state: "completed",
+                      $or: [
+                        { siigoIdTypeA: { $notNull: true } },
+                        { siigoIdTypeB: { $notNull: true } },
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              // Si solo está 'dispatched' (Despachada pero no facturada)
+              if (!hasCompleted && hasDispatched) {
+                const otherStates = statesArr.filter((s) => s !== "dispatched");
+                return {
+                  $or: [
+                    { state: { $in: otherStates } },
+                    {
+                      state: "completed",
+                      siigoIdTypeA: { $null: true },
+                      siigoIdTypeB: { $null: true },
+                    },
+                  ],
+                };
+              }
+
+              // Ninguno de los dos especiales seleccionado
+              return { state: { $in: statesArr } };
+            }
+
+            // Comportamiento por defecto
+            return { state: { $in: Array.from(selectedStates) } };
+          })()
         : {}),
 
       ...buildDateFilter(range),
@@ -167,17 +225,17 @@ function DocumentListPage({
     ],
   });
 
-  const renderStateBadge = (state) => {
+  const renderStateBadge = (state, row) => {
     switch (state) {
       case "draft":
         return (
-          <span className="bg-zinc-500 font-bold text-xs me-2 px-4 py-2 rounded-full">
-            Borrador
+          <span className="bg-yellow-400 font-bold text-xs me-2 px-4 py-2 rounded-full">
+            Pendiente
           </span>
         );
       case "confirmed":
         return (
-          <span className="bg-yellow-400 font-bold text-xs me-2 px-4 py-2 rounded-full">
+          <span className="bg-cyan-400 font-bold text-xs me-2 px-4 py-2 rounded-full">
             Confirmado
           </span>
         );
@@ -188,9 +246,19 @@ function DocumentListPage({
           </span>
         );
       case "completed":
+        if (
+          documentType === "sale" &&
+          (row?.siigoIdTypeA || row?.siigoIdTypeB)
+        ) {
+          return (
+            <span className="bg-purple-600 font-bold text-xs me-2 px-4 py-2 rounded-full text-white">
+              Completado
+            </span>
+          );
+        }
         return (
           <span className="bg-emerald-700 font-bold text-xs me-2 px-4 py-2 rounded-full">
-            Completado
+            {documentType === "sale" ? "Despachado" : "Completado"}
           </span>
         );
       default:
@@ -250,7 +318,7 @@ function DocumentListPage({
     {
       key: "state",
       label: "Estado",
-      render: (state) => renderStateBadge(state),
+      render: (state, row) => renderStateBadge(state, row),
     },
     {
       key: "id",

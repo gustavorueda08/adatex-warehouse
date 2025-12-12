@@ -33,6 +33,8 @@ export default function Button({
             variant === "cyan" && !isDisabled,
           "bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500":
             variant === "yellow" && !isDisabled,
+          "bg-purple-600 hover:bg-purple-500 active:bg-purple-700":
+            variant === "purple" && !isDisabled,
           // Estados deshabilitados
           "bg-red-800 cursor-not-allowed": variant === "red" && isDisabled,
           "bg-zinc-800 cursor-not-allowed": variant === "zinc" && isDisabled,
@@ -41,6 +43,8 @@ export default function Button({
           "bg-cyan-800 cursor-not-allowed": variant === "cyan" && isDisabled,
           "bg-yellow-600 cursor-not-allowed":
             variant === "yellow" && isDisabled,
+          "bg-purple-800 cursor-not-allowed":
+            variant === "purple" && isDisabled,
           // Bold
           "font-bold": bold,
           // Ancho Full

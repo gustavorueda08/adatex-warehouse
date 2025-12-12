@@ -18,6 +18,7 @@ export default function Badge({
           "bg-red-800": variant === "red",
           "bg-cyan-800": variant === "cyan",
           "bg-yellow-400": variant === "yellow",
+          "bg-purple-600": variant === "purple",
         },
         {
           "text-xs": size === "xs",

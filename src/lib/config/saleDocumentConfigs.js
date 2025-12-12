@@ -168,6 +168,7 @@ export function createSaleDetailConfig({
   customerSelectProps = {},
   currentCustomer = null,
   quickCreateCustomer,
+  getInvoices = null,
 }) {
   const allCustomers =
     currentCustomer && !customers.find((c) => c.id === currentCustomer.id)
@@ -396,7 +397,7 @@ export function createSaleDetailConfig({
       },
       {
         label: "Descargar lista de empaque",
-        variant: "zinc",
+        variant: "yellow",
         onClick: async (document, state, { showToast }) => {
           const result = await Swal.fire({
             title: "Descargar Documento",
@@ -438,12 +439,13 @@ export function createSaleDetailConfig({
       },
       {
         label: (document) =>
-          document.invoiceNumberTypeA || document.invoiceNumberTypeB
+          document.siigoIdTypeA || document.siigoIdTypeB
             ? "Descargar Facturas"
             : "Facturar Orden",
-        variant: "emerald",
+        variant:
+          document.siigoIdTypeA || document.siigoIdTypeB ? "emerald" : "purple",
         onClick: async (document, state, { updateState, updateDocument }) => {
-          if (!document.siigoId && !document.invoiceNumber) {
+          if (!document.siigoIdTypeA && !document.siigoIdTypeB) {
             const result = await Swal.fire({
               title: "Facturar Orden",
               text: "¿Está seguro que quiere facturar la orden? Esta acción no se puede deshacer",
@@ -472,7 +474,14 @@ export function createSaleDetailConfig({
               }
             }
           } else {
-            // TODO: Descargar factura
+            toast.loading("Descargando facturas...");
+            const result = await getInvoices(document.id);
+            toast.dismiss();
+            if (result.success) {
+              toast.success("Facturas descargadas");
+            } else {
+              toast.error("Error al descargar facturas");
+            }
           }
         },
       },
@@ -494,7 +503,7 @@ export function createSaleDetailConfig({
               );
             })
         );
-        
+
       if (state.isBulkMode) {
         // Map products for the Bulk Update / Batch endpoint
         const formattedProducts = products
@@ -596,48 +605,83 @@ export function createSaleDetailConfig({
         ),
       },
       {
-        visible: (document) => document.state === "draft" || document.state === "active",
+        visible: (document) =>
+          document.state === "draft" || document.state === "active",
         render: (document, state, helpers) => {
           const handleBulkUpload = async (data) => {
-             if (!Array.isArray(data)) return;
+            if (!Array.isArray(data)) return;
 
-             // Map Sale columns (ID, CODE, BARCODE, PRODUCT, QUANTITY)
-             // mapBulkItems matches d "productId" against ID/Code
-             const parsedItems = data.map((item) => ({
-               id: item["ID"] || item["id"] || item["CODIGO"] || item["CODE"] || item["BARCODE"] || item["barcode"] || null,
-               name: item["PRODUCTO"] || item["producto"] || item["NOMBRE"] || item["nombre"] || null,
-               quantity: Number(item["CANTIDAD"]) || Number(item["cantidad"]) || null,
-             }));
+            // Map Sale columns (ID, CODE, BARCODE, PRODUCT, QUANTITY)
+            // mapBulkItems matches d "productId" against ID/Code
+            const parsedItems = data.map((item) => ({
+              id:
+                item["ID"] ||
+                item["id"] ||
+                item["CODIGO"] ||
+                item["CODE"] ||
+                item["BARCODE"] ||
+                item["barcode"] ||
+                null,
+              name:
+                item["PRODUCTO"] ||
+                item["producto"] ||
+                item["NOMBRE"] ||
+                item["nombre"] ||
+                null,
+              quantity:
+                Number(item["CANTIDAD"]) || Number(item["cantidad"]) || null,
+            }));
 
-             helpers.updateState({ isBulkMode: true });
+            helpers.updateState({ isBulkMode: true });
 
-             await mapBulkItems({
-               items: parsedItems,
-               currentProducts: helpers?.products || [],
-               fetchedProducts: helpers?.fetchedData?.products || [],
-               setProducts: helpers?.setProducts,
-               toast,
-               withItemIds: true,
-             });
+            await mapBulkItems({
+              items: parsedItems,
+              currentProducts: helpers?.products || [],
+              fetchedProducts: helpers?.fetchedData?.products || [],
+              setProducts: helpers?.setProducts,
+              toast,
+              withItemIds: true,
+            });
           };
 
           return (
-             <div className="mt-6 border-t border-zinc-700 pt-6">
-                 <BulkPackingListUploader 
-                     onFileLoaded={handleBulkUpload}
-                     context={helpers}
-                     isReadOnly={document.state !== "draft"}
-                     requiredColumns={[
-                         { key: "ID", label: "ID", description: "ID del producto (Opcional si envía Código/Barcode)" },
-                         { key: "CODIGO", label: "CODIGO", description: "Código del producto" },
-                         { key: "BARCODE", label: "BARCODE", description: "Código de barras" },
-                         { key: "PRODUCTO", label: "PRODUCTO", description: "Nombre del producto" },
-                         { key: "CANTIDAD", label: "CANTIDAD", description: "Cantidad a vender" },
-                     ]}
-                 />
-             </div>
+            <div className="mt-6 border-t border-zinc-700 pt-6">
+              <BulkPackingListUploader
+                onFileLoaded={handleBulkUpload}
+                context={helpers}
+                isReadOnly={document.state !== "draft"}
+                requiredColumns={[
+                  {
+                    key: "ID",
+                    label: "ID",
+                    description:
+                      "ID del producto (Opcional si envía Código/Barcode)",
+                  },
+                  {
+                    key: "CODIGO",
+                    label: "CODIGO",
+                    description: "Código del producto",
+                  },
+                  {
+                    key: "BARCODE",
+                    label: "BARCODE",
+                    description: "Código de barras",
+                  },
+                  {
+                    key: "PRODUCTO",
+                    label: "PRODUCTO",
+                    description: "Nombre del producto",
+                  },
+                  {
+                    key: "CANTIDAD",
+                    label: "CANTIDAD",
+                    description: "Cantidad a vender",
+                  },
+                ]}
+              />
+            </div>
           );
-        }
+        },
       },
     ],
   };

@@ -102,11 +102,86 @@ export function useOrders(queryParams = {}, options = {}) {
     [strapiResult.refetch]
   );
 
+  const getInvoices = useCallback(
+    async (orderId, refetch = false) => {
+      if (!orderId) {
+        const error = new Error("Order ID es requerido");
+        return { success: false, error };
+      }
+      try {
+        const response = await fetch(`/api/strapi/orders/${orderId}/invoices`, {
+          method: "GET",
+        });
+
+        const contentType = response.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        if (isJson) {
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              result.error?.message ||
+                result.message ||
+                `Error ${response.status}: ${response.statusText}`
+            );
+          }
+          return { success: true, data: result.data };
+        } else {
+          // Es un archivo, procesarlo como blob
+          if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+          }
+
+          const blob = await response.blob();
+
+          // Intentar obtener el nombre del archivo del header
+          const contentDisposition = response.headers.get(
+            "content-disposition"
+          );
+          let filename = `invoices-${orderId}.zip`; // Default
+
+          if (contentDisposition) {
+            const filenameMatch =
+              contentDisposition.match(/filename="?([^"]+)"?/);
+            if (filenameMatch && filenameMatch[1]) {
+              filename = filenameMatch[1];
+            }
+          } else {
+            // Fallback basado en content-type
+            if (contentType?.includes("pdf")) {
+              filename = `invoice-${orderId}.pdf`;
+            }
+          }
+
+          // Crear URL y descargar
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          if (refetch) {
+            await strapiResult.refetch();
+          }
+
+          return { success: true };
+        }
+      } catch (err) {
+        console.error("Error getting invoices:", err);
+        return { success: false, error: err };
+      }
+    },
+    [strapiResult.refetch]
+  );
   return {
     ...strapiResult,
     addItem,
     removeItem,
     addingItem,
     removingItem,
+    getInvoices,
   };
 }
