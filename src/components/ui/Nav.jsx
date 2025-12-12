@@ -8,9 +8,13 @@ import {
   UserIcon,
 } from "@/components/ui/Icons";
 import { useUser } from "@/lib/hooks/useUser";
-import { BuildingStorefrontIcon } from "@heroicons/react/24/outline";
+import {
+  BuildingStorefrontIcon,
+  BanknotesIcon,
+} from "@heroicons/react/24/outline";
 import { ArrowsRightLeftIcon, WrenchIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState, memo } from "react";
 import logo from "../../../public/logo.png";
 
@@ -94,76 +98,85 @@ const UserMenu = memo(function UserMenu({
   );
 });
 
-function Sidebar({
-  links = [
-    { label: "Dashboard", href: "/", icon: ChartIcon },
-    {
-      label: "Entradas",
-      icon: ArrowDownIcon,
-      links: [
-        { label: "Compras", href: "/purchases" },
-        { label: "Entradas", href: "/inflows" },
-        { label: "Devoluciones", href: "/returns" },
-      ],
-    },
-    {
-      label: "Salidas",
-      icon: ArrowUpIcon,
-      links: [
-        { label: "Ventas", href: "/sales" },
-        { label: "Salidas", href: "/outflows" },
-      ],
-    },
-    {
-      label: "Inventario",
-      icon: BuildingStorefrontIcon,
-      links: [
-        { label: "Bodegas", href: "/warehouses" },
-        { label: "Productos", href: "/products" },
-      ],
-    },
-    {
-      label: "Transferencias",
-      icon: ArrowsRightLeftIcon,
-      href: "/transfers",
-    },
-    /*
-    {
-      label: "Transformaciones",
-      icon: WrenchIcon,
-      href: "/transformations",
-    },*/
-    {
-      label: "Terceros",
-      icon: UserIcon,
-      links: [
-        { label: "Clientes", href: "/customers" },
-        { label: "Proveedores", href: "/suppliers" },
-        { label: "Vendedores", href: "/sellers" },
-      ],
-    },
-    /*
-    {
-      label: "Reportes",
-      icon: ReportsIcon,
-      links: [
-        { label: "Cartera", href: "/accounts-receivable" },
-        { label: "Resultados", href: "/profit-and-loss" },
-      ],
-    },
-    {
-      label: "Configuración",
-      icon: SettingsIcon,
-      href: "/settings",
-    },*/
-  ],
-  onSignOut,
-  children,
-}) {
+const DEFAULT_LINKS = [
+  { label: "Dashboard", href: "/", icon: ChartIcon },
+  {
+    label: "Entradas",
+    icon: ArrowDownIcon,
+    links: [
+      { label: "Compras", href: "/purchases" },
+      { label: "Entradas", href: "/inflows" },
+      { label: "Devoluciones", href: "/returns" },
+    ],
+  },
+  {
+    label: "Salidas",
+    icon: ArrowUpIcon,
+    links: [
+      { label: "Ventas", href: "/sales" },
+      { label: "Salidas", href: "/outflows" },
+    ],
+  },
+  {
+    label: "Inventario",
+    icon: BuildingStorefrontIcon,
+    links: [
+      { label: "Bodegas", href: "/warehouses" },
+      { label: "Productos", href: "/products" },
+    ],
+  },
+  {
+    label: "Transferencias",
+    icon: ArrowsRightLeftIcon,
+    href: "/transfers",
+  },
+  {
+    label: "Transformaciones",
+    icon: WrenchIcon,
+    href: "/transformations",
+  },
+  {
+    label: "Terceros",
+    icon: UserIcon,
+    links: [
+      { label: "Clientes", href: "/customers" },
+      { label: "Proveedores", href: "/suppliers" },
+      { label: "Vendedores", href: "/sellers" },
+    ],
+  },
+];
+
+const SELLER_LINKS = [
+  { label: "Dashboard", href: "/", icon: ChartIcon },
+  {
+    label: "Ventas",
+    icon: BanknotesIcon,
+    href: "/sales",
+  },
+  {
+    label: "Inventario",
+    icon: BuildingStorefrontIcon,
+    href: "/products",
+  },
+];
+
+function Sidebar({ links, onSignOut, children }) {
   const [openSidebar, setOpenSidebar] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => new Set());
-  const { user, loading } = useUser();
+  const { user, loading, signOut } = useUser();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
+  const currentLinks = useMemo(() => {
+    if (links) return links;
+    if (user?.type === "seller") return SELLER_LINKS;
+    return DEFAULT_LINKS;
+  }, [links, user]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -227,7 +240,7 @@ function Sidebar({
               initials={initials}
               openUserMenu={openUserMenu}
               setOpenUserMenu={setOpenUserMenu}
-              onSignOut={onSignOut}
+              onSignOut={handleSignOut}
             />
           </div>
         </div>
@@ -244,7 +257,7 @@ function Sidebar({
       >
         <div className="h-full px-3 pb-4 overflow-y-auto">
           <ul className="space-y-2 font-medium">
-            {links.map((item, index) => {
+            {currentLinks.map((item, index) => {
               const hasChildren =
                 Array.isArray(item.links) && item.links.length > 0;
               const isOpen = openGroups.has(index);

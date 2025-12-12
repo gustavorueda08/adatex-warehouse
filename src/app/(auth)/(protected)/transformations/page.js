@@ -11,8 +11,7 @@ export default function TransformationsPage() {
       createPath={transformListConfig.createPath}
       filterOptions={transformListConfig.filterOptions}
       customColumns={transformListConfig.columns}
-      // Transformations typically don't have bulk actions like confirm/complete in the same way,
-      // or they are auto-completed.
+      getDetailPath={(order) => `/transformations/${order.id}`}
       bulkActions={["delete"]}
     />
   );

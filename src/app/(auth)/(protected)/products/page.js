@@ -10,10 +10,17 @@ import Button from "@/components/ui/Button";
 import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
+import ExportItemsModal from "@/components/products/ExportItemsModal";
+import { exportItemsToExcel } from "@/lib/utils/exportItemsToExcel";
+
 export default function ProductsPage() {
   const [bulkProducts, setBulkProducts] = useState([]);
   const [resetBulkUpload, setResetBulkUpload] = useState(null);
   const [sendingBulk, setSendingBulk] = useState(false);
+  
+  // State for Export Modal
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportFilters, setExportFilters] = useState(null);
 
   const handleBulkUploadLoaded = (data, removeCallback) => {
     setBulkProducts(data || []);
@@ -45,6 +52,21 @@ export default function ProductsPage() {
     }
   };
 
+  // Callback passed to config to open modal
+  const handleOpenExportModal = (filters) => {
+      setExportFilters(filters);
+      setExportModalOpen(true);
+  };
+
+  // Callback when user confirms export in modal
+  const handleExportConfirm = async (columns) => {
+      await exportItemsToExcel({
+          filters: exportFilters,
+          columns: columns,
+          toast: toast,
+      });
+  };
+
   const config = useProductListConfig({
     bulkProps: {
       onFileLoaded: handleBulkUploadLoaded,
@@ -54,11 +76,17 @@ export default function ProductsPage() {
       handleSendBulkList,
       sendingBulk,
     },
+    onExportItems: handleOpenExportModal, // Pass to config
   });
 
   return (
     <div className="space-y-6">
       <EntityListPage useHook={useProducts} config={config} />
+      <ExportItemsModal 
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleExportConfirm}
+      />
     </div>
   );
 }

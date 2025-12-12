@@ -85,9 +85,20 @@ export default function DocumentDetail({ config, initialData }) {
     [config, documentState]
   );
 
-  const allowAddItems = config.allowAddItems;
+  const allowAddItems =
+    typeof config.allowAddItems === "function"
+      ? config.allowAddItems(documentState)
+      : config.allowAddItems;
   const showMainItemInput = config.showItemInput;
   const allowManualEntry = config.allowManualEntry;
+
+  // Preparar documento estable para hook (evitar re-renders infinitos)
+  const stableDocument = useMemo(() => {
+    const initialState = config.getInitialState
+      ? config.getInitialState(initialData)
+      : {};
+    return { ...initialData, ...initialState };
+  }, [initialData, config]);
 
   // Usar el hook existente para manejo de productos/items
   const {
@@ -108,7 +119,7 @@ export default function DocumentDetail({ config, initialData }) {
     toggleExpanded,
     getAvailableProductsForRow,
   } = useDocumentDetail({
-    document: initialData,
+    document: stableDocument,
     updateDocument:
       config.updateDocument || (() => Promise.resolve({ success: false })),
     deleteDocument:
@@ -121,6 +132,7 @@ export default function DocumentDetail({ config, initialData }) {
     redirectPath: config.redirectPath,
     prepareUpdateData,
     allowAutoCreateItems: allowAddItems,
+    disableDedupe: config.disableDedupe,
   });
 
   const resolveProductValue = useCallback(
@@ -631,26 +643,34 @@ export default function DocumentDetail({ config, initialData }) {
   // Calcular estadísticas globales de la lista de empaque
   const packingListStats = useMemo(() => {
     const productsWithItems = products.filter((p) => p.product);
+
     const totalItems = productsWithItems.reduce(
-      (acc, p) => acc + (p.items?.length || 0),
+      (acc, p) => acc + (Array.isArray(p.items) ? p.items.length : 1),
       0
     );
-    const totalQuantity = productsWithItems.reduce(
-      (acc, p) =>
-        acc +
-        (p.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) ||
-          0),
-      0
-    );
+
+    const totalQuantity = productsWithItems.reduce((acc, p) => {
+      if (Array.isArray(p.items)) {
+        return (
+          acc +
+          p.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+        );
+      }
+      return acc + Number(p.quantity || p.targetQuantity || 0);
+    }, 0);
+
     const totalRequested = productsWithItems.reduce(
       (acc, p) => acc + Number(p.requestedQuantity || 0),
       0
     );
-    const itemsWithQuantity = productsWithItems.reduce(
-      (acc, p) =>
-        acc + (p.items?.filter((item) => item.quantity > 0).length || 0),
-      0
-    );
+
+    const itemsWithQuantity = productsWithItems.reduce((acc, p) => {
+      if (Array.isArray(p.items)) {
+        return acc + p.items.filter((item) => item.quantity > 0).length;
+      }
+      const qty = Number(p.quantity || p.targetQuantity || 0);
+      return acc + (qty > 0 ? 1 : 0);
+    }, 0);
 
     return {
       productsCount: productsWithItems.length,
@@ -742,102 +762,107 @@ export default function DocumentDetail({ config, initialData }) {
       </Card>
 
       {/* Lista de empaque Card */}
-      {products.filter((p) => p.product).length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3 mb-4">
-              <ClipboardDocumentListIcon className="w-6 h-6 text-emerald-400" />
-              <div className="flex-1">
-                <CardTitle>Lista de Empaque</CardTitle>
-                <CardDescription>Detalle de items por producto</CardDescription>
-              </div>
-            </div>
-
-            {/* Estadísticas globales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
-                <p className="text-xs text-gray-400">Productos</p>
-                <p className="text-lg font-semibold text-white">
-                  {packingListStats.productsCount}
-                </p>
-              </div>
-              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
-                <p className="text-xs text-gray-400">Items totales</p>
-                <p className="text-lg font-semibold text-white">
-                  {packingListStats.totalItems}
-                </p>
-              </div>
-              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
-                <p className="text-xs text-gray-400">Cantidad procesada</p>
-                <p className="text-lg font-semibold text-emerald-400">
-                  {format(packingListStats.totalQuantity)}
-                </p>
-              </div>
-              <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
-                <p className="text-xs text-gray-400">Cantidad solicitada</p>
-                <p className="text-lg font-semibold text-cyan-400">
-                  {format(packingListStats.totalRequested)}
-                </p>
-              </div>
-            </div>
-
-            {/* Progress bar global */}
-            {packingListStats.totalRequested > 0 && (
-              <div className="mt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">Progreso global</span>
-                  <span className="text-sm font-semibold text-white">
-                    {packingListStats.percentComplete}%
-                  </span>
-                </div>
-                <div className="w-full bg-neutral-700 rounded-full h-3">
-                  <div
-                    className={`h-3 rounded-full transition-all duration-500 ${
-                      packingListStats.percentComplete >= 100
-                        ? "bg-emerald-500"
-                        : packingListStats.percentComplete > 0
-                        ? "bg-yellow-500"
-                        : "bg-zinc-600"
-                    }`}
-                    style={{
-                      width: `${Math.min(
-                        packingListStats.percentComplete,
-                        100
-                      )}%`,
-                    }}
-                  />
+      {products.filter((p) => p.product).length > 0 &&
+        config.showPackingList !== false && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-4">
+                <ClipboardDocumentListIcon className="w-6 h-6 text-emerald-400" />
+                <div className="flex-1">
+                  <CardTitle>Lista de Empaque</CardTitle>
+                  <CardDescription>
+                    Detalle de items por producto
+                  </CardDescription>
                 </div>
               </div>
-            )}
-          </CardHeader>
 
-          <CardContent>
-            <div className="space-y-3">
-              {products
-                .filter((product) => product.product)
-                .map((product, productIndex) => (
-                  <PackingListProduct
-                    key={product.id}
-                    product={product}
-                    productIndex={productIndex}
-                    isExpanded={expandedRows.has(product.id)}
-                    onToggle={() => toggleExpanded(product.id)}
-                    updateItemField={updateItemField}
-                    handleDeleteItemRow={handleDeleteItemRow}
-                    disabled={isReadOnly}
-                    onEnter={(input, setInput) =>
-                      handleAddItemRow(product.product.id, input, setInput)
-                    }
-                    showMainInput={showMainItemInput}
-                    canAddItems={allowAddItems}
-                    allowManualEntry={allowManualEntry}
-                    state={initialData.state}
-                  />
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              {/* Estadísticas globales */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                  <p className="text-xs text-gray-400">Productos</p>
+                  <p className="text-lg font-semibold text-white">
+                    {packingListStats.productsCount}
+                  </p>
+                </div>
+                <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                  <p className="text-xs text-gray-400">Items totales</p>
+                  <p className="text-lg font-semibold text-white">
+                    {packingListStats.totalItems}
+                  </p>
+                </div>
+                <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                  <p className="text-xs text-gray-400">Cantidad procesada</p>
+                  <p className="text-lg font-semibold text-emerald-400">
+                    {format(packingListStats.totalQuantity)}
+                  </p>
+                </div>
+                <div className="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                  <p className="text-xs text-gray-400">Cantidad solicitada</p>
+                  <p className="text-lg font-semibold text-cyan-400">
+                    {format(packingListStats.totalRequested)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar global */}
+              {packingListStats.totalRequested > 0 && (
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-400">
+                      Progreso global
+                    </span>
+                    <span className="text-sm font-semibold text-white">
+                      {packingListStats.percentComplete}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-neutral-700 rounded-full h-3">
+                    <div
+                      className={`h-3 rounded-full transition-all duration-500 ${
+                        packingListStats.percentComplete >= 100
+                          ? "bg-emerald-500"
+                          : packingListStats.percentComplete > 0
+                          ? "bg-yellow-500"
+                          : "bg-zinc-600"
+                      }`}
+                      style={{
+                        width: `${Math.min(
+                          packingListStats.percentComplete,
+                          100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent>
+              <div className="space-y-3">
+                {products
+                  .filter((product) => product.product)
+                  .map((product, productIndex) => (
+                    <PackingListProduct
+                      key={product.id}
+                      product={product}
+                      productIndex={productIndex}
+                      isExpanded={expandedRows.has(product.id)}
+                      onToggle={() => toggleExpanded(product.id)}
+                      updateItemField={updateItemField}
+                      handleDeleteItemRow={handleDeleteItemRow}
+                      disabled={isReadOnly}
+                      onEnter={(input, setInput) =>
+                        handleAddItemRow(product.product.id, input, setInput)
+                      }
+                      showMainInput={showMainItemInput}
+                      canAddItems={allowAddItems}
+                      allowManualEntry={allowManualEntry}
+                      state={initialData.state}
+                    />
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       {/* Factura Card */}
       {config.invoice && config.invoice.enabled && (

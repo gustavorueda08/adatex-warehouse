@@ -129,7 +129,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
           );
         }
         const result = await response.json();
-        console.log("RESULTADO", result);
+       
 
         if (!result || typeof result !== "object") {
           throw new Error("Respuesta inválida del servidor");
@@ -238,8 +238,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
         const result = await response.json();
 
-        console.log("RESULTADO", result);
-
+      
         if (!response.ok) {
           throw new Error(
             result.error?.message ||

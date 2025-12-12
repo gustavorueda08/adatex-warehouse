@@ -32,6 +32,7 @@ export function useDocumentDetail(config) {
     redirectPath,
     prepareUpdateData,
     allowAutoCreateItems = true,
+    disableDedupe = false,
   } = config;
 
   const router = useRouter();
@@ -97,7 +98,7 @@ export function useDocumentDetail(config) {
                 },
               ]
             : updated;
-        return dedupeProductsList(newRows, allowAutoCreateItems);
+        return dedupeProductsList(newRows, allowAutoCreateItems, disableDedupe);
       });
     });
 
@@ -123,7 +124,8 @@ export function useDocumentDetail(config) {
             }
             return product;
           }),
-          allowAutoCreateItems
+          allowAutoCreateItems,
+          disableDedupe
         )
       );
     });
@@ -144,32 +146,39 @@ export function useDocumentDetail(config) {
       onItemRemoved?.();
       onDocumentUpdated?.();
     };
-  }, [isConnected, document?.id, joinOrder, leaveOrder, on]);
+  }, [isConnected, document?.id, joinOrder, leaveOrder, on, disableDedupe, allowAutoCreateItems]);
 
   // Inicializar productos desde el documento
+  const productsKey = getProductsKey(documentType);
+  const documentProductsRaw = document ? document[productsKey] || [] : [];
+  const documentProductsDeep = JSON.stringify(documentProductsRaw);
+
   useEffect(() => {
     if (document) {
-      const productsKey = getProductsKey(documentType);
       const documentProducts = document[productsKey] || [];
-      const mapped = documentProducts.map((op) => ({
-        ...op,
-        items:
-          Array.isArray(op.items) && op.items.length > 0
-            ? op.items.map((item) => ({
-                ...item,
-                key: v4(),
-                quantity: item.currentQuantity,
-                currentQuantity: item.currentQuantity,
-              }))
-            : [createEmptyItem()],
-      }));
+      const mapped = documentProducts.map((op) => {
+          if (disableDedupe) return op; // Return raw row for flat structures
+          return {
+            ...op,
+            items:
+            Array.isArray(op.items) && op.items.length > 0
+                ? op.items.map((item) => ({
+                    ...item,
+                    key: v4(),
+                    quantity: item.currentQuantity,
+                    currentQuantity: item.currentQuantity,
+                }))
+                : [createEmptyItem()],
+          };
+      });
       const withEmpty = allowAutoCreateItems
         ? [...mapped, createEmptyProduct()]
         : mapped;
-      setProducts(dedupeProductsList(withEmpty, allowAutoCreateItems));
+      setProducts(dedupeProductsList(withEmpty, allowAutoCreateItems, disableDedupe));
       setNotes(document.notes || "");
     }
-  }, [document, documentType, allowAutoCreateItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document?.id, documentProductsDeep, documentType, allowAutoCreateItems, disableDedupe]);
 
   // Actualizar producto
   const updateProductField = useCallback((productId, field, value) => {
@@ -263,6 +272,7 @@ export function useDocumentDetail(config) {
         toast.dismiss(loadingToast);
         setProducts((current) =>
           current.map((product) => {
+            // Verify if we are targeting by Row ID (product.id) or Product ID (product.product.id)
             if (product?.id === productId) {
               return {
                 ...product,
@@ -310,7 +320,21 @@ export function useDocumentDetail(config) {
         const { currentQuantity, ...item } = response.data;
         setProducts((current) =>
           current.map((product) => {
-            if (product?.product?.id === item.product) {
+            const currentProductId =
+              typeof product?.product === "object"
+                ? product?.product?.id
+                : product?.product;
+
+            const targetProductId =
+              typeof item.product === "object"
+                ? item.product?.id
+                : item.product;
+
+            if (currentProductId === targetProductId) {
+              // Check if item already exists to prevent duplicates (e.g. from socket race condition)
+              const existingItem = product.items.find((i) => i.id === item.id);
+              if (existingItem) return product;
+
               return {
                 ...product,
                 items: [
@@ -400,6 +424,7 @@ export function useDocumentDetail(config) {
       color: "#fff",
       confirmButtonColor: "red",
       cancelButtonColor: "#71717a",
+      cancelButtonColor: "#71717a",
     });
     if (!result.isConfirmed) return;
     const loadingToast = toast.loading("Eliminando Orden...");
@@ -447,8 +472,8 @@ export function useDocumentDetail(config) {
   );
 
   const dedupeProductsListMemo = useCallback(
-    (list) => dedupeProductsList(list, allowAutoCreateItems),
-    [allowAutoCreateItems]
+    (list) => dedupeProductsList(list, allowAutoCreateItems, disableDedupe),
+    [allowAutoCreateItems, disableDedupe]
   );
   return {
     products,
@@ -532,11 +557,19 @@ function getProductsKey(documentType) {
     return: "orderProducts",
     in: "orderProducts",
     out: "orderProducts",
+    transform: "products", // Check products first
   };
   return keys[documentType] || "orderProducts";
 }
 
-function dedupeProductsList(products = [], allowAutoCreateItems = true) {
+function dedupeProductsList(products = [], allowAutoCreateItems = true, disableDedupe = false) {
+  if (disableDedupe) {
+      if (allowAutoCreateItems && !products.some((r) => !r.product)) {
+         return [...products, createEmptyProduct()];
+      }
+      return products;
+  }
+
   const map = new Map();
   const result = [];
   let emptyRow = null;

@@ -218,9 +218,18 @@ export default function DocumentForm({ config, onFormStateChange }) {
 
   // Calcular estadísticas de productos
   const productStats = useMemo(() => {
+    if (config.calculateStats) {
+      return config.calculateStats(formState.products);
+    }
+
     const productsWithProduct = formState.products.filter((p) => p.product);
     const validProducts = productsWithProduct.filter(
       (p) => p.quantity && Number(p.quantity) > 0
+    );
+
+    const totalQuantity = productsWithProduct.reduce(
+      (acc, p) => acc + Number(p.quantity || 0),
+      0
     );
 
     return {
@@ -229,8 +238,9 @@ export default function DocumentForm({ config, onFormStateChange }) {
       allValid:
         productsWithProduct.length > 0 &&
         productsWithProduct.length === validProducts.length,
+      totalQuantity,
     };
-  }, [formState.products]);
+  }, [formState.products, config]);
 
   // Obtener label del tipo de documento
   const documentTypeLabel = getDocumentTypeLabel(config.type);
@@ -455,15 +465,14 @@ export default function DocumentForm({ config, onFormStateChange }) {
                     </p>
                   </div>
                 ) : null}
-                <div>
-                  <p className="text-xs text-gray-400">Cantidad total</p>
-                  <p className="text-lg font-semibold text-white">
-                    {formState.products
-                      .filter((p) => p.product)
-                      .reduce((acc, p) => acc + Number(p.quantity || 0), 0)
-                      .toLocaleString()}
-                  </p>
-                </div>
+                {productStats.totalQuantity !== undefined && (
+                  <div>
+                    <p className="text-xs text-gray-400">Cantidad total</p>
+                    <p className="text-lg font-semibold text-white">
+                      {productStats.totalQuantity.toLocaleString()}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}

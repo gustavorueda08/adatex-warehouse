@@ -171,6 +171,7 @@ export async function mapBulkItems({
   setProducts,
   toast,
   ensureEmptyRow = true,
+  withItemIds = false,
 }) {
   if (!Array.isArray(items) || items.length === 0) return;
 
@@ -183,6 +184,8 @@ export async function mapBulkItems({
   }
 
   const groupedItems = items.reduce((acc, item) => {
+    // identifier is used to find the PRODUCT (parent), not the item itself.
+    // item.id should be preserved if withItemIds is true
     const identifier =
       item.productId || item.name || item.code || item["CODE"] || null;
     const key = String(identifier || "").trim().toLowerCase();
@@ -244,7 +247,8 @@ export async function mapBulkItems({
       const itemsWithKeys = productItems.map((item) => ({
         ...item,
         productId: product.id,
-        id: v4(),
+        // Use existing ID if requested and available, otherwise generate new
+        id: withItemIds && item.id ? item.id : v4(),
         key: v4(),
       }));
 

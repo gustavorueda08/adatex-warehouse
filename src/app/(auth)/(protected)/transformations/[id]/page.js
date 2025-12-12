@@ -14,15 +14,17 @@ export default function TransformationDetailPage() {
 
   // Fetch data
   const { orders, updateOrder, deleteOrder, loading } = useOrders({
-    filters: { id },
+    filters: { id: [id] },
     populate: [
       "orderProducts",
-      "orderProducts.items",
-      "orderProducts.items.sourceItem", // Populate source item details
-      "orderProducts.items.sourceItem.product",
       "orderProducts.product",
+      "orderProducts.items",
       "sourceWarehouse",
       "destinationWarehouse",
+      "sourceItems",
+      "sourceItems.product",
+      "sourceItems.transformedFromItem",
+      "sourceItems.transformedFromItem.product",
     ],
   });
 
@@ -47,18 +49,6 @@ export default function TransformationDetailPage() {
     return <div className="p-8 text-center">Transformación no encontrada</div>;
 
   return (
-    <DocumentDetail
-      config={{
-        ...config,
-        data: { products: productsData },
-        updateDocument: updateOrder,
-        deleteDocument: async (id) => {
-          const res = await deleteOrder(id);
-          if (res.success) router.push("/transformations");
-          return res;
-        },
-      }}
-      initialData={order}
-    />
+    <DocumentDetail config={config} initialData={order} />
   );
 }
