@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import EntityForm from "@/components/entities/EntityForm";
 import toast from "react-hot-toast";
 import { useProducts } from "@/lib/hooks/useProducts";
+import { useStrapi } from "@/lib/hooks/useStrapi";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { createProductDetailConfig } from "@/lib/config/productConfigs";
 import ExportItemsModal from "@/components/products/ExportItemsModal";
@@ -110,14 +111,38 @@ export default function ProductDetailPage({ params }) {
     });
   };
 
+  // Fetch sales history
+  const { entries: salesHistory, loading: loadingSales } = useStrapi(
+    "orders",
+    {
+      filters: {
+        items: { product: { id: { $eq: id } } },
+        type: "sale",
+        status: { $in: ["confirmed", "completed"] },
+      },
+      populate: {
+        customer: true,
+        items: { product: true }, // Need to parse qty
+      },
+      sort: ["createdAt:desc"],
+      pagination: { pageSize: 50 }, // Limit history
+    },
+    {
+      enabled: !!id,
+      singularName: "order",
+      pluralName: "orders",
+    }
+  );
+
   const config = useMemo(
     () =>
       createProductDetailConfig({
         product,
-        items: filteredItems, // Pass filtered items to config
+        items: filteredItems,
+        salesHistory: salesHistory || [], // Pass to config
         updateProduct,
         router,
-        loading,
+        loading: loading || loadingSales,
         warehouses: warehouses || [],
         warehouseFilter,
         setWarehouseFilter,
@@ -128,9 +153,11 @@ export default function ProductDetailPage({ params }) {
     [
       product,
       filteredItems,
+      salesHistory,
       updateProduct,
       router,
       loading,
+      loadingSales,
       warehouses,
       warehouseFilter,
       sortOrder,

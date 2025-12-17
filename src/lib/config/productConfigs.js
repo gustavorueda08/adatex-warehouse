@@ -19,6 +19,7 @@ import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import format from "@/lib/utils/format";
+import Table from "@/components/ui/Table";
 import { useCollections } from "@/lib/hooks/useCollections";
 import { useUser } from "@/lib/hooks/useUser";
 import { exportInventoryToExcel } from "@/lib/utils/exportInventoryToExcel";
@@ -354,6 +355,7 @@ export function useProductListConfig({ bulkProps = {}, onExportItems } = {}) {
 export function createProductDetailConfig({
   product,
   items = [],
+  salesHistory = [],
   updateProduct,
   router,
   updating,
@@ -495,6 +497,83 @@ export function createProductDetailConfig({
             <ProductItemsTable items={items} product={product} />
           </div>
         ),
+      },
+      {
+        title: "Historial de Ventas",
+        render: () => {
+          // If no sales history passed, don't crash
+          const history = salesHistory || [];
+
+          return (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Historial de Ventas (Últimos 50)</CardTitle>
+                <CardDescription>
+                  Ventas confirmadas o completadas que incluyen este producto.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table
+                  data={history}
+                  columns={[
+                    {
+                      header: "Fecha",
+                      key: "createdAt",
+                      render: (order) =>
+                        moment(order.createdAt).format("DD/MM/YYYY HH:mm"),
+                    },
+                    {
+                      header: "Cliente",
+                      key: "customer",
+                      render: (order) => {
+                        const customer = order.customer;
+                        if (!customer) return "-";
+                        return `${customer.name} ${customer.lastName || ""}`;
+                      },
+                    },
+                    {
+                      header: "Código Orden",
+                      key: "code",
+                      render: (order) => (
+                        <span className="font-mono text-xs">
+                          {order.code || order.documentNumber}
+                        </span>
+                      ),
+                    },
+                    {
+                      header: "Factura",
+                      key: "invoice",
+                      render: (order) => {
+                        // Logic to show invoice info if available
+                        const inv =
+                          order.invoiceLabel || order.invoiceNumber || "-";
+                        return <span className="text-zinc-400">{inv}</span>;
+                      },
+                    },
+                    {
+                      header: "Cant. Despachada",
+                      key: "qty",
+                      render: (order) => {
+                        // Find the item corresponding to THIS product
+                        const item = order.items?.find((i) => {
+                          const pId = i.product?.id || i.product;
+                          // Compare with current product.id (handle strings/numbers)
+                          return String(pId) === String(product.id);
+                        });
+                        if (!item) return "-";
+                        return (
+                          <span className="font-bold text-emerald-400">
+                            {format(item.quantity || 0)} {product.unit}
+                          </span>
+                        );
+                      },
+                    },
+                  ]}
+                />
+              </CardContent>
+            </Card>
+          );
+        },
       },
     ],
   };
