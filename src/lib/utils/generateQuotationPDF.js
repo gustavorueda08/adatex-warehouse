@@ -22,7 +22,8 @@ export async function generateQuotationPDF(document) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const activeTaxes =
       document.customerForInvoice?.taxes?.filter(
-        (t) => t.shouldAppear !== false
+        (t) =>
+          t.shouldAppear !== false && t.applicationType !== "self-retention"
       ) || [];
     const products = document.orderProducts || [];
 

@@ -469,7 +469,9 @@ export default function DocumentDetail({ config, initialData }) {
     };
 
     // 1. Filtrar impuestos activos y productos válidos
-    const activeTaxes = invoiceTaxes.filter((t) => t.shouldAppear !== false);
+    const activeTaxes = invoiceTaxes.filter(
+      (t) => t.shouldAppear !== false && t.applicationType !== "self-retention"
+    );
     const validProducts = products.filter(
       (product) => product.product && product.quantity !== ""
     );
