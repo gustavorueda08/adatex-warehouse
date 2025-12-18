@@ -585,10 +585,12 @@ export function createSaleDetailConfig({
           ? "Factura Proforma"
           : "Factura",
       taxes: (state) => {
-        return (
-          state.parties.find((p) => p.id === state.selectedCustomerForInvoice)
-            ?.taxes || []
-        );
+        const selectedId =
+          typeof state.selectedCustomerForInvoice === "object"
+            ? state.selectedCustomerForInvoice?.id
+            : state.selectedCustomerForInvoice;
+
+        return state.parties.find((p) => p.id == selectedId)?.taxes || [];
       },
     },
     customSections: [
