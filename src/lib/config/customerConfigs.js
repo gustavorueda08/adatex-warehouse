@@ -356,6 +356,8 @@ export function createCustomerDetailConfig({
           searchable: true,
           clearable: true,
           options: [
+            { label: "0", value: 0 },
+            { label: "15", value: 15 },
             { label: "30", value: 30 },
             { label: "60", value: 60 },
             { label: "90", value: 90 },
