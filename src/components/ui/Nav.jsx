@@ -77,7 +77,7 @@ const UserMenu = memo(function UserMenu({
           <ul className="py-1">
             <li>
               <a
-                href={`/users/${user?.id}`}
+                href={`/`}
                 className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
               >
                 Dashboard
@@ -120,10 +120,7 @@ const DEFAULT_LINKS = [
   {
     label: "Inventario",
     icon: BuildingStorefrontIcon,
-    links: [
-      { label: "Bodegas", href: "/warehouses" },
-      { label: "Productos", href: "/products" },
-    ],
+    href: "/products",
   },
   {
     label: "Transferencias",

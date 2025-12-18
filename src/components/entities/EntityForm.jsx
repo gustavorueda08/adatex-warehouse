@@ -151,7 +151,7 @@ export default function EntityForm({
     }
 
     setFormData(defaultData);
-  }, [initialData?.id, fields, sectioned, initialData?.prices]);
+  }, [initialData?.id, initialData?.prices]);
 
   // Actualizar campo del formulario
   const updateField = useCallback((fieldName, value) => {
