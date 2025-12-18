@@ -528,17 +528,21 @@ export default function DocumentDetail({ config, initialData }) {
       const quantity = rawQty * invoicePercentage;
       const price = Number(product.price || 0);
 
-      // Calcular Base del Item
+      // Calcular Total Bruto esperado para el item
+      const itemGrossTotal = price * quantity;
+
+      // Calcular Base del Item (inicial)
       let baseItem = 0;
       if (product.ivaIncluded) {
-        baseItem = (price / 1.19) * quantity;
+        baseItem = itemGrossTotal / 1.19;
       } else {
-        baseItem = price * quantity;
+        baseItem = itemGrossTotal;
       }
 
-      invoiceSubtotal += baseItem;
+      // Calcular impuestos por item para determinar el valor real del impuesto
+      let itemTotalTaxAmount = 0;
+      let totalApplicableTaxRate = 0;
 
-      // Calcular impuestos por item
       activeTaxes.forEach((tax) => {
         let applies = false;
         if (tax.applicationType === "product") applies = true;
@@ -556,8 +560,24 @@ export default function DocumentDetail({ config, initialData }) {
 
           if (!taxesAccumulated[tax.id]) taxesAccumulated[tax.id] = 0;
           taxesAccumulated[tax.id] += taxValue;
+
+          itemTotalTaxAmount += taxValue;
+          totalApplicableTaxRate += Number(tax.amount || 0);
         }
       });
+
+      // AJUSTE CRÍTICO DE REDONDEO:
+      // Si el IVA está incluido (y es el único o suma 19%), ajustamos la base.
+      // Si hay otros impuestos (ej. 19% + 5%), no forzamos que el total sea igual al precio de lista
+      // porque el divisor 1.19 solo cubre el IVA.
+      if (
+        product.ivaIncluded &&
+        Math.abs(totalApplicableTaxRate - 0.19) < 0.01
+      ) {
+        baseItem = itemGrossTotal - itemTotalTaxAmount;
+      }
+
+      invoiceSubtotal += baseItem;
     });
 
     // Redondear Subtotal final

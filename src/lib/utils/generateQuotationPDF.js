@@ -111,20 +111,25 @@ export async function generateQuotationPDF(document) {
       const quantity = rawQty * invoicePercentage;
       const price = Number(product.price || 0);
 
+      // Calcular Total Bruto esperado para el item
+      const itemGrossTotal = price * quantity;
+
+      // Calcular Base del Item (inicial)
       let baseItem = 0;
       let unitPriceBase = 0; // Precio unitario base para mostrar
 
       if (product.ivaIncluded) {
-        baseItem = (price / 1.19) * quantity;
+        baseItem = itemGrossTotal / 1.19;
         unitPriceBase = price / 1.19;
       } else {
-        baseItem = price * quantity;
+        baseItem = itemGrossTotal;
         unitPriceBase = price;
       }
 
-      invoiceSubtotal += baseItem;
-
       // Calcular impuestos por item para acumular
+      let itemTotalTaxAmount = 0;
+      let totalApplicableTaxRate = 0;
+
       activeTaxes.forEach((tax) => {
         let applies = false;
         if (tax.applicationType === "product") applies = true;
@@ -140,8 +145,24 @@ export async function generateQuotationPDF(document) {
 
           if (!taxesAccumulated[tax.id]) taxesAccumulated[tax.id] = 0;
           taxesAccumulated[tax.id] += taxValue;
+
+          itemTotalTaxAmount += taxValue;
+          totalApplicableTaxRate += Number(tax.amount || 0);
         }
       });
+
+      // AJUSTE CRÍTICO DE REDONDEO:
+      // Si el IVA está incluido (y es el único - 19%), ajustamos la base.
+      // Si hay otros impuestos, respetamos la lógica de adición.
+      if (
+        product.ivaIncluded &&
+        Math.abs(totalApplicableTaxRate - 0.19) < 0.01
+      ) {
+        baseItem = itemGrossTotal - itemTotalTaxAmount;
+        // No ajustamos unitPriceBase para visualización, se mantiene aproximado
+      }
+
+      invoiceSubtotal += baseItem;
 
       itemsForTable.push({
         name: product.product?.name || product.name || "Producto",
