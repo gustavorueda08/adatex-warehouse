@@ -36,6 +36,7 @@ export default function SaleDetailPage({ params }) {
       "orderProducts.items",
       "customer",
       "customer.parties",
+      "customer.parties.taxes",
       "customer.prices",
       "customer.prices.product",
       "customer.taxes",

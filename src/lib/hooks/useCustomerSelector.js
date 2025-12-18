@@ -60,7 +60,13 @@ export function useCustomerSelector({ pageSize = 25, baseFilters = {} } = {}) {
       pagination: { page, pageSize },
       sort: ["name:asc"],
       filters,
-      populate: ["prices", "prices.product", "parties"],
+      populate: [
+        "prices",
+        "prices.product",
+        "parties",
+        "parties.taxes",
+        "taxes",
+      ],
     },
     {
       keepPreviousData: true,
