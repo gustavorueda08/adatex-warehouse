@@ -10,6 +10,7 @@ import format from "../utils/format";
 import { buildInvoiceLabel } from "../utils/invoiceLabel";
 import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
 import { mapBulkItems } from "../utils/mapBulkItems";
+import { generateQuotationPDF } from "../utils/generateQuotationPDF";
 
 export function createSaleFormConfig({
   customers,
@@ -375,6 +376,20 @@ export function createSaleDetailConfig({
             confirmedDate: moment.tz("America/Bogota").toDate(),
           };
           await updateDocument(document.id, {}, true, newState);
+        },
+      },
+      {
+        label: "Descargar Cotización",
+        variant: "zinc",
+        visible: (document) => document.state !== "completed",
+        onClick: async (document, state, { showToast }) => {
+          try {
+            await generateQuotationPDF(document);
+            showToast.success("Cotización descargada exitosamente");
+          } catch (error) {
+            console.error("Error al descargar cotización:", error);
+            showToast.error("Error al generar el PDF de cotización");
+          }
         },
       },
       {

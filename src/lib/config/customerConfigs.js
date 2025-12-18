@@ -3,6 +3,7 @@ import {
   ReceiptPercentIcon,
   UserGroupIcon,
   UserIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import moment from "moment-timezone";
 import toast from "react-hot-toast";
@@ -343,6 +344,39 @@ export function createCustomerDetailConfig({
       ],
     },
     {
+      title: "Terminos y Condiciones",
+      description: "Plazo de pago asignado y cupo del cliente",
+      icon: ClockIcon,
+      fields: [
+        {
+          name: "paymentTerms",
+          label: "Plazo de Pago (Días)",
+          type: "select",
+          required: false,
+          searchable: true,
+          clearable: true,
+          options: [
+            { label: "30", value: 30 },
+            { label: "60", value: 60 },
+            { label: "90", value: 90 },
+            { label: "120", value: 120 },
+          ],
+          placeholder: "Seleccionar plazo de pago",
+          emptyMessage: "No hay plazos de pago disponibles",
+          fullWidth: false,
+          hasMenu: false,
+        },
+        {
+          name: "creditLimit",
+          label: "Cupo de Crédito",
+          type: "number",
+          required: false,
+          placeholder: "Cupo de crédito del cliente",
+          fullWidth: false,
+        },
+      ],
+    },
+    {
       title: "Impuestos",
       description: "Configuración de impuestos aplicables al cliente",
       icon: ReceiptPercentIcon,
@@ -418,6 +452,8 @@ export function createCustomerDetailConfig({
           invoicePercentage: price.invoicePercentage,
         })),
       seller: formData.seller,
+      paymentTerms: formData.paymentTerms,
+      creditLimit: formData.creditLimit,
     };
 
     const result = await updateCustomer(customerId, dataToSubmit);

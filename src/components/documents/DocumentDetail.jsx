@@ -446,79 +446,205 @@ export default function DocumentDetail({ config, initialData }) {
   }, [config.invoice, initialData, documentState]);
 
   // Generar datos de la factura
+  // Generar datos de la factura
   const invoiceData = useMemo(() => {
     if (!config.invoice || !config.invoice.enabled) return [];
 
-    const subtotalTaxes = invoiceTaxes.filter(
-      (tax) => tax.applicationType === "subtotal"
+    // Helper para evaluar condiciones
+    const checkThreshold = (value, threshold, condition = ">=") => {
+      switch (condition) {
+        case ">":
+          return value > threshold;
+        case ">=":
+          return value >= threshold;
+        case "<":
+          return value < threshold;
+        case "<=":
+          return value <= threshold;
+        case "==":
+          return value === threshold;
+        default:
+          return value >= threshold;
+      }
+    };
+
+    // 1. Filtrar impuestos activos y productos válidos
+    const activeTaxes = invoiceTaxes.filter((t) => t.shouldAppear !== false);
+    const validProducts = products.filter(
+      (product) => product.product && product.quantity !== ""
     );
 
-    let subtotalForTaxes = 0;
-    let subtotalWithNoTaxes = 0;
+    // 2. Paso 1: Calcular Subtotal Preliminar
+    // Se usa para evaluar condiciones de impuestos tipo 'product-depending-subtotal'
+    let subtotalPreliminar = 0;
 
-    products
-      .filter((product) => product.product && product.quantity !== "")
-      .forEach((product) => {
-        const invoicePercentage =
-          Number(product.invoicePercentage || 100) / 100;
-        const price = product.ivaIncluded
-          ? Math.round((product.price / 1.19) * 100) / 100
-          : product.price;
-        const quantity =
-          product.items?.reduce((acc, item) => acc + item.quantity, 0) ||
-          product.quantity ||
-          0;
+    validProducts.forEach((product) => {
+      const invoicePercentage = Number(product.invoicePercentage || 100) / 100;
+      const rawQty =
+        product.items?.reduce(
+          (acc, item) => acc + Number(item.quantity || 0),
+          0
+        ) || Number(product.quantity || 0);
+      const quantity = rawQty * invoicePercentage;
+      const price = Number(product.price || 0);
 
-        const quantityForTaxes =
-          Math.round(quantity * invoicePercentage * 100) / 100;
-        const quantityWithNoTaxes =
-          Math.round((quantity - quantityForTaxes) * 100) / 100;
+      let baseLinea = 0;
+      if (product.ivaIncluded) {
+        // Asumiendo IVA 19% implícito según guía
+        baseLinea = (price * quantity) / 1.19;
+      } else {
+        baseLinea = price * quantity;
+      }
+      subtotalPreliminar += baseLinea;
+    });
 
-        subtotalForTaxes += price * quantityForTaxes;
-        subtotalWithNoTaxes += price * quantityWithNoTaxes;
+    // 3. Paso 2: Identificar Impuestos Condicionales
+    const conditionalTaxesMap = {};
+    activeTaxes.forEach((tax) => {
+      if (tax.applicationType === "product-depending-subtotal") {
+        const threshold = Number(tax.treshold || 0); // Nota: 'treshold' typo en backend original
+        const applies = checkThreshold(
+          subtotalPreliminar,
+          threshold,
+          tax.tresholdCondition
+        );
+        if (applies) {
+          conditionalTaxesMap[tax.id] = true;
+        }
+      }
+    });
+
+    // 4. Paso 3: Calcular Detalle por Item
+    let invoiceSubtotal = 0;
+    const taxesAccumulated = {}; // taxId -> amount
+
+    validProducts.forEach((product) => {
+      const invoicePercentage = Number(product.invoicePercentage || 100) / 100;
+      const rawQty =
+        product.items?.reduce(
+          (acc, item) => acc + Number(item.quantity || 0),
+          0
+        ) || Number(product.quantity || 0);
+      const quantity = rawQty * invoicePercentage;
+      const price = Number(product.price || 0);
+
+      // Calcular Base del Item
+      let baseItem = 0;
+      if (product.ivaIncluded) {
+        baseItem = (price / 1.19) * quantity;
+      } else {
+        baseItem = price * quantity;
+      }
+
+      invoiceSubtotal += baseItem;
+
+      // Calcular impuestos por item
+      activeTaxes.forEach((tax) => {
+        let applies = false;
+        if (tax.applicationType === "product") applies = true;
+        if (
+          tax.applicationType === "product-depending-subtotal" &&
+          conditionalTaxesMap[tax.id]
+        )
+          applies = true;
+
+        if (applies) {
+          // ValorImpuesto = BaseItem * TasaImpuesto
+          // CRÍTICO: Redondear a 2 decimales por item
+          let taxValue = baseItem * Number(tax.amount || 0);
+          taxValue = Math.round(taxValue * 100) / 100;
+
+          if (!taxesAccumulated[tax.id]) taxesAccumulated[tax.id] = 0;
+          taxesAccumulated[tax.id] += taxValue;
+        }
+      });
+    });
+
+    // Redondear Subtotal final
+    invoiceSubtotal = Math.round(invoiceSubtotal * 100) / 100;
+
+    // 5. Paso 5: Calcular Retenciones (subtotal taxes)
+    const retentionTaxes = [];
+    activeTaxes.forEach((tax) => {
+      if (tax.applicationType === "subtotal") {
+        const threshold = Number(tax.treshold || 0);
+        const applies = checkThreshold(
+          invoiceSubtotal,
+          threshold,
+          tax.tresholdCondition
+        );
+
+        if (applies) {
+          let val = invoiceSubtotal * Number(tax.amount || 0);
+          val = Math.round(val * 100) / 100;
+          retentionTaxes.push({
+            ...tax,
+            calculatedAmount: val,
+          });
+        }
+      }
+    });
+
+    // 6. Paso 6: Total Final
+    let total = invoiceSubtotal;
+    const finalTaxList = [];
+
+    // Agregar Product Taxes
+    activeTaxes.forEach((tax) => {
+      if (taxesAccumulated[tax.id]) {
+        const amount = taxesAccumulated[tax.id];
+        finalTaxList.push({
+          id: tax.id,
+          name: tax.name,
+          amount: amount,
+          use: tax.use,
+        });
+
+        if (tax.use === "decrement") {
+          total -= amount;
+        } else {
+          // Default increment
+          total += amount;
+        }
+      }
+    });
+
+    // Agregar Retenciones
+    retentionTaxes.forEach((ret) => {
+      finalTaxList.push({
+        id: ret.id,
+        name: ret.name,
+        amount: ret.calculatedAmount,
+        use: ret.use,
       });
 
-    const subtotal = subtotalForTaxes + subtotalWithNoTaxes;
+      if (ret.use === "decrement") {
+        total -= ret.calculatedAmount;
+      } else {
+        total += ret.calculatedAmount;
+      }
+    });
 
-    // Ordenar impuestos
+    total = Math.round(total * 100) / 100;
+
+    // Ordenar para visualización
     const ordenPrioridad = ["IVA - 19%", "Retefuente - 2,5%", "ICA - 0,77%"];
-    const taxesValues = invoiceTaxes
-      .map((tax) => ({
-        id: tax.id,
-        name: tax.name,
-        use: tax.use,
-        amount:
-          subtotalForTaxes >= (tax.treshold || 0)
-            ? subtotalForTaxes * tax.amount
-            : 0,
-      }))
-      .sort((a, b) => {
-        const indexA = ordenPrioridad.indexOf(a.name);
-        const indexB = ordenPrioridad.indexOf(b.name);
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-        return 0;
-      });
-
-    const taxAmount = taxesValues.reduce(
-      (acc, tax) =>
-        tax.use === "increment" ? acc + tax.amount : acc - tax.amount,
-      0
-    );
-
-    const total = Math.round((subtotal + taxAmount) * 100) / 100;
+    finalTaxList.sort((a, b) => {
+      const indexA = ordenPrioridad.indexOf(a.name);
+      const indexB = ordenPrioridad.indexOf(b.name);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return 0;
+    });
 
     return [
       {
         id: "subtotal",
         name: "Subtotal",
-        amount: Math.round(subtotal * 100) / 100,
+        amount: invoiceSubtotal,
       },
-      ...taxesValues.map((tax) => ({
-        ...tax,
-        amount: Math.round(tax.amount * 100) / 100,
-      })),
+      ...finalTaxList,
       {
         id: "total",
         name: "Total",
