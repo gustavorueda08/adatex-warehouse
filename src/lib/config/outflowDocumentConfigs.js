@@ -6,6 +6,9 @@ import Swal from "sweetalert2";
 import { exportDocumentToPDF } from "../utils/exportToPDF";
 import { exportDocumentToExcel } from "../utils/exportToExcel";
 import { createProductColumnsDetailForm } from "../utils/createProductColumnsForDocuments";
+import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
+import { mapBulkItems } from "../utils/mapBulkItems";
+import toast from "react-hot-toast";
 
 export function createOutflowFormConfig({
   warehouses,
@@ -97,7 +100,7 @@ export function createOutflowDetailConfig({
       return `${baseTitle}${container}`;
     },
     redirectPath: "/outflows",
-    allowAddItems: true,
+    allowAddItems: (state) => !state.isBulkMode,
     showItemInput: true,
     allowManualEntry: false,
     data: {
@@ -119,6 +122,7 @@ export function createOutflowDetailConfig({
         actualDispatchDate: document.actualDispatchDate,
         confirmedDate: document.confirmedDate,
         completedDate: document.completedDate,
+        isBulkMode: false,
       };
     },
     stateHandlers: {},
@@ -271,6 +275,46 @@ export function createOutflowDetailConfig({
               );
             })
         );
+
+      if (state.isBulkMode) {
+        // Map products for the Bulk Update / Batch endpoint
+        const formattedProducts = products
+          .filter((p) => p.product)
+          .map((p) => {
+            const validItems = p.items.filter(
+              (i) => i.quantity !== 0 && i.quantity !== ""
+            );
+
+            // Calculate requestedQuantity sum
+            const requestedQuantity = validItems.reduce(
+              (sum, item) => sum + (Number(item.quantity) || 0),
+              0
+            );
+
+            const items = validItems.map((item) => ({
+              id: item.id,
+            }));
+
+            return {
+              product: p.product.id,
+              items: items,
+              requestedQuantity,
+            };
+          })
+          .filter((p) => p.items && p.items.length > 0);
+
+        return {
+          products: formattedProducts,
+          sourceWarehouse: state.selectedWarehouse,
+          createdDate: state.createdDate,
+          confirmedDate: state.confirmedDate,
+          completedDate: state.completedDate,
+          actualDispatchDate: state.actualDispatchDate,
+          state:
+            confirmed && state.state === "draft" ? "confirmed" : state.state,
+        };
+      }
+
       return {
         sourceWarehouse: state.selectedWarehouse,
         createdDate: state.createdDate,
@@ -280,6 +324,86 @@ export function createOutflowDetailConfig({
         state: confirmed && state.state === "draft" ? "confirmed" : state.state,
       };
     },
-    customSections: [],
+    customSections: [
+      {
+        visible: (document) =>
+          document.state === "draft" || document.state === "active",
+        render: (document, state, helpers) => {
+          const handleBulkUpload = async (data) => {
+            if (!Array.isArray(data)) return;
+
+            // Map Sale columns (ID, CODE, BARCODE, PRODUCT, QUANTITY)
+            // mapBulkItems matches d "productId" against ID/Code
+            const parsedItems = data.map((item) => ({
+              id:
+                item["ID"] ||
+                item["id"] ||
+                item["CODIGO"] ||
+                item["CODE"] ||
+                item["BARCODE"] ||
+                item["barcode"] ||
+                null,
+              name:
+                item["PRODUCTO"] ||
+                item["producto"] ||
+                item["NOMBRE"] ||
+                item["nombre"] ||
+                null,
+              quantity:
+                Number(item["CANTIDAD"]) || Number(item["cantidad"]) || null,
+            }));
+
+            helpers.updateState({ isBulkMode: true });
+
+            await mapBulkItems({
+              items: parsedItems,
+              currentProducts: helpers?.products || [],
+              fetchedProducts: helpers?.fetchedData?.products || [],
+              setProducts: helpers?.setProducts,
+              toast,
+              withItemIds: true,
+            });
+          };
+
+          return (
+            <div className="mt-6 border-t border-zinc-700 pt-6">
+              <BulkPackingListUploader
+                onFileLoaded={handleBulkUpload}
+                context={helpers}
+                isReadOnly={document.state !== "draft"}
+                requiredColumns={[
+                  {
+                    key: "ID",
+                    label: "ID",
+                    description:
+                      "ID del producto (Opcional si envía Código/Barcode)",
+                  },
+                  {
+                    key: "CODIGO",
+                    label: "CODIGO",
+                    description: "Código del producto",
+                  },
+                  {
+                    key: "BARCODE",
+                    label: "BARCODE",
+                    description: "Código de barras",
+                  },
+                  {
+                    key: "PRODUCTO",
+                    label: "PRODUCTO",
+                    description: "Nombre del producto",
+                  },
+                  {
+                    key: "CANTIDAD",
+                    label: "CANTIDAD",
+                    description: "Cantidad a despachar",
+                  },
+                ]}
+              />
+            </div>
+          );
+        },
+      },
+    ],
   };
 }
