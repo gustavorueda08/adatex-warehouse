@@ -125,11 +125,10 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
           throw new Error(
             errorData.error?.message ||
               errorData.message ||
-              `Error ${response.status}: ${response.statusText}`
+              `Error ${response.status}: ${response.statusText}`,
           );
         }
         const result = await response.json();
-       
 
         if (!result || typeof result !== "object") {
           throw new Error("Respuesta inválida del servidor");
@@ -157,7 +156,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         }
       }
     },
-    [enabled, apiUrl, onSuccess, onError, entityPlural]
+    [enabled, apiUrl, onSuccess, onError, entityPlural],
   );
 
   // Función genérica para crear entidad
@@ -165,7 +164,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
     async (entityData) => {
       if (!entityData) {
         const error = new Error(
-          `Los datos del ${entitySingular} son requeridos`
+          `Los datos del ${entitySingular} son requeridos`,
         );
         setCrudError(error);
         if (onError) onError(error);
@@ -188,7 +187,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
           throw new Error(
             result.error?.message ||
               result.message ||
-              `Error ${response.status}: ${response.statusText}`
+              `Error ${response.status}: ${response.statusText}`,
           );
         }
 
@@ -211,7 +210,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         setCreating(false);
       }
     },
-    [fetchEntities, onCreate, onError, endpoint, entitySingular]
+    [fetchEntities, onCreate, onError, endpoint, entitySingular],
   );
 
   // Función genérica para actualizar entidad
@@ -219,7 +218,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
     async (entityId, entityData) => {
       if (!entityId || !entityData) {
         const error = new Error(
-          `ID y datos del ${entitySingular} son requeridos`
+          `ID y datos del ${entitySingular} son requeridos`,
         );
         setCrudError(error);
         if (onError) onError(error);
@@ -238,12 +237,11 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
         const result = await response.json();
 
-      
         if (!response.ok) {
           throw new Error(
             result.error?.message ||
               result.message ||
-              `Error ${response.status}: ${response.statusText}`
+              `Error ${response.status}: ${response.statusText}`,
           );
         }
 
@@ -256,7 +254,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
           const updatedData = {
             ...data,
             data: data.data.map((entity) =>
-              entity.id === entityId ? result.data : entity
+              entity.id === entityId ? result.data : entity,
             ),
           };
           setData(updatedData);
@@ -273,7 +271,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         setUpdating(false);
       }
     },
-    [data, onUpdate, onError, endpoint, entitySingular]
+    [data, onUpdate, onError, endpoint, entitySingular],
   );
 
   // Función genérica para eliminar entidad
@@ -301,7 +299,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
           throw new Error(
             result.error?.message ||
               result.message ||
-              `Error ${response.status}: ${response.statusText}`
+              `Error ${response.status}: ${response.statusText}`,
           );
         }
 
@@ -335,7 +333,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         setDeleting(false);
       }
     },
-    [data, onDelete, onError, endpoint, entitySingular]
+    [data, onDelete, onError, endpoint, entitySingular],
   );
 
   // Función para refetch
@@ -417,7 +415,11 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
   // Datos derivados - Maneja tanto arrays como objetos en data.data
   const rawData = data?.data;
-  const entities = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
+  const entities = useMemo(() => {
+    if (Array.isArray(rawData)) return rawData;
+    if (rawData) return [rawData];
+    return [];
+  }, [rawData]);
   const meta = data?.meta ?? {};
   const pagination = meta.pagination ?? {};
 

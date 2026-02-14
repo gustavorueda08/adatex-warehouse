@@ -1,68 +1,97 @@
 "use client";
+import { use, useMemo, useState, useEffect } from "react";
 
-import { use, useState, useEffect, useCallback } from "react";
-import DocumentDetailBase from "@/components/documents/DocumentDetailBase";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { partialInvoiceDocumentConfig } from "@/lib/config/documentConfigs";
-import moment from "moment-timezone";
-import toast from "react-hot-toast";
-import { useUser } from "@/lib/hooks/useUser";
+import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
+import { createPartialInvoiceDetailConfig } from "@/lib/config/partialInvoiceDocumentConfigs"; // Use Edit Config
+
+import DocumentDetail from "@/components/documents/DocumentDetail";
 
 export default function PartialInvoiceDetailPage({ params }) {
   const { id } = use(params);
-  const { orders, updateOrder, deleteOrder } = useOrders({
-    filters: { id: [id] },
-    populate: [
-      "orderProducts",
-      "orderProducts.product",
-      "orderProducts.items",
-      "customer",
-      "customerForInvoice",
-      "parentOrder",
-      "parentOrder.customer",
-    ],
-  });
-  const { user } = useUser({});
+
+  // Fetch document with all relations needed for the config
+  const { orders, updateOrder, deleteOrder, refetch, getInvoices, updating } =
+    useOrders({
+      filters: { id: [id] },
+      populate: [
+        "orderProducts",
+        "orderProducts.product",
+        "orderProducts.items", // Important for expanded content
+        "customer",
+        "customer.parties",
+        "customer.parties.taxes",
+        "customer.prices",
+        "customer.prices.product",
+        "customer.taxes",
+        "customerForInvoice",
+        "customerForInvoice.prices",
+        "customerForInvoice.prices.product",
+        "customerForInvoice.taxes",
+        "parentOrder", // For reference
+      ],
+    });
 
   const order = orders[0] || null;
-  console.log("partial_order", order);
 
-  const [loadingComplete, setLoadingComplete] = useState(false);
+  // Hooks for data required by config
+  const customerSelector = useCustomerSelector({});
+  const [invoiceableItems, setInvoiceableItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(false);
 
-  // Función para completar y facturar
-  const handleComplete = useCallback(async () => {
-    if (!order) return;
-
-    setLoadingComplete(true);
-    try {
-      const result = await updateOrder(order.id, {
-        state: "completed",
-        completedDate: new Date(),
-      });
-
-      if (result.success) {
-        toast.success("Factura parcial completada y facturada exitosamente");
-      } else {
-        toast.error("Error al completar la factura parcial");
+  // Fetch invoiceable items for the customer
+  useEffect(() => {
+    if (!order?.customer?.id) return;
+    const fetchItems = async () => {
+      setLoadingItems(true);
+      try {
+        const groups = await customerSelector.getInvoiceableItems(
+          order.customer.id,
+          { "pagination[limit]": -1 },
+        );
+        console.log("PartialInvoiceDetailPage: Fetched groups", groups);
+        setInvoiceableItems(groups);
+      } catch (error) {
+        console.error("Error fetching invoiceable items:", error);
+      } finally {
+        setLoadingItems(false);
       }
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Error al completar la factura parcial");
-    } finally {
-      setLoadingComplete(false);
+    };
+    fetchItems();
+  }, [order?.customer?.id]);
+
+  // Memoize config
+  const config = useMemo(() => {
+    if (!order) return null;
+
+    // Ensure the current customer is in the list of customers for the Select
+    const allCustomers = [...(customerSelector.customers || [])];
+    if (
+      order.customer &&
+      !allCustomers.find((c) => c.id === order.customer.id)
+    ) {
+      allCustomers.push(order.customer);
     }
-  }, [order, updateOrder]);
 
-  // Callback cuando se actualiza exitosamente
-  const handleUpdateSuccess = useCallback((result) => {
-    console.log("Factura parcial actualizada exitosamente:", result);
-  }, []);
+    return createPartialInvoiceDetailConfig({
+      customers: allCustomers,
+      invoiceableItems,
+      updateOrder,
+      deleteOrder,
+      refetch,
+      getInvoices,
+    });
+  }, [
+    order,
+    customerSelector.customers,
+    invoiceableItems,
+    updateOrder,
+    deleteOrder,
+    refetch,
+    getInvoices,
+  ]);
 
-  const config = partialInvoiceDocumentConfig;
-  const isReadOnly =
-    order?.state === "completed" || order?.state === "canceled";
-
-  if (!order) {
+  if (!order || !config) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl">Cargando factura parcial...</div>
@@ -70,102 +99,9 @@ export default function PartialInvoiceDetailPage({ params }) {
     );
   }
 
-  return (
-    <DocumentDetailBase
-      document={order}
-      user={user}
-      showInvoice={false} // Las facturas parciales no muestran invoice section aquí
-      updateDocument={updateOrder}
-      deleteDocument={deleteOrder}
-      allowManualEntry={false}
-      addItem={null} // No se pueden agregar items manualmente
-      removeItem={null} // No se pueden remover items
-      availableProducts={[]}
-      documentType={config.documentType}
-      title={`${order.code || "Factura Parcial"}`}
-      redirectPath={config.redirectPath}
-      headerFields={config.getHeaderFields({
-        order,
-        parentOrder: order.parentOrder,
-      })}
-      productColumns={config.getProductColumns}
-      actions={config.getActions({
-        handleComplete,
-        loadingComplete,
-        document: order,
-      })}
-      customSections={[
-        {
-          title: "Información de la Orden Original",
-          render: () => (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-zinc-700 rounded-md">
-                <p className="text-sm text-zinc-400">Código de Orden</p>
-                <p className="text-lg font-bold">
-                  {order.parentOrder?.code || "-"}
-                </p>
-              </div>
-              <div className="p-4 bg-zinc-700 rounded-md">
-                <p className="text-sm text-zinc-400">Cliente</p>
-                <p className="text-lg font-bold">
-                  {order.parentOrder?.customer?.name ||
-                    order.customer?.name ||
-                    "-"}
-                </p>
-              </div>
-              <div className="p-4 bg-zinc-700 rounded-md">
-                <p className="text-sm text-zinc-400">
-                  Fecha de Despacho Original
-                </p>
-                <p className="text-lg font-bold">
-                  {order.parentOrder?.completedDate
-                    ? moment(order.parentOrder.completedDate)
-                        .tz("America/Bogota")
-                        .format("DD-MM-YYYY | h:mm a")
-                    : "-"}
-                </p>
-              </div>
-              <div className="p-4 bg-zinc-700 rounded-md">
-                <p className="text-sm text-zinc-400">Fecha de esta Factura</p>
-                <p className="text-lg font-bold">
-                  {order.createdAt
-                    ? moment(order.createdAt)
-                        .tz("America/Bogota")
-                        .format("DD-MM-YYYY | h:mm a")
-                    : "-"}
-                </p>
-              </div>
-            </div>
-          ),
-        },
-        ...(order.siigoId
-          ? [
-              {
-                title: "Información de Facturación",
-                render: () => (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-emerald-900/20 border border-emerald-500 rounded-md">
-                      <p className="text-sm text-emerald-400">ID Siigo</p>
-                      <p className="text-lg font-bold font-mono">
-                        {order.siigoId}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-emerald-900/20 border border-emerald-500 rounded-md">
-                      <p className="text-sm text-emerald-400">
-                        Número de Factura
-                      </p>
-                      <p className="text-lg font-bold font-mono">
-                        {order.invoiceNumber || "-"}
-                      </p>
-                    </div>
-                  </div>
-                ),
-              },
-            ]
-          : []),
-      ]}
-      onUpdate={handleUpdateSuccess}
-      isReadOnly={isReadOnly}
-    />
-  );
+  // KEY: Force remount only when CRITICAL data changes (loaded items or order ID)
+  // This ensures getInitialState runs once with all data available.
+  const formKey = `${order.id}-${loadingItems ? "loading" : "loaded"}-${invoiceableItems.length}`;
+
+  return <DocumentDetail key={formKey} config={config} initialData={order} />;
 }

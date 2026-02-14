@@ -23,31 +23,25 @@ export function useOrders(queryParams = {}, options = {}) {
         const error = new Error("Order ID e item data son requeridos");
         return { success: false, error };
       }
-
       setAddingItem(true);
-
       try {
         const response = await fetch(`/api/strapi/orders/${orderId}/add`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: itemData }),
         });
-
         const result = await response.json();
-
         if (!response.ok) {
           throw new Error(
             result.error?.message ||
               result.message ||
-              `Error ${response.status}: ${response.statusText}`
+              `Error ${response.status}: ${response.statusText}`,
           );
         }
-
         // Refrescar la lista después de agregar
         if (refetch) {
           await strapiResult.refetch();
         }
-
         return { success: true, data: result.data };
       } catch (err) {
         console.error("Error adding item:", err);
@@ -56,7 +50,7 @@ export function useOrders(queryParams = {}, options = {}) {
         setAddingItem(false);
       }
     },
-    [strapiResult.refetch]
+    [strapiResult.refetch],
   );
 
   const removeItem = useCallback(
@@ -82,7 +76,7 @@ export function useOrders(queryParams = {}, options = {}) {
           throw new Error(
             result.error?.message ||
               result.message ||
-              `Error ${response.status}: ${response.statusText}`
+              `Error ${response.status}: ${response.statusText}`,
           );
         }
 
@@ -99,7 +93,7 @@ export function useOrders(queryParams = {}, options = {}) {
         setRemovingItem(false);
       }
     },
-    [strapiResult.refetch]
+    [strapiResult.refetch],
   );
 
   const getInvoices = useCallback(
@@ -122,7 +116,7 @@ export function useOrders(queryParams = {}, options = {}) {
             throw new Error(
               result.error?.message ||
                 result.message ||
-                `Error ${response.status}: ${response.statusText}`
+                `Error ${response.status}: ${response.statusText}`,
             );
           }
           return { success: true, data: result.data };
@@ -136,7 +130,7 @@ export function useOrders(queryParams = {}, options = {}) {
 
           // Intentar obtener el nombre del archivo del header
           const contentDisposition = response.headers.get(
-            "content-disposition"
+            "content-disposition",
           );
           let filename = `invoices-${orderId}.zip`; // Default
 
@@ -174,7 +168,7 @@ export function useOrders(queryParams = {}, options = {}) {
         return { success: false, error: err };
       }
     },
-    [strapiResult.refetch]
+    [strapiResult.refetch],
   );
   return {
     ...strapiResult,

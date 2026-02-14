@@ -23,221 +23,124 @@ export async function generateQuotationPDF(document) {
     const activeTaxes =
       document.customerForInvoice?.taxes?.filter(
         (t) =>
-          t.shouldAppear !== false && t.applicationType !== "self-retention"
+          t.shouldAppear !== false && t.applicationType !== "self-retention",
       ) || [];
     const products = document.orderProducts || [];
 
-    // --- LÓGICA DE CÁLCULO (Replicada de DocumentDetail) ---
+    // --- LÓGICA DE CÁLCULO (Adaptada de PInvoice) ---
 
     // Helper para condiciones
-    const checkThreshold = (value, threshold, condition = ">=") => {
+    const checkThreshold = (value, threshold, condition) => {
       switch (condition) {
-        case ">":
+        case "greaterThan":
           return value > threshold;
-        case ">=":
+        case "greaterThanOrEqualTo":
           return value >= threshold;
-        case "<":
+        case "lessThan":
           return value < threshold;
-        case "<=":
+        case "lessThanOrEqualTo":
           return value <= threshold;
-        case "==":
-          return value === threshold;
         default:
           return value >= threshold;
       }
     };
 
     // 1. Filtrar productos válidos
-    const validProducts = products.filter(
-      (product) => product.product && product.quantity !== ""
-    );
+    const validProducts =
+      document?.orderProducts?.filter((p) => p.product) || [];
 
-    // 2. Paso 1: Calcular Subtotal Preliminar
-    // Se usa para evaluar condiciones de impuestos tipo 'product-depending-subtotal'
-    let subtotalPreliminar = 0;
+    // 2. Calcular Subtotal, Subtotal para impuestos y bases
+    let subtotalForTaxes = 0;
 
-    validProducts.forEach((product) => {
-      const invoicePercentage = Number(product.invoicePercentage || 100) / 100;
+    // Calcular subtotal acumulado y preparar items
+    const subtotal = validProducts.reduce((acc, product) => {
+      const { invoicePercentage = 0, ivaIncluded = false } = product;
 
-      let rawQty = 0;
+      let quantity = 0;
       if (document.state === "draft") {
-        rawQty = Number(product.requestedQuantity || 0);
+        quantity = Number(product.requestedQuantity || 0);
       } else {
-        rawQty = Number(product.confirmedQuantity || 0);
+        quantity = Number(product.confirmedQuantity || 0);
       }
 
-      const quantity = rawQty * invoicePercentage;
-      const price = Number(product.price || 0);
+      let price = Number(product.price) || 0;
 
-      let baseLinea = 0;
-      if (product.ivaIncluded) {
-        baseLinea = (price * quantity) / 1.19;
-      } else {
-        baseLinea = price * quantity;
+      if (ivaIncluded) {
+        price = price / (1 + 0.19 * (Number(invoicePercentage) / 100));
       }
-      subtotalPreliminar += baseLinea;
-    });
 
-    // 3. Paso 2: Identificar Impuestos Condicionales
-    const conditionalTaxesMap = {};
-    activeTaxes.forEach((tax) => {
-      if (tax.applicationType === "product-depending-subtotal") {
-        const threshold = Number(tax.treshold || 0);
-        const applies = checkThreshold(
-          subtotalPreliminar,
-          threshold,
-          tax.tresholdCondition
-        );
-        if (applies) {
-          conditionalTaxesMap[tax.id] = true;
-        }
-      }
-    });
+      subtotalForTaxes +=
+        price * Number(quantity) * (Number(invoicePercentage) / 100);
 
-    // 4. Paso 3: Calcular Detalle por Item y Acumular Impuestos
-    let invoiceSubtotal = 0;
-    const taxesAccumulated = {}; // taxId -> amount
-    const itemsForTable = [];
+      return acc + price * Number(quantity);
+    }, 0);
 
-    validProducts.forEach((product) => {
-      const invoicePercentage = Number(product.invoicePercentage || 100) / 100;
+    let total = subtotal;
 
-      let rawQty = 0;
+    // 3. Impuestos aplicados (Globales, no por item en este paso)
+    const appliedTaxes = activeTaxes
+      .filter(
+        (t) =>
+          t.applicationType !== "self-retention" &&
+          checkThreshold(
+            subtotalForTaxes,
+            Number(t.treshold),
+            t.tresholdCondition || t.tresholdContidion,
+          ),
+      )
+      .map((t) => {
+        const value = subtotalForTaxes * Number(t.amount);
+        total = t.use === "increment" ? total + value : total - value;
+        return {
+          ...t,
+          value,
+        };
+      });
+
+    // 4. Preparar items para la tabla (con precios calculados/visuales)
+    const itemsForTable = validProducts.map((p) => {
+      const { invoicePercentage, ivaIncluded } = p;
+
+      let quantity = 0;
       if (document.state === "draft") {
-        rawQty = Number(product.requestedQuantity || 0);
+        quantity = Number(p.requestedQuantity || 0);
       } else {
-        rawQty = Number(product.confirmedQuantity || 0);
+        quantity = Number(p.confirmedQuantity || 0);
       }
 
-      const quantity = rawQty * invoicePercentage;
-      const price = Number(product.price || 0);
+      let price = Number(p.price);
 
-      // Calcular Total Bruto esperado para el item
-      const itemGrossTotal = price * quantity;
+      // La lógica de PInvoice recalcula price redondeado para visualización
+      let calculatedPrice = price;
 
-      // Calcular Base del Item (inicial)
-      let baseItem = 0;
-      let unitPriceBase = 0; // Precio unitario base para mostrar
-
-      if (product.ivaIncluded) {
-        baseItem = itemGrossTotal / 1.19;
-        unitPriceBase = price / 1.19;
-      } else {
-        baseItem = itemGrossTotal;
-        unitPriceBase = price;
+      if (ivaIncluded) {
+        calculatedPrice =
+          Math.round(
+            (price / (1 + 0.19 * (Number(invoicePercentage) / 100))) * 100,
+          ) / 100;
       }
 
-      // Calcular impuestos por item para acumular
-      let itemTotalTaxAmount = 0;
-      let totalApplicableTaxRate = 0;
+      const calculatedBase = Math.round(calculatedPrice * quantity * 100) / 100;
 
-      activeTaxes.forEach((tax) => {
-        let applies = false;
-        if (tax.applicationType === "product") applies = true;
-        if (
-          tax.applicationType === "product-depending-subtotal" &&
-          conditionalTaxesMap[tax.id]
-        )
-          applies = true;
-
-        if (applies) {
-          let taxValue = baseItem * Number(tax.amount || 0);
-          taxValue = Math.round(taxValue * 100) / 100;
-
-          if (!taxesAccumulated[tax.id]) taxesAccumulated[tax.id] = 0;
-          taxesAccumulated[tax.id] += taxValue;
-
-          itemTotalTaxAmount += taxValue;
-          totalApplicableTaxRate += Number(tax.amount || 0);
-        }
-      });
-
-      // AJUSTE CRÍTICO DE REDONDEO:
-      // Si el IVA está incluido (y es el único - 19%), ajustamos la base.
-      // Si hay otros impuestos, respetamos la lógica de adición.
-      if (
-        product.ivaIncluded &&
-        Math.abs(totalApplicableTaxRate - 0.19) < 0.01
-      ) {
-        baseItem = itemGrossTotal - itemTotalTaxAmount;
-        // No ajustamos unitPriceBase para visualización, se mantiene aproximado
-      }
-
-      invoiceSubtotal += baseItem;
-
-      itemsForTable.push({
-        name: product.product?.name || product.name || "Producto",
-        quantity: quantity, // Cantidad facturable
-        unitPrice: unitPriceBase,
-        totalBase: baseItem,
-      });
+      return {
+        name: p.product?.name || p.name || "Producto",
+        quantity: quantity,
+        unitPrice: calculatedPrice,
+        totalBase: calculatedBase,
+      };
     });
 
-    // Redondear Subtotal final
-    invoiceSubtotal = Math.round(invoiceSubtotal * 100) / 100;
-
-    // 5. Paso 5: Calcular Retenciones (subtotal taxes)
-    const retentionTaxes = [];
-    activeTaxes.forEach((tax) => {
-      if (tax.applicationType === "subtotal") {
-        const threshold = Number(tax.treshold || 0);
-        const applies = checkThreshold(
-          invoiceSubtotal,
-          threshold,
-          tax.tresholdCondition
-        );
-
-        if (applies) {
-          let val = invoiceSubtotal * Number(tax.amount || 0);
-          val = Math.round(val * 100) / 100;
-          retentionTaxes.push({
-            ...tax,
-            calculatedAmount: val,
-          });
-        }
-      }
-    });
-
-    // 6. Paso 6: Total Final
-    let total = invoiceSubtotal;
-    const finalTaxList = [];
-
-    // Agregar Product Taxes
-    activeTaxes.forEach((tax) => {
-      if (taxesAccumulated[tax.id]) {
-        const amount = taxesAccumulated[tax.id];
-        finalTaxList.push({
-          id: tax.id,
-          name: tax.name,
-          amount: amount,
-          use: tax.use,
-        });
-
-        if (tax.use === "decrement") {
-          total -= amount;
-        } else {
-          total += amount;
-        }
-      }
-    });
-
-    // Agregar Retenciones
-    retentionTaxes.forEach((ret) => {
-      finalTaxList.push({
-        id: ret.id,
-        name: ret.name,
-        amount: ret.calculatedAmount,
-        use: ret.use,
-      });
-
-      if (ret.use === "decrement") {
-        total -= ret.calculatedAmount;
-      } else {
-        total += ret.calculatedAmount;
-      }
-    });
-
+    const invoiceSubtotal = Math.round(subtotal * 100) / 100;
     total = Math.round(total * 100) / 100;
+
+    // 5. Preparar lista final de impuestos para mostrar
+    // En PInvoice, appliedTaxes ya tiene el valor calculado correcto.
+    const finalTaxList = appliedTaxes.map((t) => ({
+      id: t.id,
+      name: t.name,
+      amount: t.value,
+      use: t.use,
+    }));
 
     // --- GENERACIÓN DEL PDF ---
 
@@ -378,7 +281,7 @@ export async function generateQuotationPDF(document) {
         `${sign}${format(tax.amount, "$")}`,
         pageWidth - margin,
         currentY,
-        { align: "right" }
+        { align: "right" },
       );
       currentY += 6;
     });
@@ -439,7 +342,7 @@ async function addLogoToPDF(doc, pageWidth, margin) {
             pageWidth - logoWidth - margin,
             margin,
             logoWidth,
-            logoHeight
+            logoHeight,
           );
         } catch (error) {
           console.warn("Error agregando logo:", error);

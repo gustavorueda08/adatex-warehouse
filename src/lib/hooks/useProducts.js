@@ -12,10 +12,15 @@ import { useState } from "react";
  * @returns {Object} Estado y funciones del hook
  */
 export function useProducts(queryParams = {}, options = {}) {
-  const { withInventory, ...strapiOptions } = options;
+  const { withInventory, date, fromDate, toDate, ...strapiOptions } = options;
   const endpoint = withInventory ? "products/inventory" : "products";
 
-  const strapiResult = useStrapi(endpoint, queryParams, {
+  const finalQueryParams = { ...queryParams };
+  if (date) finalQueryParams.date = date;
+  if (fromDate) finalQueryParams.fromDate = fromDate;
+  if (toDate) finalQueryParams.toDate = toDate;
+
+  const strapiResult = useStrapi(endpoint, finalQueryParams, {
     ...strapiOptions,
     singularName: "product",
     pluralName: "products",
@@ -37,7 +42,7 @@ export function useProducts(queryParams = {}, options = {}) {
         throw new Error(
           result.error?.message ||
             result.message ||
-            `Error ${response.status}: ${response.statusText}`
+            `Error ${response.status}: ${response.statusText}`,
         );
       }
       // Refrescar la lista después de agregar
@@ -67,7 +72,7 @@ export function useProducts(queryParams = {}, options = {}) {
         throw new Error(
           result.error?.message ||
             result.message ||
-            `Error ${response.status}: ${response.statusText}`
+            `Error ${response.status}: ${response.statusText}`,
         );
       }
       // Refrescar la lista después de agregar

@@ -25,18 +25,26 @@ const findLocalProduct = (
   identifier,
   name,
   currentProducts = [],
-  fetchedProducts = []
+  fetchedProducts = [],
 ) => {
-  const target = String(identifier || "").trim().toLowerCase();
+  const target = String(identifier || "")
+    .trim()
+    .toLowerCase();
   const candidates = [
     ...currentProducts.map((p) => p.product).filter(Boolean),
     ...fetchedProducts,
   ];
 
   return candidates.find((product) => {
-    const productId = String(product?.id || "").trim().toLowerCase();
-    const productCode = String(product?.code || "").trim().toLowerCase();
-    const productName = String(product?.name || "").trim().toLowerCase();
+    const productId = String(product?.id || "")
+      .trim()
+      .toLowerCase();
+    const productCode = String(product?.code || "")
+      .trim()
+      .toLowerCase();
+    const productName = String(product?.name || "")
+      .trim()
+      .toLowerCase();
     const matchIdOrCode =
       target && (productId === target || productCode === target);
     const matchName = name
@@ -124,10 +132,9 @@ const dedupeProductsList = (products = [], { ensureEmptyRow = true } = {}) => {
       result.push(copy);
     } else {
       const existing = map.get(key);
-      existing.items = [
-        ...(existing.items || []),
-        ...(row.items || []),
-      ].filter(Boolean);
+      existing.items = [...(existing.items || []), ...(row.items || [])].filter(
+        Boolean,
+      );
       if (
         existing.requestedQuantity === undefined ||
         existing.requestedQuantity === null ||
@@ -176,7 +183,7 @@ export async function mapBulkItems({
   if (!Array.isArray(items) || items.length === 0) return;
 
   const invalid = items.some(
-    (item) => !item.quantity || (!item.productId && !item.name)
+    (item) => !item.quantity || (!item.productId && !item.name),
   );
   if (invalid) {
     toast?.error?.("El formato del archivo no es válido");
@@ -188,7 +195,9 @@ export async function mapBulkItems({
     // item.id should be preserved if withItemIds is true
     const identifier =
       item.productId || item.name || item.code || item["CODE"] || null;
-    const key = String(identifier || "").trim().toLowerCase();
+    const key = String(identifier || "")
+      .trim()
+      .toLowerCase();
     if (!key) return acc;
     const entry = acc.get(key) || {
       identifier: key,
@@ -209,7 +218,7 @@ export async function mapBulkItems({
         entry.identifier,
         entry.name,
         currentProducts,
-        fetchedProducts
+        fetchedProducts,
       ) || (await fetchProductByIdentifier(entry.identifier, entry.name));
 
     if (!localProduct) {
@@ -242,11 +251,13 @@ export async function mapBulkItems({
     matchedProducts.forEach(({ product, items: productItems }) => {
       const totalQuantity = productItems.reduce(
         (acc, item) => acc + Number(item.quantity || 0),
-        0
+        0,
       );
       const itemsWithKeys = productItems.map((item) => ({
         ...item,
         productId: product.id,
+        // PackingList expects currentQuantity, not quantity
+        currentQuantity: item.currentQuantity || item.quantity || "",
         // Use existing ID if requested and available, otherwise generate new
         id: withItemIds && item.id ? item.id : v4(),
         key: v4(),
@@ -254,7 +265,7 @@ export async function mapBulkItems({
 
       const existingIndex = nextProducts.findIndex((p) => {
         const currentId =
-          typeof p.product === "object" ? p.product?.id : p.product ?? null;
+          typeof p.product === "object" ? p.product?.id : (p.product ?? null);
         const currentCode =
           typeof p.product === "object" ? p.product?.code : null;
         return (
@@ -270,9 +281,7 @@ export async function mapBulkItems({
           ...existing,
           product,
           requestedQuantity:
-            existing.requestedQuantity ||
-            existing.quantity ||
-            totalQuantity,
+            existing.requestedQuantity || existing.quantity || totalQuantity,
           quantity: existing.quantity || totalQuantity,
           items: itemsWithKeys,
         };
@@ -302,12 +311,14 @@ export async function mapBulkItems({
   });
 
   if (missingProducts.length) {
-    toast?.error?.(`No se encontraron productos: ${missingProducts.join(", ")}`);
+    toast?.error?.(
+      `No se encontraron productos: ${missingProducts.join(", ")}`,
+    );
   }
 
   const totalItems = matchedProducts.reduce(
     (acc, entry) => acc + entry.items.length,
-    0
+    0,
   );
   toast?.success?.(`Se han añadido ${totalItems} items a la orden`);
 }

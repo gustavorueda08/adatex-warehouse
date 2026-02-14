@@ -34,7 +34,7 @@ export function useCustomers(queryParams = {}, options = {}) {
         throw new Error(
           result.error?.message ||
             result.message ||
-            `Error ${response.status}: ${response.statusText}`
+            `Error ${response.status}: ${response.statusText}`,
         );
       }
       // Refrescar la lista después de agregar
@@ -50,9 +50,38 @@ export function useCustomers(queryParams = {}, options = {}) {
     }
   }, []);
 
+  const getInvoiceableItems = useCallback(async (customerId, params = {}) => {
+    const url = new URL(
+      `/api/strapi/customers/${customerId}/invoiceable-items`,
+      window.location.origin,
+    );
+
+    // Append params key-value pairs
+    Object.keys(params).forEach((key) => {
+      url.searchParams.append(key, params[key]);
+    });
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error?.message ||
+          result.message ||
+          `Error ${response.status}: ${response.statusText}`,
+      );
+    }
+    return result.data;
+  }, []);
+
   return {
     ...strapiResult,
     syncAllCustomersFromSiigo,
+    getInvoiceableItems,
     syncing,
   };
 }

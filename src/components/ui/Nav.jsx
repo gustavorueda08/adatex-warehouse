@@ -11,6 +11,9 @@ import { useUser } from "@/lib/hooks/useUser";
 import {
   BuildingStorefrontIcon,
   BanknotesIcon,
+  CurrencyDollarIcon,
+  MapIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 import { ArrowsRightLeftIcon, WrenchIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
@@ -117,6 +120,12 @@ const DEFAULT_LINKS = [
       { label: "Salidas", href: "/outflows" },
     ],
   },
+  /*
+  {
+    label: "Facturas Parciales",
+    icon: CurrencyDollarIcon,
+    href: "/partial-invoices",
+  },*/
   {
     label: "Inventario",
     icon: BuildingStorefrontIcon,
@@ -140,6 +149,16 @@ const DEFAULT_LINKS = [
       { label: "Proveedores", href: "/suppliers" },
       { label: "Vendedores", href: "/sellers" },
     ],
+  },
+  {
+    label: "Territorios",
+    icon: MapIcon,
+    href: "/territories",
+  },
+  {
+    label: "Colecciones",
+    icon: TagIcon,
+    href: "/collections",
   },
 ];
 
@@ -204,7 +223,7 @@ function Sidebar({ links, onSignOut, children }) {
             .join("")
             .toUpperCase()
         : "",
-    [user]
+    [user],
   );
 
   return (

@@ -31,12 +31,12 @@ export default function Select({
   renderValue,
   emptyMessage = "No hay opciones disponibles",
   maxHeight = 300,
-  hasMenu = true,
+  hasMenu = false,
   menuTitle = "Agregar",
   onClickMenu = () => {},
   menuVariant = "emerald",
   hasMore = false,
-  onLoadMore,
+  loadMore,
   loading = false,
   loadingMore = false,
 }) {
@@ -72,7 +72,7 @@ export default function Select({
     return options.filter(
       (o) =>
         String(o.label).toLowerCase().includes(q) ||
-        String(o.value).toLowerCase().includes(q)
+        String(o.value).toLowerCase().includes(q),
     );
   }, [options, searchable, effectiveSearch, onSearch]);
 
@@ -83,7 +83,7 @@ export default function Select({
 
   const selectedOptions = useMemo(
     () => options.filter((o) => normalizedValue.includes(o.value)),
-    [options, normalizedValue]
+    [options, normalizedValue],
   );
 
   // CORREGIDO: Mejor cálculo de posición
@@ -106,7 +106,7 @@ export default function Select({
     // Calcular altura estimada del dropdown
     const estimatedContentHeight = Math.min(
       filteredOptions.length * 40 + SEARCH_BAR_HEIGHT + 20,
-      maxHeight + SEARCH_BAR_HEIGHT
+      maxHeight + SEARCH_BAR_HEIGHT,
     );
 
     // Decidir dirección: solo abrir hacia arriba si realmente no cabe abajo
@@ -134,11 +134,11 @@ export default function Select({
     // Calcular ancho (preferir pantalla completa en móvil)
     const longestLabel = options.reduce(
       (max, opt) => Math.max(max, String(opt.label).length),
-      0
+      0,
     );
     const estimatedMinWidth = Math.min(
       Math.max(rect.width, longestLabel * 8 + 60),
-      viewportWidth - PADDING * 2
+      viewportWidth - PADDING * 2,
     );
     const dropdownWidth = isMobileViewport
       ? viewportWidth - PADDING * 2
@@ -150,7 +150,7 @@ export default function Select({
         ? PADDING
         : Math.max(
             PADDING,
-            Math.min(rect.left, viewportWidth - dropdownWidth - PADDING)
+            Math.min(rect.left, viewportWidth - dropdownWidth - PADDING),
           ),
       width: dropdownWidth,
       minWidth: dropdownWidth,
@@ -273,7 +273,7 @@ export default function Select({
         <span
           className={classNames(
             "flex-1 truncate",
-            option.disabled ? "text-gray-400" : ""
+            option.disabled ? "text-gray-400" : "",
           )}
           title={option.label}
         >
@@ -302,7 +302,7 @@ export default function Select({
           {
             "bg-zinc-900 cursor-not-allowed": disabled,
             "ring-2 ring-blue-500 border-transparent": isOpen,
-          }
+          },
         )}
       >
         <div className="flex items-center flex-1 min-w-0 py-0.5 flex-wrap gap-1">
@@ -438,7 +438,7 @@ export default function Select({
             ref={dropdownRef}
             className={classNames(
               "fixed bg-zinc-900 rounded-md shadow-2xl z-[9999] border border-zinc-700",
-              dropdownPosition.openUpwards ? "origin-bottom" : "origin-top"
+              dropdownPosition.openUpwards ? "origin-bottom" : "origin-top",
             )}
             style={{
               top: `${dropdownPosition.top}px`,
@@ -493,7 +493,7 @@ export default function Select({
                           isSelected && "bg-zinc-700",
                           option.disabled
                             ? "text-gray-600 cursor-not-allowed"
-                            : "cursor-pointer"
+                            : "cursor-pointer",
                         )}
                       >
                         {renderSingleOption(option, index)}
@@ -509,7 +509,7 @@ export default function Select({
                   <Button
                     variant="zinc"
                     className="w-full"
-                    onClick={onLoadMore}
+                    onClick={loadMore}
                     loading={loadingMore}
                     disabled={loadingMore}
                   >
@@ -519,7 +519,7 @@ export default function Select({
               )}
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );

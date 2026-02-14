@@ -1,89 +1,102 @@
 "use client";
 
-import DatePicker from "./DatePicker";
-import Searchbar from "./Searchbar";
-import DropdownSelector from "./DropdownSelector";
-import Select from "./Select";
-import { orderStatesArray } from "@/lib/utils/orderStates";
-import { useState, memo } from "react";
-import Link from "next/link";
-import Button from "./Button";
+import {
+  Button,
+  DateRangePicker,
+  Link,
+  Select,
+  SelectItem,
+} from "@heroui/react";
+import {
+  MagnifyingGlassIcon,
+  PlusCircleIcon,
+} from "@heroicons/react/24/outline";
+import { I18nProvider, useDateFormatter } from "@react-aria/i18n";
+import DebouncedInput from "./DebounceInput";
+import { parseDate } from "@internationalized/date";
+import { ORDER_STATES, orderStatesArray } from "@/lib/utils/orderStates";
+import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import { XCircleIcon } from "@heroicons/react/24/solid";
 
-function Filters(props) {
-  const {
-    placeHolder = "Buscar",
-    search = null,
-    setSearch = null,
-    range = { from: null, to: null },
-    setRange = null,
-    options = [],
-    setSelectedOptions = null,
-    linkPath = "/new-purchase",
-    showDatePicker = true,
-    showDropdownSelector = true,
-    dropdownTitle = "Estado",
-    useSelect = false,
-    selectedOptions = [],
-    multiple = false,
-  } = props;
-
-  const [loading, setLoading] = useState(false);
-
+export default function Filters({
+  search,
+  setSearch,
+  dateRange = { start: null, end: null },
+  setDateRange,
+  selectedStates,
+  setSelectedStates,
+  pathname,
+}) {
+  const screenSize = useScreenSize();
+  const states = [
+    {
+      key: "draft",
+      label: "Pendiente",
+    },
+    {
+      key: "completed",
+      label: "Completada",
+    },
+    {
+      key: "confirmed",
+      label: "Confirmada",
+    },
+  ];
   return (
-    <div className="py-4 flex flex-col lg:flex-row justify-between align-middle min-h-[76px]">
-      <div className="flex flex-col lg:flex-row gap-2 min-h-[42px]">
-        <Searchbar
-          placeHolder={placeHolder}
-          search={search}
-          setSearch={setSearch}
-          className="w-full lg:w-auto lg:min-w-[250px]"
-          autoWidth={false}
-        />
-        {showDatePicker && (
-          <DatePicker
-            mode="range"
-            value={range}
-            onChange={setRange}
-            placeholder="Selecciona un rango"
-            className="w-full lg:w-auto lg:min-w-[250px]"
+    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4 items-center">
+      <DebouncedInput
+        placeholder="Buscar"
+        startContent={<MagnifyingGlassIcon className="w-5 h-5" />}
+        initialValue={search}
+        onDebouncedChange={setSearch}
+        size={screenSize === "lg" ? "md" : "sm"}
+        className="md:col-span-2 lg:col-span-1"
+      />
+      <div className="flex flex-row items-center gap-2">
+        <I18nProvider locale="es-CL">
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            size={screenSize === "lg" ? "md" : "sm"}
+            className="flex-1"
           />
-        )}
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-2 align-middle w-full lg:w-auto mt-2 lg:mt-0 min-h-[42px]">
-        {useSelect ? (
-          <Select
-            options={options}
-            value={selectedOptions}
-            onChange={setSelectedOptions}
-            multiple={multiple}
-            placeholder={dropdownTitle}
-            className="w-full md:min-w-[300px]"
-          />
-        ) : (
-          showDropdownSelector && (
-            <DropdownSelector
-              options={options}
-              setSelectedOptions={setSelectedOptions}
-              className="w-full md:min-w-[180px]"
-              title={dropdownTitle}
-            />
-          )
-        )}
-        <Link href={linkPath}>
+        </I18nProvider>
+        {dateRange?.start && dateRange?.end && (
           <Button
-            variant="emerald"
-            className="min-w-[100px]"
-            loading={loading}
-            onClick={() => setLoading(true)}
-            fullWidth
+            variant="ghost"
+            isIconOnly
+            size={screenSize === "lg" ? "md" : "sm"}
+            onPress={() => setDateRange({ start: null, end: null })}
+            title="Limpiar fechas"
+            className="shrink-0"
           >
-            Crear
+            <XCircleIcon className="w-6 h-6" />
           </Button>
-        </Link>
+        )}
       </div>
+      <Select
+        selectionMode="multiple"
+        selectedKeys={selectedStates}
+        onSelectionChange={setSelectedStates}
+        placeholder="Filtrar por estado"
+        isClearable
+        size={screenSize === "lg" ? "md" : "sm"}
+        className="!max-w-xs"
+      >
+        {states.map((state) => (
+          <SelectItem key={state.key}>{state.label}</SelectItem>
+        ))}
+      </Select>
+      <Button
+        color="success"
+        className="text-white md:col-span-2 lg:col-span-1 lg:max-w-36 lg:justify-self-end"
+        as={Link}
+        href={pathname}
+        size={screenSize === "lg" ? "md" : "sm"}
+      >
+        <PlusCircleIcon className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
+        Crear
+      </Button>
     </div>
   );
 }
-
-export default memo(Filters);

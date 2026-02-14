@@ -50,7 +50,7 @@ export function createSaleFormConfig({
               const defaultParty = parties.find((p) => p.isDefault);
               updateField(
                 "selectedCustomerForInvoice",
-                defaultParty || parties[0]
+                defaultParty || parties[0],
               );
             }
           },
@@ -104,7 +104,7 @@ export function createSaleFormConfig({
     onProductSelect: (product, selectedProduct, formState) => {
       if (formState.selectedCustomer?.prices) {
         const priceData = formState.selectedCustomer.prices.find(
-          (p) => p.product.id === selectedProduct.id
+          (p) => p.product.id === selectedProduct.id,
         );
         if (priceData) {
           product.price = String(priceData.unitPrice);
@@ -244,11 +244,11 @@ export function createSaleDetailConfig({
       onCustomerForInvoiceChange: (
         customerForInvoiceId,
         state,
-        updateState
+        updateState,
       ) => {
         const parties = state.parties || [];
         const customerForInvoice = parties.find(
-          (p) => p.id == customerForInvoiceId
+          (p) => p.id == customerForInvoiceId,
         );
         if (customerForInvoice) {
           updateState({
@@ -343,11 +343,11 @@ export function createSaleDetailConfig({
       totalFooter: (data) =>
         format(
           data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
-          "$"
+          "$",
         ),
       onProductChange: (product, row, state) => {
         const priceData = state.selectedCustomerForInvoice?.prices?.find(
-          (p) => p.product.id === product.id
+          (p) => p.product.id === product.id,
         );
         if (priceData) {
           return {
@@ -477,17 +477,78 @@ export function createSaleDetailConfig({
             });
 
             if (result.isConfirmed) {
-              try {
-                const newState = {
-                  state: "completed",
-                  completedDate: moment.tz("America/Bogota").toDate(),
-                  emitInvoice: true,
-                };
-                await updateDocument(document.id, {}, true, newState);
-                await refetch();
-              } catch (error) {
-                toast.error("Error al facturar la orden");
-                throw error;
+              const confirmResult = await Swal.fire({
+                title: "Método de facturación",
+                text: "¿Deseas generar la factura automáticamente en Siigo o asociar una factura existente?",
+                icon: "question",
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: "Automática",
+                denyButtonText: "Asociar Manual",
+                cancelButtonText: "Cancelar",
+                background: "#27272a",
+                color: "#fff",
+                confirmButtonColor: "#10b981", // emerald
+                denyButtonColor: "#06b6d4", // cyan
+                cancelButtonColor: "#71717a", // zinc
+              });
+
+              if (confirmResult.isConfirmed) {
+                // Automática
+                try {
+                  const newState = {
+                    state: "completed",
+                    completedDate: moment.tz("America/Bogota").toDate(),
+                    emitInvoice: true,
+                  };
+                  await updateDocument(document.id, {}, true, newState);
+                  await refetch();
+                  toast.success("Orden enviada a facturación automática");
+                } catch (error) {
+                  toast.error("Error al facturar la orden");
+                  throw error;
+                }
+              } else if (confirmResult.isDenied) {
+                // Manual
+                const manualResult = await Swal.fire({
+                  title: "Asociar Factura Manual",
+                  text: "Ingresa el número de la factura (o números separados por coma)",
+                  input: "text",
+                  inputPlaceholder: "Ej: 192, 193",
+                  showCancelButton: true,
+                  confirmButtonText: "Asociar",
+                  cancelButtonText: "Cancelar",
+                  background: "#27272a",
+                  color: "#fff",
+                  confirmButtonColor: "#10b981",
+                  cancelButtonColor: "#71717a",
+                  inputValidator: (value) => {
+                    if (!value) {
+                      return "Debes ingresar al menos un número de factura";
+                    }
+                  },
+                });
+
+                if (manualResult.isConfirmed) {
+                  const invoiceNumbers = manualResult.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+
+                  try {
+                    const newState = {
+                      state: "completed",
+                      completedDate: moment.tz("America/Bogota").toDate(),
+                      manualInvoiceNumbers: invoiceNumbers,
+                    };
+                    await updateDocument(document.id, {}, true, newState);
+                    await refetch();
+                    toast.success("Factura manual asociada exitosamente");
+                  } catch (error) {
+                    toast.error("Error al asociar factura manual");
+                    throw error;
+                  }
+                }
               }
             }
           } else {
@@ -518,7 +579,7 @@ export function createSaleDetailConfig({
               return (
                 q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
               );
-            })
+            }),
         );
 
       if (state.isBulkMode) {
@@ -527,13 +588,13 @@ export function createSaleDetailConfig({
           .filter((p) => p.product)
           .map((p) => {
             const validItems = p.items.filter(
-              (i) => i.quantity !== 0 && i.quantity !== ""
+              (i) => i.quantity !== 0 && i.quantity !== "",
             );
 
             // Calculate requestedQuantity sum
             const requestedQuantity = validItems.reduce(
               (sum, item) => sum + (Number(item.quantity) || 0),
-              0
+              0,
             );
 
             const items = validItems.map((item) => ({

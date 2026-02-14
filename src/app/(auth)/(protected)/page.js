@@ -1,19 +1,17 @@
 "use client";
 
-import Card, {
-  CardContent,
-  CardDescription,
+import { useMemo } from "react";
+import {
+  Card,
   CardHeader,
-  CardTitle,
-  StatCardSkeleton,
-  ListCardSkeleton,
-  TopProductsSkeleton,
-} from "@/components/ui/Card";
+  CardBody,
+  CardFooter,
+  Skeleton,
+} from "@heroui/react";
 import { ArrowUpIcon, TransferIcon, ChartIcon } from "@/components/ui/Icons";
 import { useDashboard } from "@/lib/hooks/useDashboard";
 import ActivityChart from "@/components/dashboard/ActivityChart";
 import { useUser } from "@/lib/hooks/useUser";
-import { useMemo } from "react";
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -24,19 +22,13 @@ export default function Dashboard() {
     return null;
   }, [user]);
 
-  console.log("DEBUG: Dashboard Page - User:", user);
-  console.log("DEBUG: Dashboard Page - Computed sellerId:", sellerId);
-
   const { dashboard, loading } = useDashboard(
     {
       ...(sellerId ? { sellerId } : {}),
     },
-    { enabled: true }
+    { enabled: true },
   );
-  console.log(dashboard, "dashboard data");
 
-  // dashboard es un array según el formato de useStrapi
-  // Si el array está vacío o no hay datos, usar valores por defecto
   const dashboardData =
     Array.isArray(dashboard) && dashboard.length > 0
       ? dashboard[0]
@@ -44,121 +36,132 @@ export default function Dashboard() {
   const stats = dashboardData.stats || {};
   const recentSales = dashboardData.recentSales || [];
   const topProducts = dashboardData.topProducts || [];
-  const monthlyActivity = false;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        <p className="text-gray-400 mt-1">Bienvenido a tu panel de control</p>
+        <h1 className="text-3xl font-bold text-default-900">Dashboard</h1>
+        <p className="text-default-500 mt-1">
+          Bienvenido a tu panel de control
+        </p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Total Sales */}
-        <Card>
-          {loading ? (
-            <StatCardSkeleton />
-          ) : (
-            <>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">
-                  Ventas Totales
-                </CardTitle>
-                <div className="h-4 w-4 text-gray-400">
-                  <ChartIcon className="h-4 w-4" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {stats?.totalSales?.value}
-                </div>
-                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                  <span
-                    className={
-                      stats?.totalSales?.trend === "up"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }
-                  >
-                    {stats?.totalSales?.change}
-                  </span>
-                  respecto al mes anterior
-                </p>
-              </CardContent>
-            </>
-          )}
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <p className="text-sm font-medium text-default-500">
+              Ventas Totales
+            </p>
+            <div className="h-4 w-4 text-default-500">
+              <ChartIcon className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardBody className="py-2 overflow-hidden">
+            {loading ? (
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            ) : (
+              <div className="text-2xl font-bold text-default-900">
+                {stats?.totalSales?.value || 0}
+              </div>
+            )}
+          </CardBody>
+          <CardFooter>
+            {loading ? (
+              <Skeleton className="h-4 w-32 rounded-lg" />
+            ) : (
+              <p className="text-xs text-default-400 flex items-center gap-1">
+                <span
+                  className={
+                    stats?.totalSales?.trend === "up"
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {stats?.totalSales?.change}
+                </span>
+                respecto al mes anterior
+              </p>
+            )}
+          </CardFooter>
         </Card>
 
         {/* Inventory */}
-        <Card>
-          {loading ? (
-            <StatCardSkeleton />
-          ) : (
-            <>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">
-                  Inventario
-                </CardTitle>
-                <div className="h-4 w-4 text-gray-400">
-                  <TransferIcon className="h-4 w-4" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {stats?.inventory?.value}
-                </div>
-                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                  <span
-                    className={
-                      stats?.inventory?.trend === "up"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }
-                  >
-                    {stats?.inventory?.change}
-                  </span>
-                  productos activos
-                </p>
-              </CardContent>
-            </>
-          )}
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <p className="text-sm font-medium text-default-500">Inventario</p>
+            <div className="h-4 w-4 text-default-500">
+              <TransferIcon className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardBody className="py-2 overflow-hidden">
+            {loading ? (
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            ) : (
+              <div className="text-2xl font-bold text-default-900">
+                {stats?.inventory?.value || 0}
+              </div>
+            )}
+          </CardBody>
+          <CardFooter>
+            {loading ? (
+              <Skeleton className="h-4 w-32 rounded-lg" />
+            ) : (
+              <p className="text-xs text-default-400 flex items-center gap-1">
+                <span
+                  className={
+                    stats?.inventory?.trend === "up"
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {stats?.inventory?.change}
+                </span>
+                productos activos
+              </p>
+            )}
+          </CardFooter>
         </Card>
 
         {/* Pending Orders */}
-        <Card>
-          {loading ? (
-            <StatCardSkeleton />
-          ) : (
-            <>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">
-                  Órdenes Pendientes
-                </CardTitle>
-                <div className="h-4 w-4 text-gray-400">
-                  <ArrowUpIcon className="h-4 w-4" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">
-                  {stats?.pendingOrders?.value}
-                </div>
-                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                  <span
-                    className={
-                      stats?.pendingOrders?.trend === "up"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }
-                  >
-                    {stats?.pendingOrders?.change}
-                  </span>
-                  por procesar
-                </p>
-              </CardContent>
-            </>
-          )}
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <p className="text-sm font-medium text-default-500">
+              Órdenes Pendientes
+            </p>
+            <div className="h-4 w-4 text-default-500">
+              <ArrowUpIcon className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardBody className="py-2 overflow-hidden">
+            {loading ? (
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            ) : (
+              <div className="text-2xl font-bold text-default-900">
+                {stats?.pendingOrders?.value || 0}
+              </div>
+            )}
+          </CardBody>
+          <CardFooter>
+            {loading ? (
+              <Skeleton className="h-4 w-32 rounded-lg" />
+            ) : (
+              <p className="text-xs text-default-400 flex items-center gap-1">
+                <span
+                  className={
+                    stats?.pendingOrders?.trend === "up"
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {stats?.pendingOrders?.change}
+                </span>
+                por procesar
+              </p>
+            )}
+          </CardFooter>
         </Card>
       </div>
 
@@ -166,106 +169,120 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         {/* Recent Sales */}
         <Card className="lg:col-span-4">
-          {loading ? (
-            <ListCardSkeleton items={5} />
-          ) : (
-            <>
-              <CardHeader>
-                <CardTitle>Ventas Recientes</CardTitle>
-                <CardDescription>
-                  Has realizado {recentSales.length} ventas este período
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentSales.map((sale) => (
+          <CardHeader className="flex flex-col items-start px-6 pt-6">
+            <h4 className="text-large font-bold">Ventas Recientes</h4>
+            <p className="text-small text-default-500">
+              Has realizado {recentSales.length} ventas este período
+            </p>
+          </CardHeader>
+          <CardBody className="px-6 py-4 overflow-hidden">
+            <div className="space-y-4">
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="rounded-full w-9 h-9" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-24 rounded-lg" />
+                          <Skeleton className="h-3 w-16 rounded-lg" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-4 w-12 rounded-lg" />
+                    </div>
+                  ))
+                : recentSales.map((sale) => (
                     <div
                       key={sale.id}
                       className="flex items-center justify-between"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
                           {sale.customer.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white">
+                          <p className="text-sm font-medium text-default-900">
                             {sale.customer}
                           </p>
-                          <p className="text-xs text-gray-400">{sale.date}</p>
+                          <p className="text-xs text-default-400">
+                            {sale.date}
+                          </p>
                         </div>
                       </div>
-                      <div className="text-sm font-semibold text-white">
+                      <div className="text-sm font-semibold text-default-900">
                         {sale.amount}
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </>
-          )}
+            </div>
+          </CardBody>
         </Card>
 
         {/* Top Products */}
         <Card className="lg:col-span-3">
-          {loading ? (
-            <TopProductsSkeleton items={4} />
-          ) : (
-            <>
-              <CardHeader>
-                <CardTitle>Productos Top</CardTitle>
-                <CardDescription>
-                  Productos más vendidos del mes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {topProducts.map((product, index) => (
+          <CardHeader className="flex flex-col items-start px-6 pt-6">
+            <h4 className="text-large font-bold">Productos Top</h4>
+            <p className="text-small text-default-500">
+              Productos más vendidos del mes
+            </p>
+          </CardHeader>
+          <CardBody className="px-6 py-4 overflow-hidden">
+            <div className="space-y-4">
+              {loading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-32 rounded-lg" />
+                        <Skeleton className="h-4 w-12 rounded-lg" />
+                      </div>
+                      <Skeleton className="h-2 w-full rounded-full" />
+                    </div>
+                  ))
+                : topProducts.map((product, index) => (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300">{product.name}</span>
-                        <span className="text-white font-medium">
+                        <span className="text-default-700">{product.name}</span>
+                        <span className="text-default-900 font-medium">
                           {product.revenue}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-zinc-700 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-default-100 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
                             style={{
                               width: `${
-                                (product.sales / topProducts[0].sales) * 100
+                                (product.sales / (topProducts[0]?.sales || 1)) *
+                                100
                               }%`,
                             }}
                           />
                         </div>
-                        <span className="text-xs text-gray-400 w-12 text-right">
+                        <span className="text-xs text-default-400 w-12 text-right">
                           {product.sales}
                         </span>
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </>
-          )}
+            </div>
+          </CardBody>
         </Card>
       </div>
 
       {/* Activity Chart */}
-      <Card loading={loading}>
-        {!loading && (
-          <>
-            <CardHeader>
-              <CardTitle>Actividad de Ventas</CardTitle>
-              <CardDescription>
-                Resumen de ventas por periodo
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ActivityChart data={dashboardData.salesChart} />
-            </CardContent>
-          </>
-        )}
+      <Card className="w-full">
+        <CardHeader className="flex flex-col items-start px-6 pt-6">
+          <h4 className="text-large font-bold">Actividad de Ventas</h4>
+          <p className="text-small text-default-500">
+            Resumen de ventas por periodo
+          </p>
+        </CardHeader>
+        <CardBody className="px-6 py-4 overflow-hidden">
+          {loading ? (
+            <Skeleton className="h-[300px] w-full rounded-lg" />
+          ) : (
+            <ActivityChart data={dashboardData.salesChart} />
+          )}
+        </CardBody>
       </Card>
     </div>
   );

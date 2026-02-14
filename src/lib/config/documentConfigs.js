@@ -146,7 +146,7 @@ export const saleDocumentConfig = {
     getAvailableProducts,
     isReadOnly,
     user,
-    selectedCustomerForInvoice
+    selectedCustomerForInvoice,
   ) => [
     {
       key: "name",
@@ -174,7 +174,7 @@ export const saleDocumentConfig = {
                 console.log(selectedCustomerForInvoice?.prices);
 
                 const priceData = selectedCustomerForInvoice.prices.find(
-                  (p) => p.product.id == product.id
+                  (p) => p.product.id == product.id,
                 );
                 if (priceData) {
                   const price = String(priceData.unitPrice);
@@ -185,7 +185,7 @@ export const saleDocumentConfig = {
                   updateProductField(
                     row.id,
                     "invoicePercentage",
-                    invoicePercentage
+                    invoicePercentage,
                   );
                 }
               }
@@ -240,7 +240,7 @@ export const saleDocumentConfig = {
       ),
       footer: (data) =>
         format(
-          data.reduce((acc, d) => acc + Number(d.requestedQuantity || 0), 0)
+          data.reduce((acc, d) => acc + Number(d.requestedQuantity || 0), 0),
         ),
     },
     {
@@ -250,8 +250,8 @@ export const saleDocumentConfig = {
         <p className="flex justify-start">
           {format(
             Math.round(
-              row.requestedQuantity / (row.product?.unitsPerPackage || 1)
-            ) || 0
+              row.requestedQuantity / (row.product?.unitsPerPackage || 1),
+            ) || 0,
           ) || "-"}
         </p>
       ),
@@ -262,11 +262,11 @@ export const saleDocumentConfig = {
               acc +
               Number(
                 Math.round(
-                  d.requestedQuantity / (d.product?.unitsPerPackage || 1)
-                ) || 0
+                  d.requestedQuantity / (d.product?.unitsPerPackage || 1),
+                ) || 0,
               ),
-            0
-          )
+            0,
+          ),
         ),
     },
     {
@@ -277,8 +277,8 @@ export const saleDocumentConfig = {
           {format(
             row.items?.reduce(
               (acc, item) => acc + Number(item?.quantity || 0),
-              0
-            ) || 0
+              0,
+            ) || 0,
           ) || "-"}
         </p>
       ),
@@ -299,7 +299,7 @@ export const saleDocumentConfig = {
         const total = data.reduce(
           (acc, p) =>
             acc + (p.items?.filter((i) => i.quantity > 0).length || 0),
-          0
+          0,
         );
         return format(total) || "-";
       },
@@ -353,7 +353,7 @@ export const saleDocumentConfig = {
               state: "confirmed",
               confirmedDate: moment.tz("America/Bogota").toDate(),
             },
-            false
+            false,
           );
         } catch (error) {
           console.error(error);
@@ -375,7 +375,7 @@ export const saleDocumentConfig = {
               state: "completed",
               completedDate: moment.tz("America/Bogota").toDate(),
             },
-            false
+            false,
           );
         } catch (error) {
           console.error(error);
@@ -421,7 +421,7 @@ export const saleDocumentConfig = {
                   completedDate: moment.tz("America/Bogota").toDate(),
                   emitInvoice: true,
                 },
-                false
+                false,
               );
             } catch (error) {
               toast.error("Error al facturar la orden");
@@ -496,7 +496,7 @@ export const purchaseDocumentConfig = {
     updateProductField,
     handleProductSelect,
     getAvailableProducts,
-    isReadOnly
+    isReadOnly,
   ) => [
     {
       key: "name",
@@ -576,8 +576,8 @@ export const purchaseDocumentConfig = {
         format(
           row.items?.reduce(
             (acc, item) => acc + Number(item?.quantity || 0),
-            0
-          ) || 0
+            0,
+          ) || 0,
         ) || "-",
       footer: (data) => {
         const total =
@@ -595,12 +595,12 @@ export const purchaseDocumentConfig = {
           row.price *
             row.items?.reduce((acc, item) => acc + item.currentQuantity, 0) ||
             0,
-          "$"
+          "$",
         ),
       footer: (data) =>
         format(
           data.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 0), 0),
-          "$"
+          "$",
         ),
     },
   ],
@@ -729,7 +729,7 @@ export const returnDocumentConfig = {
     updateProductField,
     handleProductSelect,
     getAvailableProducts,
-    isReadOnly
+    isReadOnly,
   ) => [
     {
       key: "name",
@@ -753,7 +753,7 @@ export const returnDocumentConfig = {
                     item.parentItem?.currentQuantity ||
                     0)
                 );
-              }, 0) || 0
+              }, 0) || 0,
           ) || "-"}
         </p>
       ),
@@ -783,8 +783,8 @@ export const returnDocumentConfig = {
           {format(
             row.items?.reduce(
               (acc, item) => acc + Number(item?.quantity || 0),
-              0
-            ) || 0
+              0,
+            ) || 0,
           ) || "-"}
         </p>
       ),
@@ -805,7 +805,7 @@ export const returnDocumentConfig = {
         const total = data.reduce(
           (acc, p) =>
             acc + (p.items?.filter((i) => i.quantity > 0).length || 0),
-          0
+          0,
         );
         return format(total) || "-";
       },
@@ -882,7 +882,7 @@ export const inDocumentConfig = {
     updateProductField,
     handleProductSelect,
     getAvailableProducts,
-    isReadOnly
+    isReadOnly,
   ) => [
     {
       key: "name",
@@ -989,7 +989,7 @@ export const outDocumentConfig = {
     updateProductField,
     handleProductSelect,
     getAvailableProducts,
-    isReadOnly
+    isReadOnly,
   ) => [
     {
       key: "name",
@@ -1084,7 +1084,7 @@ export function createProductColumns({
         const currentProduct = row.product;
         const availableProducts = getAvailableProductsForRow(
           index,
-          productsData
+          productsData,
         );
         const selectOptions = currentProduct
           ? [
@@ -1191,7 +1191,7 @@ export function createProductColumns({
     ),
     footer: (data) =>
       unitsAreConsistent(
-        data.filter((d) => d.product).map((p) => ({ unit: p?.product?.unit }))
+        data.filter((d) => d.product).map((p) => ({ unit: p?.product?.unit })),
       )
         ? format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0))
         : "-",
@@ -1221,7 +1221,7 @@ export function createProductColumns({
         <h3 className="font-bold">
           {format(
             data.reduce((acc, d) => acc + Number(d.total || 0), 0) || "",
-            currency
+            currency,
           ) || "-"}
         </h3>
       ),
@@ -1285,7 +1285,7 @@ export function createSaleFormConfig({
               const defaultParty = parties.find((p) => p.isDefault);
               updateField(
                 "selectedCustomerForInvoice",
-                defaultParty || parties[0]
+                defaultParty || parties[0],
               );
             }
           },
@@ -1333,7 +1333,7 @@ export function createSaleFormConfig({
     onProductSelect: (product, selectedProduct, formState) => {
       if (formState.selectedCustomer?.prices) {
         const priceData = formState.selectedCustomer.prices.find(
-          (p) => p.product.id === selectedProduct.id
+          (p) => p.product.id === selectedProduct.id,
         );
         if (priceData) {
           product.price = String(priceData.unitPrice);
@@ -1705,7 +1705,7 @@ export function createReturnFormConfig({
       const hasSelectedItems =
         formState.selectedItems && formState.selectedItems.length > 0;
       const allItemsValid = formState.selectedItems?.every(
-        (item) => item.returnQuantity > 0
+        (item) => item.returnQuantity > 0,
       );
 
       return hasOrder && hasWarehouse && hasSelectedItems && allItemsValid;
@@ -1817,7 +1817,7 @@ export function createTransformFormConfig({
         (transform) =>
           transform.targetProductId &&
           transform.sourceQuantityConsumed > 0 &&
-          transform.targetQuantity > 0
+          transform.targetQuantity > 0,
       );
 
       return hasWarehouse && hasTransforms && allTransformsValid;
@@ -1918,7 +1918,7 @@ export const transformDocumentConfig = {
     updateProductField,
     handleProductSelect,
     getAvailableProducts,
-    isReadOnly
+    isReadOnly,
   ) => [
     {
       key: "name",
@@ -1954,7 +1954,7 @@ export const transformDocumentConfig = {
       ),
       footer: (data) =>
         format(
-          data.reduce((acc, d) => acc + Number(d.requestedQuantity || 0), 0)
+          data.reduce((acc, d) => acc + Number(d.requestedQuantity || 0), 0),
         ),
     },
     {
@@ -1965,8 +1965,8 @@ export const transformDocumentConfig = {
           {format(
             row.items?.reduce(
               (acc, item) => acc + Number(item?.quantity || 0),
-              0
-            ) || 0
+              0,
+            ) || 0,
           ) || "-"}
         </p>
       ),
@@ -1987,7 +1987,7 @@ export const transformDocumentConfig = {
         const total = data.reduce(
           (acc, p) =>
             acc + (p.items?.filter((i) => i.quantity > 0).length || 0),
-          0
+          0,
         );
         return format(total) || "-";
       },
@@ -2085,7 +2085,7 @@ export const partialInvoiceDocumentConfig = {
     updateProductField,
     handleProductSelect,
     getAvailableProducts,
-    isReadOnly
+    isReadOnly,
   ) => [
     {
       key: "name",
@@ -2101,8 +2101,8 @@ export const partialInvoiceDocumentConfig = {
           {format(
             row.items?.reduce(
               (acc, item) => acc + Number(item?.quantity || 0),
-              0
-            ) || 0
+              0,
+            ) || 0,
           ) || "-"}
         </p>
       ),
@@ -2123,7 +2123,7 @@ export const partialInvoiceDocumentConfig = {
         const total = data.reduce(
           (acc, p) =>
             acc + (p.items?.filter((i) => i.quantity > 0).length || 0),
-          0
+          0,
         );
         return format(total) || "-";
       },
@@ -2147,7 +2147,58 @@ export const partialInvoiceDocumentConfig = {
           : "Completar y facturar",
       variant: "emerald",
       loading: loadingComplete,
-      onClick: handleComplete,
+      onClick: async () => {
+        // Preguntar método
+        const confirmResult = await Swal.fire({
+          title: "Método de facturación",
+          text: "¿Deseas generar la factura automáticamente en Siigo o asociar una factura existente?",
+          icon: "question",
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: "Automática",
+          denyButtonText: "Asociar Manual",
+          cancelButtonText: "Cancelar",
+          background: "#27272a",
+          color: "#fff",
+          confirmButtonColor: "#10b981", // emerald
+          denyButtonColor: "#06b6d4", // cyan
+          cancelButtonColor: "#71717a", // zinc
+        });
+
+        if (confirmResult.isConfirmed) {
+          // Automática
+          await handleComplete();
+        } else if (confirmResult.isDenied) {
+          // Manual
+          const manualResult = await Swal.fire({
+            title: "Asociar Factura Manual",
+            text: "Ingresa el número de la factura (o números separados por coma)",
+            input: "text",
+            inputPlaceholder: "Ej: 195, 196",
+            showCancelButton: true,
+            confirmButtonText: "Asociar",
+            cancelButtonText: "Cancelar",
+            background: "#27272a",
+            color: "#fff",
+            confirmButtonColor: "#10b981",
+            cancelButtonColor: "#71717a",
+            inputValidator: (value) => {
+              if (!value) {
+                return "Debes ingresar al menos un número de factura";
+              }
+            },
+          });
+
+          if (manualResult.isConfirmed) {
+            const invoiceNumbers = manualResult.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+
+            await handleComplete(invoiceNumbers);
+          }
+        }
+      },
       disabled: document?.state === "completed",
     },
     {
@@ -2333,7 +2384,7 @@ export function createSaleDocumentConfigV2({
         onChange: (product, row, state) => {
           // Auto-fill precio desde customerForInvoice.prices
           const priceData = state.selectedCustomerForInvoice?.prices?.find(
-            (p) => p.product.id === product.id
+            (p) => p.product.id === product.id,
           );
 
           if (priceData) {
@@ -2377,7 +2428,7 @@ export function createSaleDocumentConfigV2({
         compute: (row) =>
           row.items?.reduce(
             (acc, item) => acc + Number(item?.quantity || 0),
-            0
+            0,
           ) || 0,
         format: (value) => format(value) || "-",
       },
@@ -2492,7 +2543,7 @@ export function createSaleDocumentConfigV2({
               return (
                 q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
               );
-            })
+            }),
         );
 
       return {
@@ -2689,7 +2740,7 @@ export function createPurchaseDocumentConfigV2({
         compute: (row) =>
           row.items?.reduce(
             (acc, item) => acc + Number(item?.quantity || 0),
-            0
+            0,
           ) || 0,
         format: (value) => format(value) || "-",
         footer: (data) => {
@@ -2713,9 +2764,9 @@ export function createPurchaseDocumentConfigV2({
           format(
             data.reduce(
               (acc, p) => acc + (p.price || 0) * (p.quantity || 0),
-              0
+              0,
             ),
-            "$"
+            "$",
           ),
       },
     ],
@@ -2762,7 +2813,7 @@ export function createPurchaseDocumentConfigV2({
               return (
                 q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
               );
-            })
+            }),
         );
 
       return {
@@ -2811,7 +2862,7 @@ export function createPurchaseDocumentConfigV2({
                       .filter(
                         (item) =>
                           item?.productId == product.product?.id ||
-                          item.name == product.product?.name
+                          item.name == product.product?.name,
                       )
                       .map((item) => ({ ...item, id: v4(), key: v4() }));
 
@@ -2822,7 +2873,7 @@ export function createPurchaseDocumentConfigV2({
                 });
 
                 toast.success(
-                  `Se han añadido ${items.length} items a la orden`
+                  `Se han añadido ${items.length} items a la orden`,
                 );
               }}
               isReadOnly={
@@ -2977,7 +3028,7 @@ export function createReturnDocumentConfigV2({
         compute: (row) =>
           row.items?.reduce(
             (acc, item) => acc + Number(item?.quantity || 0),
-            0
+            0,
           ) || 0,
         format: (value) => format(value) || "-",
         footer: (data) => {
@@ -2998,7 +3049,7 @@ export function createReturnDocumentConfigV2({
           const total = data.reduce(
             (acc, p) =>
               acc + (p.items?.filter((i) => i.quantity > 0).length || 0),
-            0
+            0,
           );
           return format(total) || "-";
         },
@@ -3025,7 +3076,7 @@ export function createReturnDocumentConfigV2({
                 state: "completed",
                 completedDate: new Date(),
               },
-              false
+              false,
             );
 
             if (result.success) {

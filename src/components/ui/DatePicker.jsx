@@ -57,17 +57,17 @@ export default function DatePicker({
   minDate,
   maxDate,
   presets = true,
-  placeholder = "Seleccionar fecha",
+  placeholder = "",
   locale = es,
   className = "",
   isDisabled = false,
 }) {
   const [internalValue, setInternalValue] = useState(
-    mode === "range" ? { from: null, to: null } : null
+    mode === "range" ? { from: null, to: null } : null,
   );
   const controlled = typeof onChange === "function";
   const current = controlled
-    ? value ?? (mode === "range" ? { from: null, to: null } : null)
+    ? (value ?? (mode === "range" ? { from: null, to: null } : null))
     : internalValue;
 
   const [open, setOpen] = useState(false);
@@ -316,7 +316,7 @@ export default function DatePicker({
         }),
       },
     ],
-    []
+    [],
   );
 
   const label = useMemo(() => {
@@ -446,8 +446,8 @@ export default function DatePicker({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={classNames(
-          "w-full text-center bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500",
-          { "bg-zinc-900 cursor-not-allowed": isDisabled }
+          "w-full text-center bg-zinc-900 hover:bg-zinc-700 transition-colors text-sm rounded-lg ps-10 p-2.5 min-h-[42px] text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-500",
+          { "bg-zinc-900 cursor-not-allowed": isDisabled },
         )}
       >
         <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3 text-zinc-400">
@@ -508,7 +508,7 @@ export default function DatePicker({
                     </div>
                   </div>
                 </>,
-                document.body
+                document.body,
               )
             : createPortal(
                 <div
@@ -530,7 +530,7 @@ export default function DatePicker({
                     <CalendarContent />
                   </div>
                 </div>,
-                document.body
+                document.body,
               )}
         </>
       )}

@@ -1,12 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
-import Card, {
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import { Card, CardHeader, CardFooter, Button, CardBody } from "@heroui/react";
 import {
   DocumentArrowUpIcon,
   CheckCircleIcon,
@@ -55,14 +48,12 @@ export default function BulkPackingListUploader({
     const fileColumns = Object.keys(firstRow);
 
     // Verificar columnas requeridas (al menos ID o NOMBRE, y CANTIDAD)
-    const hasId = fileColumns.some((col) =>
-      ["ID", "id"].includes(col)
-    );
+    const hasId = fileColumns.some((col) => ["ID", "id"].includes(col));
     const hasName = fileColumns.some((col) =>
-      ["NOMBRE", "nombre", "Nombre"].includes(col)
+      ["NOMBRE", "nombre", "Nombre"].includes(col),
     );
     const hasQuantity = fileColumns.some((col) =>
-      ["CANTIDAD", "cantidad", "Cantidad"].includes(col)
+      ["CANTIDAD", "cantidad", "Cantidad"].includes(col),
     );
 
     if (!hasQuantity) {
@@ -95,9 +86,7 @@ export default function BulkPackingListUploader({
       ];
 
       if (!validTypes.includes(file.type)) {
-        toast.error(
-          "Formato de archivo no válido. Use .xlsx, .xls o .csv"
-        );
+        toast.error("Formato de archivo no válido. Use .xlsx, .xls o .csv");
         return;
       }
 
@@ -153,7 +142,7 @@ export default function BulkPackingListUploader({
 
       reader.readAsArrayBuffer(file);
     },
-    [onFileLoaded, context]
+    [onFileLoaded, context],
   );
 
   // Handlers para drag & drop
@@ -185,7 +174,7 @@ export default function BulkPackingListUploader({
         processFile(files[0]);
       }
     },
-    [processFile]
+    [processFile],
   );
 
   // Handler para click en input
@@ -196,7 +185,7 @@ export default function BulkPackingListUploader({
         processFile(files[0]);
       }
     },
-    [processFile]
+    [processFile],
   );
 
   // Remover archivo cargado
@@ -216,62 +205,53 @@ export default function BulkPackingListUploader({
   }, [isReadOnly, isLoading]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Carga Masiva de Lista de Empaque</CardTitle>
-        <CardDescription>
-          Sube un archivo Excel con los items de la orden para procesar múltiples
-          productos a la vez
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        {/* Información de columnas requeridas */}
-        <div className="mb-4 p-4 bg-neutral-800 rounded-lg border border-neutral-700">
-          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <DocumentArrowUpIcon className="w-5 h-5 text-cyan-400" />
-            Formato requerido
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {columnsToValidate.map((col) => (
-              <div
-                key={col.key}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-600/20 border border-cyan-500/30 rounded-full"
-                title={col.description}
-              >
-                <span className="text-xs font-mono text-cyan-300 font-semibold">
-                  {col.label}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Formatos soportados: .xlsx, .xls, .csv
-          </p>
-        </div>
-
-        {/* Área de carga o vista del archivo cargado */}
-        {!loadedFile ? (
-          <>
-            {/* Input oculto */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileInputChange}
-              className="hidden"
-              disabled={isReadOnly || isLoading}
-            />
-
-            {/* Zona drag & drop */}
+    <Card className="m-2 mt-4">
+      {/* Información de columnas requeridas */}
+      <div className="m-2 p-4">
+        <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+          <DocumentArrowUpIcon className="w-5 h-5 text-cyan-400" />
+          Formato requerido
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {columnsToValidate.map((col) => (
             <div
-              onClick={handleClickUpload}
-              onDragEnter={handleDragEnter}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`
-                relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
+              key={col.key}
+              className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-600/20 border border-cyan-500/30 rounded-full"
+              title={col.description}
+            >
+              <span className="text-xs font-mono text-cyan-300 font-semibold">
+                {col.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Formatos soportados: .xlsx, .xls, .csv
+        </p>
+      </div>
+
+      {/* Área de carga o vista del archivo cargado */}
+      {!loadedFile ? (
+        <>
+          {/* Input oculto */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileInputChange}
+            className="hidden"
+            disabled={isReadOnly || isLoading}
+          />
+
+          {/* Zona drag & drop */}
+          <div
+            onClick={handleClickUpload}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`
+                relative border-2 border-dashed rounded-lg p-8 m-2 text-center cursor-pointer
                 transition-all duration-200
                 ${
                   isDragging
@@ -280,126 +260,121 @@ export default function BulkPackingListUploader({
                 }
                 ${isReadOnly || isLoading ? "opacity-50 cursor-not-allowed" : ""}
               `}
-            >
-              {isLoading ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
-                  <p className="text-white font-medium">Procesando archivo...</p>
-                  <p className="text-sm text-gray-400">
-                    Esto puede tomar unos segundos
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3">
-                  <DocumentArrowUpIcon
-                    className={`w-16 h-16 ${
-                      isDragging ? "text-cyan-400" : "text-gray-400"
-                    }`}
-                  />
-                  <div>
-                    <p className="text-white font-medium">
-                      {isDragging
-                        ? "Suelta el archivo aquí"
-                        : "Arrastra tu archivo aquí"}
-                    </p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      o haz clic para seleccionar
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    .xlsx, .xls, .csv
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Información del archivo cargado */}
-            <div className="mb-4 p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 flex-1">
-                  <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium truncate">
-                      {loadedFile.name}
-                    </p>
-                    <p className="text-sm text-emerald-300 mt-1">
-                      {loadedFile.itemCount} items procesados correctamente
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {(loadedFile.size / 1024).toFixed(2)} KB •{" "}
-                      {loadedFile.date.toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="red"
-                  size="sm"
-                  onClick={handleRemoveFile}
-                  disabled={isReadOnly}
-                  className="flex-shrink-0"
-                >
-                  <TrashIcon className="w-4 h-4 mr-1" />
-                  Remover
-                </Button>
+          >
+            {isLoading ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
+                <p className="text-white font-medium">Procesando archivo...</p>
+                <p className="text-sm text-gray-400">
+                  Esto puede tomar unos segundos
+                </p>
               </div>
-            </div>
-
-            {/* Vista previa de datos */}
-            {previewData.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-white mb-3">
-                  Vista previa (primeras {previewData.length} filas):
-                </h4>
-                <div className="overflow-x-auto rounded-lg border border-neutral-700">
-                  <table className="min-w-full divide-y divide-neutral-700">
-                    <thead className="bg-neutral-800">
-                      <tr>
-                        {Object.keys(previewData[0]).map((key) => (
-                          <th
-                            key={key}
-                            className="px-4 py-2 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider"
-                          >
-                            {key}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-neutral-900 divide-y divide-neutral-700">
-                      {previewData.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-neutral-800">
-                          {Object.values(row).map((value, colIdx) => (
-                            <td
-                              key={colIdx}
-                              className="px-4 py-2 text-sm text-gray-300 whitespace-nowrap"
-                            >
-                              {value || "-"}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {loadedFile.itemCount > 5 && (
-                  <p className="text-xs text-gray-400 mt-2 text-center">
-                    ... y {loadedFile.itemCount - 5} filas más
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <DocumentArrowUpIcon
+                  className={`w-16 h-16 ${
+                    isDragging ? "text-cyan-400" : "text-gray-400"
+                  }`}
+                />
+                <div>
+                  <p className="text-white font-medium">
+                    {isDragging
+                      ? "Suelta el archivo aquí"
+                      : "Arrastra tu archivo aquí"}
                   </p>
-                )}
+                  <p className="text-sm text-gray-400 mt-1">
+                    o haz clic para seleccionar
+                  </p>
+                </div>
+                <div className="text-xs text-gray-500">.xlsx, .xls, .csv</div>
               </div>
             )}
-          </>
-        )}
-      </CardContent>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Información del archivo cargado */}
+          <div className="mb-4 p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 flex-1">
+                <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">
+                    {loadedFile.name}
+                  </p>
+                  <p className="text-sm text-emerald-300 mt-1">
+                    {loadedFile.itemCount} items procesados correctamente
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {(loadedFile.size / 1024).toFixed(2)} KB •{" "}
+                    {loadedFile.date.toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="red"
+                size="sm"
+                onClick={handleRemoveFile}
+                disabled={isReadOnly}
+                className="flex-shrink-0"
+              >
+                <TrashIcon className="w-4 h-4 mr-1" />
+                Remover
+              </Button>
+            </div>
+          </div>
 
+          {/* Vista previa de datos */}
+          {previewData.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-3">
+                Vista previa (primeras {previewData.length} filas):
+              </h4>
+              <div className="overflow-x-auto rounded-lg border border-neutral-700">
+                <table className="min-w-full divide-y divide-neutral-700">
+                  <thead className="bg-neutral-800">
+                    <tr>
+                      {Object.keys(previewData[0]).map((key) => (
+                        <th
+                          key={key}
+                          className="px-4 py-2 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider"
+                        >
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-neutral-900 divide-y divide-neutral-700">
+                    {previewData.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-neutral-800">
+                        {Object.values(row).map((value, colIdx) => (
+                          <td
+                            key={colIdx}
+                            className="px-4 py-2 text-sm text-gray-300 whitespace-nowrap"
+                          >
+                            {value || "-"}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {loadedFile.itemCount > 5 && (
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  ... y {loadedFile.itemCount - 5} filas más
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
       {isReadOnly && (
         <CardFooter>
           <div className="text-sm text-yellow-400 flex items-center gap-2">
             <XCircleIcon className="w-5 h-5" />
             <span>
-              No se puede cargar archivos cuando el documento está completado o
-              cancelado
+              No se puede cargar archivos cuando el documento está completado
             </span>
           </div>
         </CardFooter>

@@ -32,6 +32,7 @@ const TableRow = memo(
     onToggleExpand,
     renderCell,
     renderExpandedContent,
+    mergeExpansionToggle,
   }) => {
     return (
       <>
@@ -59,7 +60,7 @@ const TableRow = memo(
             </td>
           )}
 
-          {renderExpandedContent && (
+          {renderExpandedContent && !mergeExpansionToggle && (
             <td className="w-8 p-4">
               {canExpand ? (
                 <button
@@ -112,6 +113,36 @@ const TableRow = memo(
                 >
                   {renderCell(column, row, rowIndex)}
                 </Link>
+              ) : colIndex === 0 &&
+                renderExpandedContent &&
+                mergeExpansionToggle ? (
+                <div
+                  className={`flex items-center gap-2 ${row.className || ""}`}
+                >
+                  <span className="flex-shrink-0">
+                    {canExpand ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleExpand(rowId);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-emerald-400 transition-colors p-1"
+                      >
+                        <ChevronRightIcon
+                          className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
+                            isExpanded ? "rotate-90" : "rotate-0"
+                          }`}
+                        />
+                      </button>
+                    ) : (
+                      <span className="w-6 h-6 inline-block" />
+                    )}
+                  </span>
+                  <div className="flex-grow min-w-0">
+                    {renderCell(column, row, rowIndex)}
+                  </div>
+                </div>
               ) : (
                 <div className={row.className}>
                   {renderCell(column, row, rowIndex)}
@@ -151,7 +182,7 @@ const TableRow = memo(
               colSpan={
                 columns.length +
                 (onRowSelect !== undefined ? 1 : 0) +
-                1 +
+                (!mergeExpansionToggle ? 1 : 0) +
                 (onRowDelete || detailPath ? 1 : 0)
               }
               className="p-0"
@@ -176,7 +207,7 @@ const TableRow = memo(
         )}
       </>
     );
-  }
+  },
 );
 TableRow.displayName = "TableRow";
 
@@ -203,6 +234,7 @@ export default function Table({
   getDisabledMessage = () => "",
   footer = null,
   hiddenHeader = false,
+  mergeExpansionToggle = false,
 }) {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -211,11 +243,11 @@ export default function Table({
   // Memoizar filas seleccionables
   const selectableRows = useMemo(
     () => data.filter(canSelectRow),
-    [data, canSelectRow]
+    [data, canSelectRow],
   );
   const selectableRowIds = useMemo(
     () => selectableRows.map(getRowId),
-    [selectableRows, getRowId]
+    [selectableRows, getRowId],
   );
 
   const handleSelectAll = useCallback(
@@ -231,7 +263,7 @@ export default function Table({
         if (onRowSelect) onRowSelect([]);
       }
     },
-    [selectableRowIds, onRowSelect]
+    [selectableRowIds, onRowSelect],
   );
 
   const handleRowSelect = useCallback(
@@ -246,7 +278,7 @@ export default function Table({
       setSelectedRows(newSelected);
       if (onRowSelect) onRowSelect(Array.from(newSelected));
     },
-    [selectedRows, onRowSelect]
+    [selectedRows, onRowSelect],
   );
 
   const toggleRowExpansion = useCallback((rowId) => {
@@ -279,7 +311,7 @@ export default function Table({
         toggleRowExpansion(rowId);
       }
     },
-    [renderExpandedContent, canExpandRow, toggleRowExpansion]
+    [renderExpandedContent, canExpandRow, toggleRowExpansion],
   );
 
   // Memoizar renderCell
@@ -299,19 +331,19 @@ export default function Table({
       }
       return column.footer;
     },
-    [data]
+    [data],
   );
 
   const hasFooter = useMemo(
     () => footer || columns.some((col) => col.footer !== undefined),
-    [footer, columns]
+    [footer, columns],
   );
 
   const areAllSelectableSelected = useMemo(
     () =>
       selectableRowIds.length > 0 &&
       selectableRowIds.every((id) => selectedRows.has(id)),
-    [selectableRowIds, selectedRows]
+    [selectableRowIds, selectedRows],
   );
 
   if (loading) {
@@ -353,7 +385,7 @@ export default function Table({
                     </div>
                   </th>
                 )}
-                {renderExpandedContent && (
+                {renderExpandedContent && !mergeExpansionToggle && (
                   <th scope="col" className="w-12">
                     <div className="my-4 p-6 bg-neutral-600 shadow-xl">
                       <div className="w-4 h-4 bg-neutral-500 rounded animate-pulse"></div>
@@ -401,7 +433,7 @@ export default function Table({
                       </div>
                     </td>
                   )}
-                  {renderExpandedContent && (
+                  {renderExpandedContent && !mergeExpansionToggle && (
                     <td className="p-4">
                       <div className="w-4 h-4 bg-neutral-700 rounded animate-pulse"></div>
                     </td>
@@ -654,11 +686,13 @@ export default function Table({
                 </th>
               )}
 
-              {renderExpandedContent && data.length > 0 && (
-                <th scope="col" className="w-12">
-                  <div className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></div>
-                </th>
-              )}
+              {renderExpandedContent &&
+                data.length > 0 &&
+                !mergeExpansionToggle && (
+                  <th scope="col" className="w-12">
+                    <div className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></div>
+                  </th>
+                )}
 
               {columns.map((column, index) => (
                 <th key={column.key} scope="col" className="max-w-[200px]">
@@ -740,6 +774,7 @@ export default function Table({
                     onToggleExpand={toggleRowExpansion}
                     renderCell={renderCell}
                     renderExpandedContent={renderExpandedContent}
+                    mergeExpansionToggle={mergeExpansionToggle}
                   />
                 );
               })
@@ -753,9 +788,11 @@ export default function Table({
                   <td className="my-4 p-4 rounded-l ml-4 bg-neutral-600 shadow-xl"></td>
                 )}
 
-                {renderExpandedContent && data.length > 0 && (
-                  <td className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></td>
-                )}
+                {renderExpandedContent &&
+                  data.length > 0 &&
+                  !mergeExpansionToggle && (
+                    <td className="my-4 p-6 bg-neutral-600 h-full w-full shadow-xl"></td>
+                  )}
 
                 {columns.map((column, index) => (
                   <td key={`footer-${column.key}`} className="max-w-[200px]">
@@ -802,7 +839,7 @@ export default function Table({
                 {(pagination.page - 1) * pagination.pageSize + 1}-
                 {Math.min(
                   pagination.page * pagination.pageSize,
-                  pagination.total
+                  pagination.total,
                 )}
               </span>{" "}
               de{" "}
@@ -833,7 +870,7 @@ export default function Table({
 
                 {Array.from(
                   { length: pagination.pageCount },
-                  (_, i) => i + 1
+                  (_, i) => i + 1,
                 ).map((pageNum) => (
                   <li key={`page-${pageNum}`}>
                     <button

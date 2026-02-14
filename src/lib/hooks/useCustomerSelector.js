@@ -55,6 +55,7 @@ export function useCustomerSelector({ pageSize = 25, baseFilters = {} } = {}) {
     loading,
     isFetching,
     pagination,
+    getInvoiceableItems,
   } = useCustomers(
     {
       pagination: { page, pageSize },
@@ -70,7 +71,7 @@ export function useCustomerSelector({ pageSize = 25, baseFilters = {} } = {}) {
     },
     {
       keepPreviousData: true,
-    }
+    },
   );
 
   const areCustomersEqual = (a = [], b = []) => {
@@ -124,5 +125,6 @@ export function useCustomerSelector({ pageSize = 25, baseFilters = {} } = {}) {
     loading,
     loadingMore: isFetching && page > 1,
     pagination,
+    getInvoiceableItems,
   };
 }

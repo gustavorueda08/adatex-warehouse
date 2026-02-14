@@ -34,7 +34,7 @@ export function createProductColumnsForm({
         const currentProduct = row.product;
         const availableProducts = getAvailableProductsForRow(
           index,
-          productsData
+          productsData,
         );
         const selectOptions = currentProduct
           ? [
@@ -139,7 +139,7 @@ export function createProductColumnsForm({
     ),
     footer: (data) =>
       unitsAreConsistent(
-        data.filter((d) => d.product).map((p) => ({ unit: p?.product?.unit }))
+        data.filter((d) => d.product).map((p) => ({ unit: p?.product?.unit })),
       )
         ? format(data.reduce((acc, d) => acc + Number(d.quantity || 0), 0))
         : "-",
@@ -169,7 +169,7 @@ export function createProductColumnsForm({
         <h3 className="font-bold">
           {format(
             data.reduce((acc, d) => acc + Number(d.total || 0), 0) || "",
-            currency
+            currency,
           ) || "-"}
         </h3>
       ),
@@ -222,6 +222,7 @@ export function createProductColumnsDetailForm({
   currency = "$",
   onProductChange,
   productSelectProps = {},
+  disableProductSelect = false,
 } = {}) {
   const {
     onSearchProducts,
@@ -268,6 +269,7 @@ export function createProductColumnsDetailForm({
       onLoadMore: onLoadMoreProducts,
       loading: productsLoading,
       loadingMore: productsLoadingMore,
+      disabled: disableProductSelect || false,
     },
   ];
 
@@ -310,7 +312,7 @@ export function createProductColumnsDetailForm({
       row.items?.reduce(
         (acc, item) =>
           acc + Number(item?.quantity ?? item?.currentQuantity ?? 0),
-        0
+        0,
       ) || 0,
     format: (value) => format(value) || "-",
     footer: itemsFooter,
@@ -329,7 +331,7 @@ export function createProductColumnsDetailForm({
         format(
           data.flatMap((p) => p.items).filter((i) => i.quantity !== "")
             .length || 0,
-          ""
+          "",
         ) || "-",
     });
   }
@@ -366,7 +368,7 @@ export function createProductColumnsDetailForm({
           row.items?.reduce(
             (acc, item) =>
               acc + Number(item?.currentQuantity ?? item?.quantity ?? 0),
-            0
+            0,
           ) || 0;
         return Number(row.price || 0) * totalQuantity;
       },
@@ -380,9 +382,9 @@ export function createProductColumnsDetailForm({
                 acc +
                 Number(product.price || 0) *
                   Number(product.quantity || product.requestedQuantity || 0),
-              0
+              0,
             ),
-            currency
+            currency,
           )),
     });
   }

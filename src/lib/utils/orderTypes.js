@@ -7,6 +7,7 @@ export const ORDER_TYPES = {
   CUT: "cut",
   TRANSFORM: "transform",
   TRANSFER: "transfer",
+  PARTIAL_INVOICE: "partial-invoice",
 };
 
 export const orderTypesArray = Object.values(ORDER_TYPES).map((type) => {
@@ -38,6 +39,9 @@ export const orderTypesArray = Object.values(ORDER_TYPES).map((type) => {
       break;
     case ORDER_TYPES.TRANSFER:
       data.label = "Transferencia";
+      break;
+    case ORDER_TYPES.PARTIAL_INVOICE:
+      data.label = "Factura Parcial";
       break;
     default:
       break;

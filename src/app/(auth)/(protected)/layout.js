@@ -4,6 +4,7 @@ import Sidebar from "@/components/ui/Nav";
 import { Toaster } from "react-hot-toast";
 import { UserProvider } from "@/lib/contexts/UserContext";
 import { SocketProvider } from "@/lib/contexts/SocketContext";
+import { Providers } from "@/app/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,35 +28,37 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SocketProvider>
-          <UserProvider>
-            <Sidebar>{children}</Sidebar>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                // Estilos para todos los toasts
-                style: {
-                  background: "#27272a", // zinc-800
-                  color: "#fff",
-                  border: "1px solid #3f3f46", // zinc-700
-                },
-                // Estilos específicos por tipo
-                success: {
-                  iconTheme: {
-                    primary: "#10b981", // emerald-500
-                    secondary: "#fff",
+        <Providers>
+          <SocketProvider>
+            <UserProvider>
+              <Sidebar>{children}</Sidebar>
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  // Estilos para todos los toasts
+                  style: {
+                    background: "#27272a", // zinc-800
+                    color: "#fff",
+                    border: "1px solid #3f3f46", // zinc-700
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: "#ef4444", // red-500
-                    secondary: "#fff",
+                  // Estilos específicos por tipo
+                  success: {
+                    iconTheme: {
+                      primary: "#10b981", // emerald-500
+                      secondary: "#fff",
+                    },
                   },
-                },
-              }}
-            />
-          </UserProvider>
-        </SocketProvider>
+                  error: {
+                    iconTheme: {
+                      primary: "#ef4444", // red-500
+                      secondary: "#fff",
+                    },
+                  },
+                }}
+              />
+            </UserProvider>
+          </SocketProvider>
+        </Providers>
       </body>
     </html>
   );

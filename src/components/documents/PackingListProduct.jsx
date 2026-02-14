@@ -30,14 +30,25 @@ export const PackingListProduct = memo(
     const [input, setInput] = useState("");
 
     // Calcular estadísticas del producto
+    const filteredItems = useMemo(() => {
+      if (!product?.items) return [];
+      if (!canScanItems && !allowManualEntry) {
+        // Read-only / Selection mode: Show only items with quantity
+        return product.items.filter(
+          (i) => Number(i.quantity) > 0 || i.toInvoice,
+        );
+      }
+      return product.items;
+    }, [product.items, canScanItems, allowManualEntry]);
+
     const stats = useMemo(() => {
       const totalQuantity =
-        product?.items?.reduce(
+        filteredItems.reduce(
           (acc, item) => acc + Number(item.quantity || 0),
-          0
+          0,
         ) || 0;
       const itemsWithQuantity =
-        product.items?.filter((i) => i.quantity > 0).length || 0;
+        filteredItems.filter((i) => i.quantity > 0).length || 0;
       const requestedQuantity = Number(product?.requestedQuantity || 0);
 
       return {
@@ -45,7 +56,7 @@ export const PackingListProduct = memo(
         itemsWithQuantity,
         requestedQuantity,
       };
-    }, [product.items, product.requestedQuantity]);
+    }, [filteredItems, product.requestedQuantity]);
 
     // Determinar estado y estilo del producto
     const productStatus = useMemo(() => {
@@ -161,8 +172,8 @@ export const PackingListProduct = memo(
                         productStatus.variant === "emerald"
                           ? "bg-emerald-500"
                           : productStatus.variant === "yellow"
-                          ? "bg-yellow-500"
-                          : "bg-cyan-500"
+                            ? "bg-yellow-500"
+                            : "bg-cyan-500"
                       }`}
                       style={{
                         width: `${Math.min(productStatus.percent, 100)}%`,
@@ -208,18 +219,19 @@ export const PackingListProduct = memo(
         {isExpanded && (
           <div className="border-t border-neutral-700">
             <VirtualizedItemsTable
-              items={product.items}
+              items={filteredItems}
               productId={product.id}
               updateItemField={updateItemField}
               handleDeleteItemRow={handleDeleteItemRow}
               productIndex={productIndex}
               disabled={disabled}
               allowManualEntry={allowManualEntry}
+              canDelete={canScanItems} // Use canScanItems (which maps to allowAddItems) as proxy for canDelete
             />
           </div>
         )}
       </div>
     );
-  }
+  },
 );
 PackingListProduct.displayName = "PackingListProduct";

@@ -19,7 +19,7 @@ const DebouncedInput = memo(
         setInput={onChange}
       />
     );
-  }
+  },
 );
 DebouncedInput.displayName = "DebouncedInput";
 
@@ -34,6 +34,7 @@ const VirtualizedRow = memo(({ index, style, ...data }) => {
     disabled,
     handleDeleteItemRow,
     allowManualEntry,
+    canDelete,
   } = data;
 
   const item = items?.[index];
@@ -75,7 +76,7 @@ const VirtualizedRow = memo(({ index, style, ...data }) => {
           placeholder="Número"
         />
       </div>
-      {!disabled && (
+      {!disabled && canDelete && (
         <div className="w-10">
           {item.quantity !== "" && (
             <IconButton
@@ -105,6 +106,7 @@ export const VirtualizedItemsTable = memo(
     productIndex,
     disabled,
     allowManualEntry,
+    canDelete = true,
   }) => {
     const listRef = useRef(null);
     const ROW_HEIGHT = 60;
@@ -124,7 +126,7 @@ export const VirtualizedItemsTable = memo(
 
     const tableHeight = Math.min(
       items.length * ROW_HEIGHT + HEADER_HEIGHT,
-      500
+      500,
     );
 
     // Datos que se pasan a cada fila
@@ -136,6 +138,7 @@ export const VirtualizedItemsTable = memo(
       handleDeleteItemRow,
       productIndex,
       allowManualEntry,
+      canDelete,
     };
 
     return (
@@ -145,7 +148,7 @@ export const VirtualizedItemsTable = memo(
           <div className="flex-1">Cantidad</div>
           <div className="flex-1">Lote</div>
           <div className="flex-1">Número de Item</div>
-          {!disabled && <div className="w-10">Acción</div>}
+          {!disabled && canDelete && <div className="w-10">Acción</div>}
         </div>
 
         {/* Lista virtualizada */}
@@ -177,14 +180,14 @@ export const VirtualizedItemsTable = memo(
             </div>
             {items.filter((i) => i.quantity > 0).length < items.length && (
               <span className="text-yellow-400 text-xs">
-                {items.length - items.filter((i) => i.quantity > 0).length} items
-                pendientes
+                {items.length - items.filter((i) => i.quantity > 0).length}{" "}
+                items pendientes
               </span>
             )}
           </div>
         </div>
       </div>
     );
-  }
+  },
 );
 VirtualizedItemsTable.displayName = "VirtualizedItemsTable";

@@ -26,7 +26,7 @@ export function useConsignmentBalance(customerId, options = {}) {
       if (productId) params.append("product", productId);
 
       const response = await fetch(
-        `/api/strapi/customers/${customerId}/consignment-balance?${params.toString()}`
+        `/api/strapi/customers/${customerId}/consignment-balance?${params.toString()}`,
       );
 
       if (!response.ok) {
@@ -90,7 +90,7 @@ export function useConsignmentHistory(customerId, options = {}) {
       if (limit) params.append("limit", limit);
 
       const response = await fetch(
-        `/api/strapi/customers/${customerId}/consignment-history?${params.toString()}`
+        `/api/strapi/customers/${customerId}/consignment-history?${params.toString()}`,
       );
 
       if (!response.ok) {
@@ -137,12 +137,20 @@ export function useInvoiceableItems(orderId, options = {}) {
 
   const fetchItems = async () => {
     if (!orderId || !enabled) {
-      console.log("⚠️ useInvoiceableItems: No se puede fetch - orderId:", orderId, "enabled:", enabled);
+      console.log(
+        "⚠️ useInvoiceableItems: No se puede fetch - orderId:",
+        orderId,
+        "enabled:",
+        enabled,
+      );
       setLoading(false);
       return;
     }
 
-    console.log("🔄 useInvoiceableItems: Iniciando fetch para orderId:", orderId);
+    console.log(
+      "🔄 useInvoiceableItems: Iniciando fetch para orderId:",
+      orderId,
+    );
     setLoading(true);
     setError(null);
 
@@ -152,7 +160,11 @@ export function useInvoiceableItems(orderId, options = {}) {
 
       const response = await fetch(url);
 
-      console.log("📬 useInvoiceableItems: Response status:", response.status, response.ok);
+      console.log(
+        "📬 useInvoiceableItems: Response status:",
+        response.status,
+        response.ok,
+      );
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -161,7 +173,10 @@ export function useInvoiceableItems(orderId, options = {}) {
       const result = await response.json();
       console.log("✅ useInvoiceableItems: Resultado completo:", result);
       console.log("📦 useInvoiceableItems: result.data:", result.data);
-      console.log("📦 useInvoiceableItems: result.data.products:", result.data?.products);
+      console.log(
+        "📦 useInvoiceableItems: result.data.products:",
+        result.data?.products,
+      );
 
       // Validar estructura de datos
       if (!result || typeof result !== "object") {
@@ -176,7 +191,10 @@ export function useInvoiceableItems(orderId, options = {}) {
 
       setItems(result.data);
     } catch (err) {
-      console.error("❌ useInvoiceableItems: Error fetching invoiceable items:", err);
+      console.error(
+        "❌ useInvoiceableItems: Error fetching invoiceable items:",
+        err,
+      );
       setError(err.message);
     } finally {
       setLoading(false);
@@ -226,7 +244,7 @@ export function useCreatePartialInvoice() {
         const result = await response.json();
         throw new Error(
           result.error?.message ||
-            `Error ${response.status}: ${response.statusText}`
+            `Error ${response.status}: ${response.statusText}`,
         );
       }
       const result = await response.json();
@@ -255,14 +273,14 @@ export function useCreatePartialInvoice() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
-        }
+        },
       );
 
       if (!response.ok) {
         const result = await response.json();
         throw new Error(
           result.error?.message ||
-            `Error ${response.status}: ${response.statusText}`
+            `Error ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -282,5 +300,122 @@ export function useCreatePartialInvoice() {
     error,
     createByItems,
     createByQuantity,
+  };
+}
+
+/**
+ * Hook para obtener items facturables de un cliente (múltiples órdenes)
+ * @param {number} customerId - ID del cliente
+ * @param {Object} options - Opciones del hook
+ * @returns {Object} Estado y funciones del hook
+ */
+export function useCustomerInvoiceableItems(customerId, options = {}) {
+  const { enabled = true } = options;
+
+  const [items, setItems] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchItems = async () => {
+    if (!customerId || !enabled) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Fetch completed/confirmed sale orders for this customer
+      // We need orders that have dispatched items but not fully invoiced.
+      // Usually "completed" means dispatched.
+      // We'll filter items client-side or use a custom endpoint if needed.
+      // For now, let's try standard Strapi filtering.
+
+      const qs = new URLSearchParams({
+        "filters[customer][id][$eq]": customerId,
+        "filters[type][$eq]": "sale",
+        "filters[state][$in][0]": "completed",
+        "filters[state][$in][1]": "confirmed", // Just in case
+        "populate[orderProducts][populate][items]": "true",
+        "populate[orderProducts][populate][product]": "true",
+        "pagination[limit]": "100", // Careful with limits
+      });
+
+      const response = await fetch(`/api/strapi/orders?${qs.toString()}`);
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const orders = result.data || [];
+
+      // 2. Aggregate items
+      const productMap = new Map();
+
+      orders.forEach((order) => {
+        if (!order.orderProducts) return;
+
+        order.orderProducts.forEach((op) => {
+          if (!op.product || !op.items) return;
+
+          const productId = op.product.id;
+
+          if (!productMap.has(productId)) {
+            productMap.set(productId, {
+              product: op.product,
+              items: [],
+            });
+          }
+
+          const entry = productMap.get(productId);
+
+          // Filter items that are NOT invoiced
+          const validItems = op.items.filter(
+            (item) => !item.isInvoiced && item.quantity > 0,
+          );
+
+          validItems.forEach((item) => {
+            entry.items.push({
+              ...item,
+              // Add context if needed?
+              orderId: order.id,
+              orderCode: order.code,
+              price: op.price, // Important: passing the price from OrderProduct
+            });
+          });
+        });
+      });
+
+      // Filter products with no valid items
+      const products = Array.from(productMap.values()).filter(
+        (p) => p.items.length > 0,
+      );
+
+      setItems({
+        products,
+        summary: {
+          totalProducts: products.length,
+          totalItems: products.reduce((acc, p) => acc + p.items.length, 0),
+        },
+      });
+    } catch (err) {
+      console.error("Error fetching customer invoiceable items:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, enabled]);
+
+  return {
+    items,
+    loading,
+    error,
+    refetch: fetchItems,
   };
 }

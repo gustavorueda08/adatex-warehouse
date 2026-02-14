@@ -120,7 +120,7 @@ export default function DocumentForm({ config, onFormStateChange }) {
         return { ...current, products: updatedProducts };
       });
     },
-    [config]
+    [config],
   );
 
   const handleDeleteProductRow = useCallback((index) => {
@@ -139,17 +139,27 @@ export default function DocumentForm({ config, onFormStateChange }) {
     });
   }, []);
 
+  const updateProductRow = useCallback((productId, updates) => {
+    setFormState((current) => ({
+      ...current,
+      products: current.products.map((product) => {
+        if (product.id !== productId) return product;
+        return { ...product, ...updates };
+      }),
+    }));
+  }, []);
+
   const getAvailableProductsForRow = useCallback(
     (currentIndex, allProducts) => {
       const selectedProductIds = formState.products
         .map((p, idx) =>
-          idx !== currentIndex && p.product ? p.product.id : null
+          idx !== currentIndex && p.product ? p.product.id : null,
         )
         .filter((id) => id !== null);
 
       return allProducts.filter((p) => !selectedProductIds.includes(p.id));
     },
-    [formState.products]
+    [formState.products],
   );
 
   // Actualizar campo del formulario
@@ -224,12 +234,12 @@ export default function DocumentForm({ config, onFormStateChange }) {
 
     const productsWithProduct = formState.products.filter((p) => p.product);
     const validProducts = productsWithProduct.filter(
-      (p) => p.quantity && Number(p.quantity) > 0
+      (p) => p.quantity && Number(p.quantity) > 0,
     );
 
     const totalQuantity = productsWithProduct.reduce(
       (acc, p) => acc + Number(p.quantity || 0),
-      0
+      0,
     );
 
     return {
@@ -313,7 +323,7 @@ export default function DocumentForm({ config, onFormStateChange }) {
                             },
                           });
                         },
-                        extraOptions
+                        extraOptions,
                       )}
                     </div>
                   ))}
@@ -371,6 +381,19 @@ export default function DocumentForm({ config, onFormStateChange }) {
               onRowDelete={(id, index) => handleDeleteProductRow(index)}
               canSelectRow={() => true}
               onRowEdit={() => true}
+              renderExpandedContent={
+                config.renderExpandedContent
+                  ? (row, index) =>
+                      config.renderExpandedContent(row, index, {
+                        formState,
+                        updateProductField: (field, val) =>
+                          updateProductField(row.id, field, val),
+                        updateProductRow: (updates) =>
+                          updateProductRow(row.id, updates),
+                      })
+                  : undefined
+              }
+              mergeExpansionToggle={config.mergeExpansionToggle}
             />
           </div>
 
@@ -428,7 +451,7 @@ export default function DocumentForm({ config, onFormStateChange }) {
                           formState[field.key] !== null &&
                           formState[field.key] !== undefined
                         );
-                      })
+                      }),
                     )
                   : true
               }
@@ -517,7 +540,7 @@ function renderField(
   formState,
   updateField,
   setQuickCreateConfig,
-  extraOptions
+  extraOptions,
 ) {
   const value = formState[field.key];
 
@@ -540,8 +563,8 @@ function renderField(
           allOptions.map((item) => {
             const key = item.value?.id || item.value;
             return [key, item];
-          })
-        ).values()
+          }),
+        ).values(),
       );
 
       return (
@@ -627,6 +650,7 @@ function getDocumentTypeLabel(type) {
     out: "Salida",
     return: "Devolución",
     transform: "Transformación",
+    "partial-invoice": "Factura Parcial",
   };
   return labels[type] || type;
 }

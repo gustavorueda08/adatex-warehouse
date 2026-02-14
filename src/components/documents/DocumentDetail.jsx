@@ -44,7 +44,7 @@ export default function DocumentDetail({ config, initialData }) {
 
   // Estado interno del formulario
   const [documentState, setDocumentState] = useState(() =>
-    config.getInitialState ? config.getInitialState(initialData) : {}
+    config.getInitialState ? config.getInitialState(initialData) : {},
   );
 
   // Helper para actualizar estado
@@ -67,7 +67,7 @@ export default function DocumentDetail({ config, initialData }) {
         updateState({ [field.key]: value });
       }
     },
-    [documentState, updateState, config.stateHandlers]
+    [documentState, updateState, config.stateHandlers],
   );
 
   // Preparar datos para actualización
@@ -77,12 +77,12 @@ export default function DocumentDetail({ config, initialData }) {
         return config.prepareUpdateData(
           document,
           products,
-          stateOverride || documentState
+          stateOverride || documentState,
         );
       }
       return {};
     },
-    [config, documentState]
+    [config, documentState],
   );
 
   const allowAddItems =
@@ -141,7 +141,20 @@ export default function DocumentDetail({ config, initialData }) {
       const available = getAvailableProductsForRow(index) || [];
       return available.find((p) => p.id == product) || product;
     },
-    [getAvailableProductsForRow]
+    [getAvailableProductsForRow],
+  );
+
+  // Helper para actualizar múltiples campos de un producto atómicamente
+  const updateProductRow = useCallback(
+    (productId, updates) => {
+      setProducts((current) =>
+        current.map((product) => {
+          if (product.id !== productId) return product;
+          return { ...product, ...updates };
+        }),
+      );
+    },
+    [setProducts],
   );
 
   // Handler personalizado para selección de producto (con auto-fill desde config)
@@ -152,14 +165,14 @@ export default function DocumentDetail({ config, initialData }) {
 
       // Si hay lógica de onChange en la columna de producto
       const productColumn = config.productColumns?.find(
-        (col) => col.key === "name" || col.key === "product"
+        (col) => col.key === "name" || col.key === "product",
       );
       if (productColumn && productColumn.onChange) {
         const currentRow = products[index];
         const updatedRow = productColumn.onChange(
           normalizedProduct,
           currentRow,
-          documentState
+          documentState,
         );
 
         // Aplicar los cambios al row
@@ -179,7 +192,7 @@ export default function DocumentDetail({ config, initialData }) {
       products,
       resolveProductValue,
       updateProductField,
-    ]
+    ],
   );
 
   const { user } = useUser();
@@ -278,7 +291,7 @@ export default function DocumentDetail({ config, initialData }) {
                     fetchedData,
                     row,
                     index,
-                    getAvailableProductsForRow(index)
+                    getAvailableProductsForRow(index),
                   )
                 : column.options;
 
@@ -420,7 +433,7 @@ export default function DocumentDetail({ config, initialData }) {
       handleUpdateDocument,
       handleDeleteDocument,
       updateState,
-    ]
+    ],
   );
 
   // Calcular taxes para invoice
@@ -470,10 +483,10 @@ export default function DocumentDetail({ config, initialData }) {
 
     // 1. Filtrar impuestos activos y productos válidos
     const activeTaxes = invoiceTaxes.filter(
-      (t) => t.shouldAppear !== false && t.applicationType !== "self-retention"
+      (t) => t.shouldAppear !== false && t.applicationType !== "self-retention",
     );
     const validProducts = products.filter(
-      (product) => product.product && product.quantity !== ""
+      (product) => product.product && product.quantity !== "",
     );
 
     // 2. Paso 1: Calcular Subtotal Preliminar
@@ -485,7 +498,7 @@ export default function DocumentDetail({ config, initialData }) {
       const rawQty =
         product.items?.reduce(
           (acc, item) => acc + Number(item.quantity || 0),
-          0
+          0,
         ) || Number(product.quantity || 0);
       const quantity = rawQty * invoicePercentage;
       const price = Number(product.price || 0);
@@ -508,7 +521,7 @@ export default function DocumentDetail({ config, initialData }) {
         const applies = checkThreshold(
           subtotalPreliminar,
           threshold,
-          tax.tresholdCondition
+          tax.tresholdCondition,
         );
         if (applies) {
           conditionalTaxesMap[tax.id] = true;
@@ -525,7 +538,7 @@ export default function DocumentDetail({ config, initialData }) {
       const rawQty =
         product.items?.reduce(
           (acc, item) => acc + Number(item.quantity || 0),
-          0
+          0,
         ) || Number(product.quantity || 0);
       const quantity = rawQty * invoicePercentage;
       const price = Number(product.price || 0);
@@ -593,7 +606,7 @@ export default function DocumentDetail({ config, initialData }) {
         const applies = checkThreshold(
           invoiceSubtotal,
           threshold,
-          tax.tresholdCondition
+          tax.tresholdCondition,
         );
 
         if (applies) {
@@ -703,8 +716,8 @@ export default function DocumentDetail({ config, initialData }) {
             {format(
               row.items?.reduce(
                 (acc, item) => acc + Number(item?.quantity || 0),
-                0
-              ) || 0
+                0,
+              ) || 0,
             ) || "-"}
           </p>
         ),
@@ -755,7 +768,7 @@ export default function DocumentDetail({ config, initialData }) {
         },
       },
     ],
-    []
+    [],
   );
 
   // Columnas para el resumen de factura
@@ -790,7 +803,7 @@ export default function DocumentDetail({ config, initialData }) {
         ),
       },
     ],
-    []
+    [],
   );
 
   // Calcular estadísticas globales de la lista de empaque
@@ -799,7 +812,7 @@ export default function DocumentDetail({ config, initialData }) {
 
     const totalItems = productsWithItems.reduce(
       (acc, p) => acc + (Array.isArray(p.items) ? p.items.length : 1),
-      0
+      0,
     );
 
     const totalQuantity = productsWithItems.reduce((acc, p) => {
@@ -814,7 +827,7 @@ export default function DocumentDetail({ config, initialData }) {
 
     const totalRequested = productsWithItems.reduce(
       (acc, p) => acc + Number(p.requestedQuantity || 0),
-      0
+      0,
     );
 
     const itemsWithQuantity = productsWithItems.reduce((acc, p) => {
@@ -922,6 +935,18 @@ export default function DocumentDetail({ config, initialData }) {
               getRowId={(row) => row.id}
               canDeleteRow={() => !isReadOnly}
               onRowDelete={(id, index) => handleDeleteProductRow(index)}
+              renderExpandedContent={
+                config.renderExpandedContent
+                  ? (row, index) =>
+                      config.renderExpandedContent(row, index, {
+                        updateProductField: (field, value) =>
+                          updateProductField(row.id, field, value),
+                        updateProductRow: (updates) =>
+                          updateProductRow(row.id, updates),
+                      })
+                  : undefined
+              }
+              mergeExpansionToggle={config.mergeExpansionToggle}
             />
           </div>
         </CardContent>
@@ -987,13 +1012,13 @@ export default function DocumentDetail({ config, initialData }) {
                         packingListStats.percentComplete >= 100
                           ? "bg-emerald-500"
                           : packingListStats.percentComplete > 0
-                          ? "bg-yellow-500"
-                          : "bg-zinc-600"
+                            ? "bg-yellow-500"
+                            : "bg-zinc-600"
                       }`}
                       style={{
                         width: `${Math.min(
                           packingListStats.percentComplete,
-                          100
+                          100,
                         )}%`,
                       }}
                     />

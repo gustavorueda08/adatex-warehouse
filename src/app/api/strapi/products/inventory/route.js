@@ -18,7 +18,9 @@ export async function GET(request) {
       strapiUrl.searchParams.append(key, value);
     });
 
-    console.log(strapiUrl.toString());
+    console.log("🔍 Incoming Request URL:", request.url);
+    console.log("🔍 Search Params keys:", Array.from(searchParams.keys()));
+    console.log("🔗 Constructed Strapi URL:", strapiUrl.toString());
 
     // Configurar headers para la petición a Strapi
     const headers = {
@@ -48,7 +50,7 @@ export async function GET(request) {
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -58,7 +60,7 @@ export async function GET(request) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     // Añadir headers de cache si es necesario
@@ -76,7 +78,7 @@ export async function GET(request) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -94,7 +96,7 @@ export async function POST(request) {
     if (!body || !body.data) {
       return NextResponse.json(
         { error: "Datos inválidos. Se requiere un objeto 'data'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -129,7 +131,7 @@ export async function POST(request) {
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -139,7 +141,7 @@ export async function POST(request) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -151,7 +153,7 @@ export async function POST(request) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
