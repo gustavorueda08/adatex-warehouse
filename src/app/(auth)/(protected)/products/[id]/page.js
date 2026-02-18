@@ -1,15 +1,10 @@
 "use client";
-
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import EntityForm from "@/components/entities/EntityForm";
-import toast from "react-hot-toast";
 import { useProducts } from "@/lib/hooks/useProducts";
-import { useStrapi } from "@/lib/hooks/useStrapi";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
-
+import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
-
 import {
   Button,
   Modal,
@@ -21,8 +16,6 @@ import {
   addToast,
 } from "@heroui/react";
 import { ArrowDownTrayIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { createProductDetailConfig } from "@/lib/config/productConfigs";
-import ExportItemsModal from "@/components/products/ExportItemsModal";
 import { exportItemsToExcel } from "@/lib/utils/exportItemsToExcel";
 import Entity from "@/components/entities/Entity";
 import Section from "@/components/ui/Section";
@@ -39,7 +32,7 @@ export default function ProductDetailPage({ params }) {
   const [product, setProduct] = useState(null);
   const [itemsPagination, setItemsPagination] = useState({
     page: 1,
-    pageSize: 25,
+    pageSize: 10,
   });
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -125,6 +118,16 @@ export default function ProductDetailPage({ params }) {
       fullWidth: true,
     },
     {
+      key: "collections",
+      label: "Colecciones",
+      type: "multiselect",
+      listType: "collections",
+      render: (collection) => collection.name,
+      values: product?.collections || [],
+      onChange: (collections) => setProduct({ ...product, collections }),
+      fullWidth: true,
+    },
+    {
       key: "hasVariableQuantity",
       label: "¿Tiene cantidad variable por paquete?",
       type: "checkbox",
@@ -142,6 +145,7 @@ export default function ProductDetailPage({ params }) {
             onChange: (unitsPerPackage) =>
               setProduct({ ...product, unitsPerPackage }),
             fullWidth: true,
+            inputType: "number",
           },
         ]
       : []),
@@ -200,23 +204,94 @@ export default function ProductDetailPage({ params }) {
     ];
   }, [warehouses, warehouseFilter]);
 
+  /*
+   * Hook for creating orders (used for deleting items via "out" order)
+   */
+  const { createOrder, creating: creatingOrder } = useOrders();
+
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
-  const handleDeleteItems = () => {
-    // Logic to delete selected items will be implemented here
-    console.log("Deleting items:", Array.from(selectedKeys));
-    onOpenChange(); // Close modal
+  const handleDeleteItems = async () => {
+    try {
+      let selectedItems = [];
+
+      // Handle "Select All" case
+      if (selectedKeys === "all") {
+        selectedItems = [...items];
+      } else {
+        const selectedIds = new Set(Array.from(selectedKeys).map(String));
+        // Filter selected items ensuring ID type match
+        selectedItems = items.filter((item) =>
+          selectedIds.has(String(item.id)),
+        );
+      }
+
+      if (selectedItems.length === 0) {
+        addToast({
+          title: "Error",
+          description: "No se encontraron los items seleccionados",
+          type: "error",
+        });
+        return;
+      }
+
+      // Calculate total requested quantity
+      const totalQuantity = selectedItems.reduce(
+        (sum, item) => sum + Number(item.currentQuantity),
+        0,
+      );
+
+      // Construct payload for "out" order
+      const payload = {
+        type: "out",
+        notes: "Baja de items desde detalle de producto",
+        products: [
+          {
+            product: product.id,
+            requestedQuantity: totalQuantity,
+            items: selectedItems.map((item) => ({
+              id: item.id,
+              quantity: Number(item.currentQuantity),
+            })),
+          },
+        ],
+      };
+
+      const res = await createOrder(payload);
+
+      if (res && res.data) {
+        addToast({
+          title: "Items eliminados",
+          description:
+            "Se ha creado una orden de salida para los items seleccionados.",
+          type: "success",
+        });
+        await refetch(); // Refetch items to update the list
+        setSelectedKeys(new Set()); // Clear selection
+        onOpenChange(); // Close modal
+      }
+    } catch (error) {
+      console.error("Error deleting items:", error);
+      addToast({
+        title: "Error",
+        description: "No se pudieron eliminar los items. Intente nuevamente.",
+        type: "error",
+      });
+    }
   };
 
   const handleUpdate = async () => {
-    const payload = {
-      data: {
-        ...product,
-        collections: product.collections?.map((c) => c.id) || [],
-      },
+    const data = {
+      name: product?.name,
+      code: product?.code,
+      barcode: product?.barcode,
+      description: product?.description,
+      unit: product?.unit,
+      hasVariableQuantity: product?.hasVariableQuantity || false,
+      unitsPerPackage: product?.unitsPerPackage,
+      collections: product?.collections?.map((c) => c.id) || [],
     };
-
-    await updateProduct(id, payload.data);
+    await updateProduct(product?.id, data);
     await refetch();
     addToast({
       title: "Producto actualizado",
@@ -292,6 +367,7 @@ export default function ProductDetailPage({ params }) {
               onPress={onOpen}
               startContent={<TrashIcon className="w-4 h-4" />}
               size={screenSize === "lg" ? "md" : "sm"}
+              isLoading={creatingOrder}
             >
               Eliminar Items
             </Button>
@@ -315,7 +391,11 @@ export default function ProductDetailPage({ params }) {
                 <Button color="default" variant="light" onPress={onClose}>
                   Cancelar
                 </Button>
-                <Button color="danger" onPress={handleDeleteItems}>
+                <Button
+                  color="danger"
+                  onPress={handleDeleteItems}
+                  isLoading={creatingOrder}
+                >
                   Eliminar
                 </Button>
               </ModalFooter>

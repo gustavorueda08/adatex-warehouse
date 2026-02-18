@@ -23,7 +23,6 @@ export default function EntityFilters({
   pathname,
   filters = [],
   children,
-
   showCreate = true,
   className = "",
 }) {

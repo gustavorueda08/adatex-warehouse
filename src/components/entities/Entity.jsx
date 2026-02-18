@@ -37,7 +37,10 @@ function EntityHeaderField({ field = {} }) {
       filters,
       populate,
       selectedOption,
-      enabled: field.type === "select" || field.type === "async-select",
+      enabled:
+        field.type === "select" ||
+        field.type === "async-select" ||
+        field.type === "multiselect",
     });
   const [, scrollerRef] = useInfiniteScroll({
     hasMore,
@@ -98,6 +101,45 @@ function EntityHeaderField({ field = {} }) {
           {field.options.map((option) => (
             <SelectItem key={option.key}>{option.label}</SelectItem>
           ))}
+        </Select>
+      )}
+      {field.type === "multiselect" && (
+        <Select
+          className="w-full"
+          label={field.label || "Seleccione una opción"}
+          placeholder={field.placeholder || "Seleccione una opción"}
+          selectedKeys={new Set(field.values?.map((t) => String(t.id)) || [])}
+          scrollRef={scrollerRef}
+          onOpenChange={setIsOpen}
+          onSelectionChange={(keys) => {
+            const selectedIds = new Set(keys);
+            const selectedOptions = options.filter(
+              (option) =>
+                selectedIds.has(String(option.id)) ||
+                selectedIds.has(option.id),
+            );
+            if (field.onChange) {
+              field.onChange(selectedOptions);
+            }
+          }}
+          selectionMode="multiple"
+          aria-label={field.label || "Seleccione una opción"}
+          isReadOnly={field.disabled}
+          isDisabled={field.disabled}
+        >
+          {field.options
+            ? field.options.map((option) => (
+                <SelectItem key={option.key}>{option.label}</SelectItem>
+              ))
+            : options.map((option) => (
+                <SelectItem key={option.id}>
+                  {field.render
+                    ? field.render(option)
+                    : typeof option === "object"
+                      ? option.id
+                      : option}
+                </SelectItem>
+              ))}
         </Select>
       )}
       {field.type === "async-select" && (
@@ -163,6 +205,7 @@ function EntityHeaderField({ field = {} }) {
           onDebouncedChange={field.onChange}
           aria-label={field.label}
           isReadOnly={field.disabled}
+          type={field.inputType || "text"}
         />
       )}
       {field.type === "textarea" && (
