@@ -19,6 +19,7 @@ export default function Entities({
   pageCount,
   setPagination,
   loading,
+  className = "",
 }) {
   const renderCell = (entity, columnKey) => {
     const column = columns.find((column) => column.key === columnKey);
@@ -32,9 +33,35 @@ export default function Entities({
     setSelectedKeys(keys === "all" ? "all" : new Set([...keys]));
   };
 
+  if (loading) {
+    return (
+      <Table aria-label="Cargando Entidades">
+        <TableHeader columns={columns}>
+          {(column) => (
+            <TableColumn key={column.key}>{column.label}</TableColumn>
+          )}
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 10 }).map((_, index) => (
+            <TableRow key={index}>
+              {columns.map((column) => (
+                <TableCell key={column.key}>
+                  <Skeleton className="rounded-lg">
+                    <div className="h-6 w-full rounded-lg bg-default-200" />
+                  </Skeleton>
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  }
+
   return (
     <>
       <Table
+        className={className}
         isStriped
         selectionMode={screenSize !== "lg" ? "none" : "multiple"}
         onSelectionChange={handleSelectionChange}

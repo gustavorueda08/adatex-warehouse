@@ -36,7 +36,6 @@ export default function CustomerDetailPage() {
     page: 1,
     pageSize: 10,
   });
-
   const {
     orders,
     pagination: { pageCount },
@@ -57,7 +56,6 @@ export default function CustomerDetailPage() {
       "orderProducts.items",
     ],
   });
-
   const columns = useMemo(() => {
     if (screenSize !== "lg") {
       return [

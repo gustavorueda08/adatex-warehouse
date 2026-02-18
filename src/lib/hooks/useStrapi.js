@@ -44,7 +44,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
   // Estado del hook
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
   const [lastSuccessTime, setLastSuccessTime] = useState(null);

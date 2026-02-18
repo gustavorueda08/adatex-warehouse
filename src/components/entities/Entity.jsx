@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import {
   Autocomplete,
   AutocompleteItem,
+  Checkbox,
   Chip,
   DatePicker,
   Divider,
@@ -173,6 +174,15 @@ function EntityHeaderField({ field = {} }) {
           variant="faded"
           isReadOnly={field.disabled}
         />
+      )}
+      {field.type === "checkbox" && (
+        <Checkbox
+          isSelected={field.value}
+          onValueChange={field.onChange}
+          className="py-2"
+        >
+          {field.label}
+        </Checkbox>
       )}
     </div>
   );

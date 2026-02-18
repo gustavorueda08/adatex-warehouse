@@ -63,7 +63,6 @@ export default function SalesPage() {
     }
     return f;
   }, [search, selectedStates, dateRange]);
-
   const {
     orders,
     loading = true,

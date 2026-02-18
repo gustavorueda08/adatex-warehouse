@@ -20,7 +20,7 @@ import BulkProductUploader from "@/components/products/BulkProductUploader";
 export default function ProductsPage() {
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 10,
+    pageSize: 25,
   });
   const [search, setSearch] = useState("");
   const [inventoryMode, setInventoryMode] = useState("standard"); // standard, historical, projection
@@ -44,7 +44,6 @@ export default function ProductsPage() {
     ),
     enabled: !!selectedLine,
   });
-
   const filters = useMemo(() => {
     const f = {};
     if (search) {
@@ -70,18 +69,12 @@ export default function ProductsPage() {
 
     return f;
   }, [search, selectedLine, selectedCollections]);
-
-  // Determine params based on mode
   const dateParams = useMemo(() => {
-    if (inventoryMode === "standard") return {}; // standard
-
+    if (inventoryMode === "standard") return {};
     if (inventoryMode === "historical") {
       if (!selectedDate) return {};
-      const formattedDate = selectedDate.toString(); // YYYY-MM-DD
-      // API expects ISO for historical? Or just date? Docs say: date=2023-10-27T23:59:59Z
       return { date: selectedDate };
     }
-
     if (inventoryMode === "projection") {
       if (!dateRange?.start || !dateRange?.end) return {};
       return {
@@ -109,7 +102,6 @@ export default function ProductsPage() {
       ...dateParams,
     },
   );
-
   const handleBulkSync = async (data) => {
     const result = await bulkUpsertProducts(data);
     if (result.success) {
@@ -120,7 +112,6 @@ export default function ProductsPage() {
       toast.error("Error al sincronizar productos");
     }
   };
-
   const columns = [
     {
       key: "code",
@@ -233,7 +224,6 @@ export default function ProductsPage() {
       ),
     },
   ];
-
   const onInventoryModeChange = (key) => {
     setInventoryMode(key);
     setPagination({ page: 1, pageSize: 10 });
@@ -299,7 +289,7 @@ export default function ProductsPage() {
         pagination={pagination}
         setPagination={setPagination}
         pageCount={pageCount}
-        loading={isFetching}
+        loading={loading || isFetching}
       />
       <BulkProductUploader onSync={handleBulkSync} isSyncing={syncing} />
     </div>

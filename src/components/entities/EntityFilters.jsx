@@ -13,6 +13,7 @@ import {
 import { I18nProvider } from "@react-aria/i18n";
 import DebouncedInput from "@/components/ui/DebounceInput";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import classNames from "classnames";
 
 export default function EntityFilters({
   search,
@@ -22,11 +23,19 @@ export default function EntityFilters({
   pathname,
   filters = [],
   children,
+
+  showCreate = true,
+  className = "",
 }) {
   const screenSize = useScreenSize();
 
   return (
-    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4 items-center">
+    <div
+      className={classNames(
+        "grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4 items-center",
+        className,
+      )}
+    >
       <DebouncedInput
         placeholder="Buscar"
         startContent={<MagnifyingGlassIcon className="w-5 h-5" />}
@@ -89,16 +98,18 @@ export default function EntityFilters({
         {children}
       </div>
       <div className="col-start-1 md:col-start-2 lg:col-start-4 flex justify-end">
-        <Button
-          color="success"
-          className="text-white w-full md:w-auto"
-          as={Link}
-          href={pathname}
-          size={screenSize === "lg" ? "md" : "sm"}
-        >
-          <PlusCircleIcon className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
-          Crear
-        </Button>
+        {showCreate && (
+          <Button
+            color="success"
+            className="text-white w-full md:w-auto"
+            as={Link}
+            href={pathname}
+            size={screenSize === "lg" ? "md" : "sm"}
+          >
+            <PlusCircleIcon className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
+            Crear
+          </Button>
+        )}
       </div>
     </div>
   );
