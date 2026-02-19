@@ -450,7 +450,7 @@ function PackingListProduct({
             ref={(el) => {
               if (el) inputRefs.current[`${item.id}-currentQuantity`] = el;
             }}
-            initialValue={item.currentQuantity}
+            initialValue={item.currentQuantity ?? ""}
             onDebouncedChange={(val) =>
               handleItemChange(item, "currentQuantity", val)
             }
@@ -459,7 +459,7 @@ function PackingListProduct({
             debounce={150}
           />
         ) : (
-          <Input value={item.currentQuantity} isReadOnly />
+          <Input value={item.currentQuantity ?? ""} isReadOnly />
         );
       case "lotNumber":
         return isItemEditable ? (
@@ -467,7 +467,7 @@ function PackingListProduct({
             ref={(el) => {
               if (el) inputRefs.current[`${item.id}-lotNumber`] = el;
             }}
-            initialValue={item.lotNumber}
+            initialValue={item.lotNumber ?? ""}
             onDebouncedChange={(val) =>
               handleItemChange(item, "lotNumber", val)
             }
@@ -475,7 +475,7 @@ function PackingListProduct({
             debounce={150}
           />
         ) : (
-          <Input value={item.lotNumber} isReadOnly />
+          <Input value={item.lotNumber ?? ""} isReadOnly />
         );
       case "itemNumber":
         return isItemEditable ? (
@@ -483,7 +483,7 @@ function PackingListProduct({
             ref={(el) => {
               if (el) inputRefs.current[`${item.id}-itemNumber`] = el;
             }}
-            initialValue={item.itemNumber}
+            initialValue={item.itemNumber ?? ""}
             onDebouncedChange={(val) =>
               handleItemChange(item, "itemNumber", val)
             }
@@ -491,7 +491,7 @@ function PackingListProduct({
             debounce={150}
           />
         ) : (
-          <Input value={item.itemNumber} isReadOnly />
+          <Input value={item.itemNumber ?? ""} isReadOnly />
         );
       case "remove":
         return (

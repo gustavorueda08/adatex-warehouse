@@ -47,11 +47,12 @@ export default function ProductDetailPage({ params }) {
     filters: { id: { $eq: id } },
     populate: ["collections"],
   });
-
   const { warehouses } = useWarehouses();
-
   const itemsFilters = useMemo(() => {
-    const filters = { product: { id: { $eq: id } } };
+    const filters = {
+      product: { id: { $eq: id } },
+      warehouse: { $null: false },
+    };
     if (warehouseFilter) {
       filters.warehouse = { id: { $eq: warehouseFilter } };
     }
@@ -64,17 +65,16 @@ export default function ProductDetailPage({ params }) {
     }
     return filters;
   }, [id, warehouseFilter, search]);
-
   const {
     items = [],
     pagination: { pageCount },
     loading: itemsLoading,
+    refetch: refetchItems,
   } = useItems({
     filters: itemsFilters,
-    populate: { warehouse: true },
+    populate: ["warehouse"],
     pagination: itemsPagination,
   });
-
   const headerFields = [
     {
       key: "name",
@@ -150,13 +150,11 @@ export default function ProductDetailPage({ params }) {
         ]
       : []),
   ];
-
   useEffect(() => {
     if (products.length > 0) {
       setProduct(products[0]);
     }
   }, [products]);
-
   const itemColumns = useMemo(() => {
     return [
       { key: "barcode", label: "Código de Barras" },
@@ -179,7 +177,6 @@ export default function ProductDetailPage({ params }) {
       },
     ];
   }, []);
-
   const handleExport = async () => {
     await exportItemsToExcel({
       filters: itemsFilters,
@@ -187,7 +184,6 @@ export default function ProductDetailPage({ params }) {
       toast,
     });
   };
-
   const filters = useMemo(() => {
     return [
       {
@@ -203,18 +199,11 @@ export default function ProductDetailPage({ params }) {
       },
     ];
   }, [warehouses, warehouseFilter]);
-
-  /*
-   * Hook for creating orders (used for deleting items via "out" order)
-   */
   const { createOrder, creating: creatingOrder } = useOrders();
-
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
-
   const handleDeleteItems = async () => {
     try {
       let selectedItems = [];
-
       // Handle "Select All" case
       if (selectedKeys === "all") {
         selectedItems = [...items];
@@ -225,7 +214,6 @@ export default function ProductDetailPage({ params }) {
           selectedIds.has(String(item.id)),
         );
       }
-
       if (selectedItems.length === 0) {
         addToast({
           title: "Error",
@@ -234,31 +222,26 @@ export default function ProductDetailPage({ params }) {
         });
         return;
       }
-
-      // Calculate total requested quantity
       const totalQuantity = selectedItems.reduce(
         (sum, item) => sum + Number(item.currentQuantity),
         0,
       );
-
-      // Construct payload for "out" order
       const payload = {
         type: "out",
         notes: "Baja de items desde detalle de producto",
         products: [
           {
             product: product.id,
-            requestedQuantity: totalQuantity,
+            requestedQuantity: Math.round(totalQuantity * 100) / 100,
             items: selectedItems.map((item) => ({
               id: item.id,
               quantity: Number(item.currentQuantity),
             })),
           },
         ],
+        state: "completed",
       };
-
       const res = await createOrder(payload);
-
       if (res && res.data) {
         addToast({
           title: "Items eliminados",
@@ -266,9 +249,10 @@ export default function ProductDetailPage({ params }) {
             "Se ha creado una orden de salida para los items seleccionados.",
           type: "success",
         });
-        await refetch(); // Refetch items to update the list
-        setSelectedKeys(new Set()); // Clear selection
-        onOpenChange(); // Close modal
+        await refetch();
+        await refetchItems();
+        setSelectedKeys(new Set());
+        onOpenChange();
       }
     } catch (error) {
       console.error("Error deleting items:", error);
@@ -279,7 +263,6 @@ export default function ProductDetailPage({ params }) {
       });
     }
   };
-
   const handleUpdate = async () => {
     const data = {
       name: product?.name,
@@ -299,7 +282,6 @@ export default function ProductDetailPage({ params }) {
       type: "success",
     });
   };
-
   const handleDeleteProduct = async () => {
     const res = await deleteProduct(id);
     if (res.error) {
@@ -348,6 +330,7 @@ export default function ProductDetailPage({ params }) {
           selectedKeys={selectedKeys}
           setSelectedKeys={setSelectedKeys}
           className="p-3"
+          emptyContent="No se encontraron Items asociados a este producto"
         />
         <div className="flex justify-end gap-2 p-3">
           <Button

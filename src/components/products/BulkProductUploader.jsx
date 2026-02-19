@@ -15,6 +15,7 @@ import {
   Tooltip,
 } from "@heroui/react";
 import {
+  ArrowDownTrayIcon,
   CheckCircleIcon,
   DocumentArrowUpIcon,
   TrashIcon,
@@ -28,29 +29,93 @@ const REQUIRED_COLUMNS = [
   {
     label: "CODIGO",
     variants: ["codigo", "code", "código"],
+    apiKey: "code",
     description: "Código interno del producto",
   },
   {
     label: "NOMBRE",
     variants: ["nombre", "name"],
+    apiKey: "name",
     description: "Nombre del producto",
   },
   {
     label: "UNIDAD",
     variants: ["unidad", "unit"],
-    description: "Unidad de medida (ej: und, kg, mts)",
+    apiKey: "unit",
+    description: 'Unidad de medida ("m", "kg", "unit", "piece")',
   },
 ];
 
 const OPTIONAL_COLUMNS = [
   {
-    label: "UNIDADES_POR_PAQUETE",
-    description: "Paquetes o unidades por caja",
+    label: "ID",
+    variants: ["id"],
+    apiKey: "id",
+    type: "number",
+    description: "ID del producto (se envía para update, vacío para create)",
   },
-  { label: "BARCODE", description: "Código de barras o SKU" },
-  { label: "DESCRIPCION", description: "Descripción corta" },
-  { label: "ACTIVO", description: "true/false o sí/no" },
+  {
+    label: "BARCODE",
+    variants: ["barcode", "codigo_barras", "código_barras"],
+    apiKey: "barcode",
+    description: "Código de barras o SKU",
+  },
+  {
+    label: "DESCRIPCION",
+    variants: ["descripcion", "description", "descripción"],
+    apiKey: "description",
+    description: "Descripción del producto",
+  },
+  {
+    label: "CATEGORIA",
+    variants: ["categoria", "category", "categoría"],
+    apiKey: "category",
+    description: '"Confeccion", "Tapiceria" o "PrintLab"',
+  },
+  {
+    label: "UNIDADES_POR_PAQUETE",
+    variants: ["unidades_por_paquete", "unitsperpkg", "unitsperpackage"],
+    apiKey: "unitsPerPackage",
+    type: "number",
+    description: "Unidades por paquete (default: 1)",
+  },
+  {
+    label: "ACTIVO",
+    variants: ["activo", "isactive", "active"],
+    apiKey: "isActive",
+    type: "boolean",
+    description: "true/false (default: true)",
+  },
+  {
+    label: "CANTIDAD_VARIABLE",
+    variants: ["cantidad_variable", "hasvariablequantity", "variable"],
+    apiKey: "hasVariableQuantity",
+    type: "boolean",
+    description: "true/false (default: true)",
+  },
+  {
+    label: "SIIGO_ID",
+    variants: ["siigo_id", "siigoid"],
+    apiKey: "siigoId",
+    description: "ID de Siigo (se asigna automáticamente al crear)",
+  },
+  {
+    label: "COLECCIONES",
+    variants: ["colecciones", "collections"],
+    apiKey: "collections",
+    type: "array",
+    description: 'Nombres separados por ; (ej: "Tapiceria;Confeccion")',
+  },
+  {
+    label: "OCULTAR_PARA",
+    variants: ["ocultar_para", "hidefor", "hide_for"],
+    apiKey: "hideFor",
+    type: "array",
+    description: 'Usernames separados por ; (ej: "vendedor1;vendedor2")',
+  },
 ];
+
+const ALL_COLUMNS = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
 
 /**
  * Cargador masivo de productos desde Excel/CSV.
@@ -61,11 +126,13 @@ export default function BulkProductUploader({
   onFileLoaded,
   onClear = () => {},
   onSync = () => {},
+  onDownloadTemplate,
   isReadOnly = false,
   isSyncing = false,
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [loadedFile, setLoadedFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
   const [fileData, setFileData] = useState([]); // Store full data for sync
@@ -76,7 +143,60 @@ export default function BulkProductUploader({
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
+      .replace(/\s+/g, "_")
       .trim();
+
+  /**
+   * Maps a raw Excel row (with human-readable headers) to an API-ready product object.
+   * Handles column variant matching, booleans, numbers, and semicolon-separated arrays.
+   */
+  const mapExcelRowToProduct = useCallback((row) => {
+    const product = {};
+    const normalizedHeaders = {};
+    // Build a map of normalized header → original header
+    Object.keys(row).forEach((key) => {
+      normalizedHeaders[normalizeColumn(key)] = key;
+    });
+
+    ALL_COLUMNS.forEach((col) => {
+      // Find the matching header via variants
+      const allVariants = [
+        normalizeColumn(col.label),
+        ...(col.variants || []).map(normalizeColumn),
+      ];
+      const matchedNorm = allVariants.find(
+        (v) => normalizedHeaders[v] !== undefined,
+      );
+      if (!matchedNorm) return;
+
+      const originalKey = normalizedHeaders[matchedNorm];
+      const rawValue = row[originalKey];
+
+      // Skip empty values
+      if (rawValue === undefined || rawValue === null || rawValue === "")
+        return;
+
+      const strValue = String(rawValue).trim();
+      if (strValue === "") return;
+
+      if (col.type === "number") {
+        const parsed = Number(strValue);
+        if (!isNaN(parsed)) product[col.apiKey] = parsed;
+      } else if (col.type === "boolean") {
+        const lower = strValue.toLowerCase();
+        product[col.apiKey] = ["true", "si", "sí", "1", "yes"].includes(lower);
+      } else if (col.type === "array") {
+        product[col.apiKey] = strValue
+          .split(";")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      } else {
+        product[col.apiKey] = strValue;
+      }
+    });
+
+    return product;
+  }, []);
 
   const validateColumns = useCallback((rows) => {
     if (!rows || rows.length === 0) {
@@ -228,18 +348,43 @@ export default function BulkProductUploader({
 
   const handleSync = () => {
     if (fileData.length > 0 && onSync) {
-      onSync(fileData);
+      const mappedProducts = fileData.map(mapExcelRowToProduct);
+      onSync(mappedProducts);
     }
   };
 
   return (
     <Card className="w-full">
-      <CardHeader className="flex flex-col items-start px-6 pt-6 pb-0">
-        <h4 className="text-xl font-bold">Carga masiva de productos</h4>
-        <p className="text-small text-default-500">
-          Sube un Excel/CSV con el catálogo completo o parcial para revisarlo y
-          prepararlo antes de enviarlo.
-        </p>
+      <CardHeader className="flex flex-col items-start px-6 pt-6 pb-0 gap-3">
+        <div className="flex w-full items-center justify-between">
+          <div>
+            <h4 className="text-xl font-bold">Carga masiva de productos</h4>
+            <p className="text-small text-default-500">
+              Sube un Excel/CSV con el catálogo completo o parcial para
+              revisarlo y prepararlo antes de enviarlo.
+            </p>
+          </div>
+          {onDownloadTemplate && (
+            <Button
+              color="primary"
+              variant="flat"
+              isLoading={isDownloading}
+              startContent={
+                !isDownloading && <ArrowDownTrayIcon className="w-4 h-4" />
+              }
+              onPress={async () => {
+                setIsDownloading(true);
+                try {
+                  await onDownloadTemplate();
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
+            >
+              {isDownloading ? "Descargando..." : "Descargar Plantilla"}
+            </Button>
+          )}
+        </div>
       </CardHeader>
 
       <CardBody className="px-6 py-4">

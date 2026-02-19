@@ -178,7 +178,7 @@ export default function SaleDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            createdDate: moment(date).toDate(),
+            createdDate: moment(date.toString()).toDate(),
           });
         },
       },
@@ -193,7 +193,7 @@ export default function SaleDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            estimatedCompletedDate: moment(date).toDate(),
+            estimatedCompletedDate: moment(date.toString()).toDate(),
           });
         },
         disabled: document?.state === ORDER_STATES.COMPLETED,
@@ -208,7 +208,7 @@ export default function SaleDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            completedDate: moment(date).toDate(),
+            completedDate: moment(date.toString()).toDate(),
           });
         },
         disabled: true,

@@ -20,6 +20,7 @@ export default function Entities({
   setPagination,
   loading,
   className = "",
+  emptyContent = "No se encontraron entidades",
 }) {
   const renderCell = (entity, columnKey) => {
     const column = columns.find((column) => column.key === columnKey);
@@ -35,7 +36,7 @@ export default function Entities({
 
   if (loading) {
     return (
-      <Table aria-label="Cargando Entidades">
+      <Table aria-label="Entidades">
         <TableHeader columns={columns}>
           {(column) => (
             <TableColumn key={column.key}>{column.label}</TableColumn>
@@ -89,7 +90,7 @@ export default function Entities({
           isLoading={loading}
           items={entities}
           loadingContent={<Skeleton className="flex rounded-full w-12 h-12" />}
-          emptyContent="No se encontraron ordenes"
+          emptyContent={emptyContent}
         >
           {(entity) => (
             <TableRow>

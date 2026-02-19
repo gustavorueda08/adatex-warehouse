@@ -198,39 +198,24 @@ export default function OutflowsPage() {
           };
         });
 
-      // Determine state logic if not explicitly provided in updates
-      let newState = document.state;
-      if (updates.state) {
-        newState = updates.state;
-      } else if (confirmed && document.state === "draft") {
-        newState = "confirmed";
-      }
-
-      // Merge base data with updates
       const data = {
         products: formattedProducts,
         sourceWarehouse:
           document.sourceWarehouse?.id || document.sourceWarehouse,
         createdDate: document.createdDate,
-        confirmedDate: document.confirmedDate,
-        completedDate: document.completedDate,
-        actualDispatchDate: document.actualDispatchDate,
-        state: newState,
-        ...updates, // Allow overriding any field
+        confirmedDate: document.confirmedDate
+          ? document.confirmedDate
+          : moment().toDate(),
+        completedDate: document.completedDate
+          ? document.completedDate
+          : moment().toDate(),
+        state: "completed",
+        ...updates,
       };
-
-      // Auto-set dates based on state transitions if needed
-      if (newState === "confirmed" && document.state === "draft") {
-        data.confirmedDate = moment.tz("America/Bogota").toDate();
-      }
-      if (newState === "completed" && document.state !== "completed") {
-        data.completedDate = moment.tz("America/Bogota").toDate();
-        data.actualDispatchDate = moment.tz("America/Bogota").toDate();
-      }
       await updateOrder(document.id, data);
     } catch (error) {
       console.error("Error updating order:", error);
-      throw error; // Re-throw for BulkActions to catch
+      throw error;
     }
   };
 

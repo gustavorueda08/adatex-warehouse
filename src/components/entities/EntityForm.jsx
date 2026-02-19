@@ -119,7 +119,7 @@ export default function EntityForm({
           if (Array.isArray(value)) {
             // Si es array de objetos con id, extraer solo los IDs
             defaultData[field.name] = value.map((item) =>
-              typeof item === "object" ? item.id : item
+              typeof item === "object" ? item.id : item,
             );
           } else {
             defaultData[field.name] = [];
@@ -379,7 +379,7 @@ export default function EntityForm({
                             },
                           });
                         },
-                        extraOptions
+                        extraOptions,
                       )}
                     </div>
                   ))}
@@ -447,7 +447,7 @@ export default function EntityForm({
                           },
                         });
                       },
-                      extraOptions
+                      extraOptions,
                     )}
                   </div>
                 ))}
@@ -527,8 +527,8 @@ export default function EntityForm({
                   ? "Actualizando..."
                   : "Creando..."
                 : isEditMode
-                ? "Actualizar"
-                : "Crear"}{" "}
+                  ? "Actualizar"
+                  : "Crear"}{" "}
               {entityConfig.label}
             </Button>
           </CardFooter>
@@ -555,7 +555,7 @@ function renderField(
   updateField,
   errors,
   setQuickCreateConfig,
-  extraOptions
+  extraOptions,
 ) {
   const value = formData[field.name];
 
@@ -572,7 +572,7 @@ function renderField(
 
       // Deduplicate by value
       const uniqueOptions = Array.from(
-        new Map(allOptions.map((item) => [item.value, item])).values()
+        new Map(allOptions.map((item) => [item.value, item])).values(),
       );
 
       return (
@@ -786,6 +786,11 @@ function getEntityConfig(entityType) {
     product: {
       label: "Producto",
       color: "cyan",
+      icon: ArchiveBoxIcon,
+    },
+    territory: {
+      label: "Territorio",
+      color: "amber",
       icon: ArchiveBoxIcon,
     },
   };

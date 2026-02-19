@@ -53,7 +53,19 @@ export default function PurchaseDetailPage({ params }) {
 
   useEffect(() => {
     if (orders.length > 0) {
-      setDocument(orders[0]);
+      const order = orders[0];
+      // Auto-assign estimated dates if missing, using the same defaults as the date-pickers
+      if (!order.estimatedTransitDate) {
+        order.estimatedTransitDate = moment(order.createdDate)
+          .add(35, "days")
+          .toDate();
+      }
+      if (!order.estimatedCompletedDate) {
+        order.estimatedCompletedDate = moment(order.createdDate)
+          .add(65, "days")
+          .toDate();
+      }
+      setDocument(order);
     }
   }, [orders]);
 
@@ -140,7 +152,7 @@ export default function PurchaseDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            createdDate: moment(date).toDate(),
+            createdDate: moment(date.toString()).toDate(),
           });
         },
       },
@@ -158,7 +170,7 @@ export default function PurchaseDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            estimatedTransitDate: moment(date).toDate(),
+            estimatedTransitDate: moment(date.toString()).toDate(),
           });
         },
       },
@@ -171,7 +183,7 @@ export default function PurchaseDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            transitDate: moment(date).toDate(),
+            transitDate: moment(date.toString()).toDate(),
           });
         },
         disabled: document?.state === ORDER_STATES.COMPLETED,
@@ -180,17 +192,15 @@ export default function PurchaseDetailPage({ params }) {
         label: "Fecha Estimada de Recepción",
         type: "date-picker",
         disabled: document?.state === ORDER_STATES.COMPLETED,
-        value: parseDate(
-          document?.estimatedCompletedDate
-            ? moment(document?.estimatedCompletedDate).format("YYYY-MM-DD")
-            : moment(document?.createdDate)
-                .add(65, "days")
-                .format("YYYY-MM-DD"),
-        ),
+        value: document?.estimatedCompletedDate
+          ? parseDate(
+              moment(document?.estimatedCompletedDate).format("YYYY-MM-DD"),
+            )
+          : null,
         onChange: (date) => {
           setDocument({
             ...document,
-            estimatedCompletedDate: moment(date).toDate(),
+            estimatedCompletedDate: moment(date.toString()).toDate(),
           });
         },
       },
@@ -203,7 +213,7 @@ export default function PurchaseDetailPage({ params }) {
         onChange: (date) => {
           setDocument({
             ...document,
-            completedDate: moment(date).toDate(),
+            completedDate: moment(date.toString()).toDate(),
           });
         },
         disabled: document?.state === ORDER_STATES.COMPLETED,

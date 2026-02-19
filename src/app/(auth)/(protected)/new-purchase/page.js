@@ -39,6 +39,8 @@ export default function NewPurchasePage() {
     containerCode: "",
     state: "draft",
     createdDate: moment().toDate(),
+    estimatedTransitDate: moment().add(35, "days").toDate(),
+    estimatedCompletedDate: moment().add(65, "days").toDate(),
     completedDate: null,
     orderProducts: [],
   });

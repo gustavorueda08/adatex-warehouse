@@ -6,16 +6,18 @@ import { useProductListConfig } from "@/lib/config/productConfigs";
 import toast from "react-hot-toast";
 import ExportItemsModal from "@/components/products/ExportItemsModal";
 import { exportItemsToExcel } from "@/lib/utils/exportItemsToExcel";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Entities from "@/components/entities/Entities";
 import Link from "next/link";
 import format from "@/lib/utils/format";
 import EntityFilters from "@/components/entities/EntityFilters";
-import { Select, SelectItem } from "@heroui/react";
+import { Checkbox, Select, SelectItem } from "@heroui/react";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import InventoryMode from "@/components/entities/InventoryMode";
 import { useEntityList } from "@/lib/hooks/useEntityList";
 import BulkProductUploader from "@/components/products/BulkProductUploader";
+import { exportProductsTemplate } from "@/lib/utils/exportProductsTemplate";
+import BreakdownModal from "@/components/products/BreakdownModal";
 
 export default function ProductsPage() {
   const [pagination, setPagination] = useState({
@@ -35,6 +37,33 @@ export default function ProductsPage() {
     listType: "lines",
     limit: 20,
   });
+  const [hideProductsWithoutStock, setHideProductsWithoutStock] =
+    useState(false);
+  const [breakdownModal, setBreakdownModal] = useState({
+    isOpen: false,
+    productName: "",
+    unit: "",
+    category: "",
+    entries: [],
+  });
+
+  const hasBreakdown = useCallback(
+    (product, category) =>
+      (product?.inventory?.breakdown?.[category]?.length ?? 0) > 0,
+    [],
+  );
+
+  const handleCategoryClick = useCallback((product, category) => {
+    const entries = product?.inventory?.breakdown?.[category];
+    if (!entries || entries.length === 0) return;
+    setBreakdownModal({
+      isOpen: true,
+      productName: product.name,
+      unit: product.unit || "",
+      category,
+      entries,
+    });
+  }, []);
   const collectionsList = useEntityList({
     listType: "collections",
     limit: 20,
@@ -47,6 +76,7 @@ export default function ProductsPage() {
   const filters = useMemo(() => {
     const f = {};
     if (search) {
+      setPagination({ ...pagination, page: 1 });
       const terms = search.split(/\s+/).filter(Boolean);
       if (terms.length > 0) {
         f.$and = terms.map((term) => ({
@@ -84,7 +114,6 @@ export default function ProductsPage() {
     }
     return {};
   }, [inventoryMode, selectedDate, dateRange]);
-
   const {
     products,
     pagination: { pageCount },
@@ -145,26 +174,52 @@ export default function ProductsPage() {
     {
       key: "reserved",
       label: "Reservado",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
+      render: (product) => {
+        const hasData = hasBreakdown(product, "reserved");
+        return (
+          <span
+            className={`text-nowrap ${
+              hasData ? "text-primary cursor-pointer hover:underline" : ""
+            }`}
+            onClick={
+              hasData
+                ? (e) => {
+                    e.preventDefault();
+                    handleCategoryClick(product, "reserved");
+                  }
+                : undefined
+            }
+          >
             {format(product?.inventory?.reserved || 0)} {product?.unit}
           </span>
-        </Link>
-      ),
+        );
+      },
     },
     ...(inventoryMode === "projection"
       ? [
           {
             key: "arriving",
             label: "Llegando",
-            render: (product) => (
-              <Link href={`/products/${product.id}`} className="text-nowrap">
-                <span className="hover:underline cursor-pointer">
+            render: (product) => {
+              const hasData = hasBreakdown(product, "arriving");
+              return (
+                <span
+                  className={`text-nowrap ${
+                    hasData ? "text-primary cursor-pointer hover:underline" : ""
+                  }`}
+                  onClick={
+                    hasData
+                      ? (e) => {
+                          e.preventDefault();
+                          handleCategoryClick(product, "arriving");
+                        }
+                      : undefined
+                  }
+                >
                   {format(product?.inventory?.arriving || 0)} {product?.unit}
                 </span>
-              </Link>
-            ),
+              );
+            },
           },
         ]
       : []),
@@ -182,35 +237,74 @@ export default function ProductsPage() {
     {
       key: "required",
       label: "Requerido",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
+      render: (product) => {
+        const hasData = hasBreakdown(product, "required");
+        return (
+          <span
+            className={`text-nowrap ${
+              hasData ? "text-primary cursor-pointer hover:underline" : ""
+            }`}
+            onClick={
+              hasData
+                ? (e) => {
+                    e.preventDefault();
+                    handleCategoryClick(product, "required");
+                  }
+                : undefined
+            }
+          >
             {format(product?.inventory?.required || 0)} {product?.unit}
           </span>
-        </Link>
-      ),
+        );
+      },
     },
     {
       key: "production",
       label: "En Producción",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
+      render: (product) => {
+        const hasData = hasBreakdown(product, "production");
+        return (
+          <span
+            className={`text-nowrap ${
+              hasData ? "text-primary cursor-pointer hover:underline" : ""
+            }`}
+            onClick={
+              hasData
+                ? (e) => {
+                    e.preventDefault();
+                    handleCategoryClick(product, "production");
+                  }
+                : undefined
+            }
+          >
             {format(product?.inventory?.production || 0)} {product?.unit}
           </span>
-        </Link>
-      ),
+        );
+      },
     },
     {
       key: "transit",
       label: "En tránsito",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
+      render: (product) => {
+        const hasData = hasBreakdown(product, "transit");
+        return (
+          <span
+            className={`text-nowrap ${
+              hasData ? "text-primary cursor-pointer hover:underline" : ""
+            }`}
+            onClick={
+              hasData
+                ? (e) => {
+                    e.preventDefault();
+                    handleCategoryClick(product, "transit");
+                  }
+                : undefined
+            }
+          >
             {format(product?.inventory?.transit || 0)} {product?.unit}
           </span>
-        </Link>
-      ),
+        );
+      },
     },
     {
       key: "netAvailable",
@@ -274,6 +368,14 @@ export default function ProductsPage() {
         >
           {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
         </Select>
+        {/*
+          <Checkbox
+          isSelected={hideProductsWithoutStock}
+          onValueChange={setHideProductsWithoutStock}
+            >
+          Ocultar productos sin stock
+        </Checkbox>
+          */}
       </EntityFilters>
       <InventoryMode
         inventoryMode={inventoryMode}
@@ -291,7 +393,30 @@ export default function ProductsPage() {
         pageCount={pageCount}
         loading={loading || isFetching}
       />
-      <BulkProductUploader onSync={handleBulkSync} isSyncing={syncing} />
+      <BulkProductUploader
+        onSync={handleBulkSync}
+        isSyncing={syncing}
+        onDownloadTemplate={() =>
+          exportProductsTemplate({
+            toast: {
+              loading: (msg) => toast.loading(msg),
+              success: (msg) => toast.success(msg),
+              error: (msg) => toast.error(msg),
+              dismiss: (id) => toast.dismiss(id),
+            },
+          })
+        }
+      />
+      <BreakdownModal
+        isOpen={breakdownModal.isOpen}
+        onClose={() =>
+          setBreakdownModal((prev) => ({ ...prev, isOpen: false }))
+        }
+        productName={breakdownModal.productName}
+        unit={breakdownModal.unit}
+        category={breakdownModal.category}
+        entries={breakdownModal.entries}
+      />
     </div>
   );
 }

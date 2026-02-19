@@ -1,3 +1,4 @@
+"use client";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -28,33 +29,28 @@ export default function NewOutflowPage() {
       },
     },
   );
-
   const screenSize = useScreenSize();
   const { warehouses = [] } = useWarehouses({});
-
   const [document, setDocument] = useState({
     sourceWarehouse: null,
     state: "draft",
     createdDate: moment().toDate(),
     orderProducts: [],
   });
-
   const headerFields = useMemo(() => {
     return [
       {
         listType: "warehouses",
         label: "Bodega Origen",
-        type: "select",
+        type: "async-select",
         placeholder: "Selecciona una bodega",
         selectedOption: document?.sourceWarehouse,
-        options: warehouses
-          .filter((w) => w.type === "stock" || w.type === "printlab")
-          .map((w) => ({ label: w.name, value: w })),
-        value: document?.sourceWarehouse?.id,
-        onChange: (id) => {
+        selectedOptionLabel: document?.sourceWarehouse?.name,
+        render: (warehouse) => warehouse.name,
+        onChange: (sourceWarehouse) => {
           setDocument({
             ...document,
-            sourceWarehouse: warehouses.find((w) => w.id === id),
+            sourceWarehouse,
           });
         },
       },
@@ -72,7 +68,29 @@ export default function NewOutflowPage() {
       },
     ];
   }, [document, warehouses]);
-
+  const handleCreate = async () => {
+    const isValid =
+      document.sourceWarehouse &&
+      document.orderProducts?.length > 0 &&
+      document.orderProducts.some(
+        (p) => p.product && Number(p.requestedQuantity) > 0,
+      );
+    if (isValid) {
+      const payload = {
+        type: "out",
+        products: document.orderProducts
+          .filter((p) => p.product)
+          .map((p) => ({
+            requestedQuantity: Number(p.requestedQuantity),
+            product: p?.product?.id,
+            price: 0,
+          })),
+        sourceWarehouse: document?.sourceWarehouse?.id,
+        createdDate: document?.createdDate,
+      };
+      await createOrder(payload);
+    }
+  };
   const productColumns = [
     { key: "name", label: "Producto" },
     { key: "requestedQuantity", label: "Cantidad" },
@@ -96,30 +114,7 @@ export default function NewOutflowPage() {
       <div className="flex md:justify-end justify-center mt-4">
         <Button
           color="success"
-          onPress={async () => {
-            const isValid =
-              document.sourceWarehouse &&
-              document.orderProducts?.length > 0 &&
-              document.orderProducts.some(
-                (p) => p.product && Number(p.requestedQuantity) > 0,
-              );
-
-            if (isValid) {
-              const payload = {
-                type: "outflow",
-                products: document.orderProducts
-                  .filter((p) => p.product)
-                  .map((p) => ({
-                    requestedQuantity: Number(p.requestedQuantity),
-                    product: p.product.id,
-                    price: 0,
-                  })),
-                sourceWarehouse: document.sourceWarehouse.id,
-                createdDate: document.createdDate,
-              };
-              await createOrder(payload);
-            }
-          }}
+          onPress={handleCreate}
           isDisabled={
             !(
               document.sourceWarehouse &&
