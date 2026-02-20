@@ -1,3 +1,5 @@
+"use client";
+
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -10,7 +12,6 @@ import { DocumentChartBarIcon } from "@heroicons/react/24/outline";
 import { Button } from "@heroui/react";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseDate } from "@internationalized/date";
-import { useWarehouses } from "@/lib/hooks/useWarehouses";
 
 export default function NewTransferPage() {
   const router = useRouter();
@@ -30,7 +31,6 @@ export default function NewTransferPage() {
   );
 
   const screenSize = useScreenSize();
-  const { warehouses = [] } = useWarehouses({});
 
   const [document, setDocument] = useState({
     sourceWarehouse: null,
@@ -45,34 +45,62 @@ export default function NewTransferPage() {
       {
         listType: "warehouses",
         label: "Bodega Origen",
-        type: "select",
+        type: "async-select",
         placeholder: "Selecciona una bodega",
         selectedOption: document?.sourceWarehouse,
-        options: warehouses
-          .filter((w) => w.type === "stock" || w.type === "printlab")
-          .map((w) => ({ label: w.name, value: w })),
-        value: document?.sourceWarehouse?.id,
-        onChange: (id) => {
+        selectedOptionLabel: document?.sourceWarehouse
+          ? `${document.sourceWarehouse.name}`
+          : "",
+        render: (warehouse) => `${warehouse?.name}`,
+        filters: (search) => {
+          const base = { $and: [{ type: { $eq: "stock" } }] };
+          if (!search) return base;
+          const terms = search.split(/\s+/).filter(Boolean);
+          if (terms.length === 0) return base;
+          return {
+            $and: [
+              { type: { $eq: "stock" } },
+              ...terms.map((term) => ({
+                $or: [{ name: { $containsi: term } }],
+              })),
+            ],
+          };
+        },
+        onChange: (warehouse) => {
           setDocument({
             ...document,
-            sourceWarehouse: warehouses.find((w) => w.id === id),
+            sourceWarehouse: warehouse,
           });
         },
       },
       {
         listType: "warehouses",
         label: "Bodega Destino",
-        type: "select",
+        type: "async-select",
         placeholder: "Selecciona una bodega",
         selectedOption: document?.destinationWarehouse,
-        options: warehouses
-          .filter((w) => w.type === "stock" || w.type === "printlab")
-          .map((w) => ({ label: w.name, value: w })),
-        value: document?.destinationWarehouse?.id,
-        onChange: (id) => {
+        selectedOptionLabel: document?.destinationWarehouse
+          ? `${document.destinationWarehouse.name}`
+          : "",
+        render: (warehouse) => `${warehouse?.name}`,
+        filters: (search) => {
+          const base = { $and: [{ type: { $eq: "stock" } }] };
+          if (!search) return base;
+          const terms = search.split(/\s+/).filter(Boolean);
+          if (terms.length === 0) return base;
+          return {
+            $and: [
+              { type: { $eq: "stock" } },
+              ...terms.map((term) => ({
+                $or: [{ name: { $containsi: term } }],
+              })),
+            ],
+          };
+        },
+        onChange: (warehouse) => {
           setDocument({
             ...document,
-            destinationWarehouse: warehouses.find((w) => w.id === id),
+            destinationWarehouse: warehouse,
           });
         },
       },
@@ -89,7 +117,7 @@ export default function NewTransferPage() {
         },
       },
     ];
-  }, [document, warehouses]);
+  }, [document]);
 
   const productColumns = [
     { key: "name", label: "Producto" },

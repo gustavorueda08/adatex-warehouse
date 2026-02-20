@@ -64,11 +64,20 @@ export default function NewTransformPage() {
         selectedOption: document?.sourceWarehouse,
         selectedOptionLabel: document?.sourceWarehouse?.name || "",
         render: (warehouse) => warehouse.name,
-        filters: (search) => ({
-          name: {
-            $containsi: search,
-          },
-        }),
+        filters: (search) => {
+          const base = { $and: [{ type: { $eq: "stock" } }] };
+          if (!search) return base;
+          const terms = search.split(/\s+/).filter(Boolean);
+          if (terms.length === 0) return base;
+          return {
+            $and: [
+              { type: { $eq: "stock" } },
+              ...terms.map((term) => ({
+                $or: [{ name: { $containsi: term } }],
+              })),
+            ],
+          };
+        },
         onChange: (sourceWarehouse) => {
           setDocument((prev) => ({
             ...prev,
@@ -84,11 +93,20 @@ export default function NewTransformPage() {
         selectedOption: document?.destinationWarehouse,
         selectedOptionLabel: document?.destinationWarehouse?.name || "",
         render: (warehouse) => warehouse.name,
-        filters: (search) => ({
-          name: {
-            $containsi: search,
-          },
-        }),
+        filters: (search) => {
+          const base = { $and: [{ type: { $eq: "stock" } }] };
+          if (!search) return base;
+          const terms = search.split(/\s+/).filter(Boolean);
+          if (terms.length === 0) return base;
+          return {
+            $and: [
+              { type: { $eq: "stock" } },
+              ...terms.map((term) => ({
+                $or: [{ name: { $containsi: term } }],
+              })),
+            ],
+          };
+        },
         onChange: (destinationWarehouse) => {
           setDocument((prev) => ({
             ...prev,
@@ -212,7 +230,6 @@ export default function NewTransformPage() {
               document.transformType === "cut"
                 ? quantity
                 : Number(row.sourceQuantity || 0),
-            warehouse: document.destinationWarehouse?.id,
           };
           groupedProducts[targetProductId].items.push(itemPayload);
         }
@@ -228,6 +245,8 @@ export default function NewTransformPage() {
       notes: document.notes || "",
       createdDate: document.createdDate,
     };
+
+    console.log(payload, JSON.stringify(payload));
 
     await createOrder(payload);
   };

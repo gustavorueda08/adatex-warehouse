@@ -97,6 +97,7 @@ function EntityHeaderField({ field = {} }) {
           aria-label={field.label || "Seleccione una opción"}
           isReadOnly={field.disabled}
           isDisabled={field.disabled}
+          isRequired={field?.required || false}
         >
           {field.options.map((option) => (
             <SelectItem key={option.key}>{option.label}</SelectItem>
@@ -126,6 +127,7 @@ function EntityHeaderField({ field = {} }) {
           aria-label={field.label || "Seleccione una opción"}
           isReadOnly={field.disabled}
           isDisabled={field.disabled}
+          isRequired={field?.required || false}
         >
           {field.options
             ? field.options.map((option) => (
@@ -167,6 +169,7 @@ function EntityHeaderField({ field = {} }) {
             field.selectedOption?.id ? String(field.selectedOption.id) : null
           }
           aria-label={field.label || "Seleccione una opción"}
+          isRequired={field?.required || false}
         >
           {(item) => (
             <AutocompleteItem
@@ -194,6 +197,7 @@ function EntityHeaderField({ field = {} }) {
             aria-label={field.label || "Seleccione una fecha"}
             isReadOnly={field.disabled}
             label={field.label}
+            required={field?.required || false}
           />
         </I18nProvider>
       )}
@@ -206,6 +210,7 @@ function EntityHeaderField({ field = {} }) {
           aria-label={field.label}
           isReadOnly={field.disabled}
           type={field.inputType || "text"}
+          required={field?.required || false}
         />
       )}
       {field.type === "textarea" && (
@@ -216,6 +221,7 @@ function EntityHeaderField({ field = {} }) {
           onValueChange={field.onChange}
           variant="faded"
           isReadOnly={field.disabled}
+          isRequired={field?.required || false}
         />
       )}
       {field.type === "checkbox" && (
@@ -223,6 +229,7 @@ function EntityHeaderField({ field = {} }) {
           isSelected={field.value}
           onValueChange={field.onChange}
           className="py-2"
+          isRequired={field?.required || false}
         >
           {field.label}
         </Checkbox>

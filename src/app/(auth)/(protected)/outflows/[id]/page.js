@@ -271,7 +271,7 @@ export default function OutflowDetailPage({ params }) {
           onHeaderScan={addItem}
           onRemoveItem={removeItem}
           isHeaderInputEnabled={document?.state !== ORDER_STATES.COMPLETED}
-          isItemEditable={document?.state !== ORDER_STATES.COMPLETED}
+          isItemEditable={false}
         />
       </Section>
       <Section

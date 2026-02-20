@@ -48,22 +48,30 @@ export default function PInvoice({ document, taxes = [] }) {
 
   const { products, subtotal, appliedTaxes, total } = useMemo(() => {
     const validProducts =
-      document?.orderProducts?.filter((p) => p.product) || [];
+      document?.orderProducts?.filter((p) => {
+        if (!p.product) return false;
+        if (document?.state === "draft") {
+          return Number(p.requestedQuantity) > 0;
+        }
+        return p.items && p.items.length > 0;
+      }) || [];
     // Calcular subtotal
     let subtotalForTaxes = 0;
     const subtotal = validProducts.reduce((acc, product) => {
-      const {
-        invoicePercentage = 0,
-        confirmedQuantity = 0,
-        ivaIncluded = false,
-      } = product;
+      const { invoicePercentage = 0, ivaIncluded = false } = product;
+      let quantity = 0;
+      if (document?.state === "draft") {
+        quantity = Number(product.requestedQuantity || 0);
+      } else {
+        quantity = Number(product.confirmedQuantity || 0);
+      }
       let price = Number(product.price) || 0;
       if (ivaIncluded) {
         price = price / (1 + 0.19 * (Number(invoicePercentage) / 100));
       }
       subtotalForTaxes +=
-        price * Number(confirmedQuantity) * (Number(invoicePercentage) / 100);
-      return acc + price * Number(confirmedQuantity);
+        price * Number(quantity) * (Number(invoicePercentage) / 100);
+      return acc + price * Number(quantity);
     }, 0);
     let total = subtotal;
     // De acuerdo con el subtotal para taxes, calcular los impuestos
@@ -86,7 +94,13 @@ export default function PInvoice({ document, taxes = [] }) {
         };
       });
     const products = validProducts.map((p) => {
-      const { invoicePercentage, confirmedQuantity, ivaIncluded } = p;
+      const { invoicePercentage, ivaIncluded } = p;
+      let quantity = 0;
+      if (document?.state === "draft") {
+        quantity = Number(p.requestedQuantity || 0);
+      } else {
+        quantity = Number(p.confirmedQuantity || 0);
+      }
       let price = p.price;
       if (ivaIncluded) {
         price =
@@ -94,9 +108,10 @@ export default function PInvoice({ document, taxes = [] }) {
             (price / (1 + 0.19 * (Number(invoicePercentage) / 100))) * 100,
           ) / 100;
       }
-      const calculatedBase = Math.round(price * confirmedQuantity * 100) / 100;
+      const calculatedBase = Math.round(price * quantity * 100) / 100;
       return {
         ...p,
+        quantity,
         price,
         calculatedBase,
       };
@@ -112,6 +127,7 @@ export default function PInvoice({ document, taxes = [] }) {
     document?.orderProducts,
     document?.customer,
     document?.customerForInvoice,
+    document?.state,
   ]);
   const renderCell = (item, columnKey) => {
     const isSummaryRow = ["subtotal", "total", "tax"].includes(item.type);
@@ -137,7 +153,7 @@ export default function PInvoice({ document, taxes = [] }) {
         if (isSummaryRow) return null;
         return (
           <p className="text-xs md:text-base">
-            {format(item.confirmedQuantity)} {item.unit}
+            {format(item.quantity)} {item.unit}
           </p>
         );
       case "subtotal":

@@ -331,9 +331,8 @@ export default function Actions({
           isLoading={localLoadings.downloadingQuotation}
           color="primary"
           onPress={() => {
-            const filteredDocument = filterDocumentForExport(document);
             handleAction(
-              () => generateQuotationPDF(filteredDocument),
+              () => generateQuotationPDF(document),
               "downloadingQuotation",
             );
           }}

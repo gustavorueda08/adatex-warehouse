@@ -11,12 +11,14 @@ import Entities from "@/components/entities/Entities";
 import Link from "next/link";
 import format from "@/lib/utils/format";
 import EntityFilters from "@/components/entities/EntityFilters";
-import { Checkbox, Select, SelectItem } from "@heroui/react";
+import { Button, Checkbox, Select, SelectItem } from "@heroui/react";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import InventoryMode from "@/components/entities/InventoryMode";
 import { useEntityList } from "@/lib/hooks/useEntityList";
 import BulkProductUploader from "@/components/products/BulkProductUploader";
 import { exportProductsTemplate } from "@/lib/utils/exportProductsTemplate";
+import { exportInventory } from "@/lib/utils/exportInventory";
+import ExportInventoryModal from "@/components/products/ExportInventoryModal";
 import BreakdownModal from "@/components/products/BreakdownModal";
 
 export default function ProductsPage() {
@@ -46,6 +48,9 @@ export default function ProductsPage() {
     category: "",
     entries: [],
   });
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportingInventory, setExportingInventory] = useState(false);
 
   const hasBreakdown = useCallback(
     (product, category) =>
@@ -141,6 +146,31 @@ export default function ProductsPage() {
       toast.error("Error al sincronizar productos");
     }
   };
+
+  const handleExportInventory = async (exportType) => {
+    setExportingInventory(true);
+    try {
+      await exportInventory({
+        localProducts: products,
+        filters,
+        inventoryMode,
+        dateParams,
+        exportType,
+        toast: {
+          loading: (msg) => toast.loading(msg),
+          success: (msg) => toast.success(msg),
+          error: (msg) => toast.error(msg),
+          dismiss: (id) => toast.dismiss(id),
+        },
+      });
+      setIsExportModalOpen(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setExportingInventory(false);
+    }
+  };
+
   const columns = [
     {
       key: "code",
@@ -393,6 +423,15 @@ export default function ProductsPage() {
         pageCount={pageCount}
         loading={loading || isFetching}
       />
+      <div className="flex lg:justify-end justify-center">
+        <Button
+          color="secondary"
+          className="w-full lg:w-auto"
+          onPress={() => setIsExportModalOpen(true)}
+        >
+          Descargar Inventario
+        </Button>
+      </div>
       <BulkProductUploader
         onSync={handleBulkSync}
         isSyncing={syncing}
@@ -416,6 +455,12 @@ export default function ProductsPage() {
         unit={breakdownModal.unit}
         category={breakdownModal.category}
         entries={breakdownModal.entries}
+      />
+      <ExportInventoryModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onConfirm={handleExportInventory}
+        loading={exportingInventory}
       />
     </div>
   );

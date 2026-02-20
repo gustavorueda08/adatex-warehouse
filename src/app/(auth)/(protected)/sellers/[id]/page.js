@@ -125,7 +125,7 @@ export default function SellerDetailPage() {
       },
     };
 
-    await updateSeller(sellerId, payload.data);
+    await updateSeller(seller.documentId, payload.data);
     await refetch();
     addToast({
       title: "Vendedor actualizado",
@@ -135,7 +135,7 @@ export default function SellerDetailPage() {
   };
 
   const handleDelete = async () => {
-    const res = await deleteSeller(sellerId);
+    const res = await deleteSeller(seller.documentId);
     if (res.error) {
       addToast({
         title: "Error",

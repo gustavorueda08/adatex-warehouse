@@ -27,12 +27,14 @@ import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import TransformItemSelect from "./TransformItemSelect";
 import format from "@/lib/utils/format";
 import DebouncedInput from "../ui/DebounceInput";
+import classNames from "classnames";
 
 const TransformProductAutocomplete = ({
   product,
   onChange,
   placeholder,
   disabled,
+  className = "",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(product?.name || "");
@@ -104,7 +106,7 @@ const TransformProductAutocomplete = ({
         }
       }}
       size={screenSize === "lg" ? "md" : "sm"}
-      className="min-w-[200px]"
+      className={classNames("min-w-[200px]", className)}
       selectedKey={selectedKey}
       aria-label={placeholder || "Seleccionar producto"}
       isDisabled={disabled}
@@ -125,6 +127,7 @@ const ItemAutocomplete = ({
   onChange,
   placeholder,
   disabled,
+  className = "",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(item?.name || "");
@@ -200,7 +203,7 @@ const ItemAutocomplete = ({
         }
       }}
       size={screenSize === "lg" ? "md" : "sm"}
-      className="min-w-[200px]"
+      className={classNames("min-w-[200px]", className)}
       selectedKey={selectedKey}
       aria-label={placeholder || "Seleccionar item"}
       isDisabled={disabled || (!sourceProduct && !sourceWarehouse)}
@@ -230,7 +233,13 @@ function createEmptyProduct() {
   };
 }
 
-function CutItemsModal({ sourceItem, items = [], onChange, disabled = false }) {
+function CutItemsModal({
+  sourceItem,
+  items = [],
+  onChange,
+  disabled = false,
+  availableQuantity = 0,
+}) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   // Stable ghost row to prevent infinite re-renders
@@ -267,12 +276,15 @@ function CutItemsModal({ sourceItem, items = [], onChange, disabled = false }) {
   };
 
   const getSourceQuantity = () => {
-    return parseFloat(sourceItem?.currentQuantity) || 0;
+    let baseQty = parseFloat(sourceItem?.currentQuantity) || 0;
+    // We already passed the product into CutItemsModal, so we need to pass the real consumed amount
+    return baseQty; // We will handle total via a prop
   };
 
+  // getRest calculates based on the original available quantity
   const getRest = () => {
     const total = getCutTotal();
-    const source = getSourceQuantity();
+    const source = availableQuantity;
     const rest = source - total;
     // Prevent negative display if float issues, though shouldn't happen if logic is sound
     return format(Math.max(0, rest)) + " " + (sourceItem?.product?.unit || "");
@@ -281,16 +293,20 @@ function CutItemsModal({ sourceItem, items = [], onChange, disabled = false }) {
   const handleItemChange = (id, value) => {
     onChange((prevItems) => {
       const items = prevItems || [];
-      // Check if it's the ghost item
-      if (id === ghostItemRef.current.id) {
-        // Create new item from ghost
-        const newItem = { ...ghostItemRef.current, quantity: value };
-        return [...items, newItem];
-      } else {
+      const exists = items.some((i) => i.id === id);
+      if (exists) {
         // Update existing item
         return items.map((item) =>
           item.id === id ? { ...item, quantity: value } : item,
         );
+      } else {
+        // Create new item from ghost
+        const newItem = {
+          ...(ghostItemRef.current || {}),
+          id,
+          quantity: value,
+        };
+        return [...items, newItem];
       }
     });
   };
@@ -370,14 +386,15 @@ function CutItemsModal({ sourceItem, items = [], onChange, disabled = false }) {
               <ModalHeader className="flex flex-col gap-1">
                 <span>Cortes</span>
                 <span className="text-tiny text-default-400">
-                  Cantidad total: {format(getCutTotal())}
+                  Cantidad a cortar: {format(getCutTotal())} /{" "}
+                  {format(availableQuantity)} {sourceItem?.product?.unit || ""}
                 </span>
                 <span className="text-tiny text-default-400">
-                  Restante: {getRest()}
+                  Restante de origen: {getRest()}
                 </span>
-                {getCutTotal() > (sourceItem?.currentQuantity || 0) && (
+                {getCutTotal() > availableQuantity && (
                   <span className="text-tiny text-danger font-bold">
-                    ¡La cantidad total excede la cantidad disponible!
+                    ¡La cantidad a cortar excede la cantidad esperada!
                   </span>
                 )}
               </ModalHeader>
@@ -502,12 +519,13 @@ export default function TransformProducts({
     () => [
       { key: "sourceProduct", label: "Producto Origen" },
       { key: "sourceItem", label: "Item Origen" },
+      { key: "availableQuantity", label: "Cantidad Disponible" },
       ...(transformType === "transform"
         ? [
             { key: "targetProduct", label: "Producto Destino" },
             { key: "sourceQuantity", label: "Cantidad a Consumir" },
           ]
-        : [{ key: "availableQuantity", label: "Cantidad Disponible" }]),
+        : []),
       { key: "targetQuantity", label: "Cantidad a Generar" },
       ...(transformType === "cut"
         ? [
@@ -521,6 +539,18 @@ export default function TransformProducts({
   );
 
   const renderCell = (product, columnKey) => {
+    let totalConsumedPrev = 0;
+    if (transformType === "cut") {
+      totalConsumedPrev = (product.items || []).reduce(
+        (acc, item) => acc + (parseFloat(item.sourceQuantityConsumed) || 0),
+        0,
+      );
+    } else {
+      totalConsumedPrev = parseFloat(
+        product._originalItem?.sourceQuantityConsumed || 0,
+      );
+    }
+
     switch (columnKey) {
       case "sourceProduct":
         return (
@@ -531,6 +561,7 @@ export default function TransformProducts({
             onChange={(value) =>
               handleChange(product.id, "sourceProduct", value)
             }
+            className="min-w-[300px]"
           />
         );
       case "sourceItem":
@@ -544,6 +575,7 @@ export default function TransformProducts({
             onChange={(value) => {
               handleChange(product.id, "sourceItem", value);
             }}
+            className="min-w-[300px]"
           />
         );
       case "targetProduct":
@@ -555,6 +587,7 @@ export default function TransformProducts({
             onChange={(value) =>
               handleChange(product.id, "targetProduct", value)
             }
+            className="min-w-[300px]"
           />
         );
       case "sourceQuantity":
@@ -581,6 +614,10 @@ export default function TransformProducts({
             <CutItemsModal
               items={product.items || []}
               sourceItem={product.sourceItem}
+              disabled={disabled}
+              availableQuantity={
+                (product.sourceItem?.currentQuantity || 0) + totalConsumedPrev
+              }
               onChange={(newItems) =>
                 handleChange(product.id, "items", newItems)
               }
@@ -599,19 +636,28 @@ export default function TransformProducts({
             />
           );
         }
-
       case "availableQuantity":
         return (
           <Input
-            value={`${format(product.sourceItem?.currentQuantity || 0)} ${product.sourceProduct?.unit || ""}`}
+            value={`${format((product.sourceItem?.currentQuantity || 0) + totalConsumedPrev)} ${product.sourceProduct?.unit || ""}`}
             size="sm"
             isReadOnly
           />
         );
       case "rest":
+        const alreadyConsumedInOrder = (product.items || []).reduce(
+          (acc, item) => acc + (parseFloat(item.sourceQuantityConsumed) || 0),
+          0,
+        );
+        const sourceCurrent = product.sourceItem?.currentQuantity || 0;
+        const totalCut =
+          product.items?.reduce(
+            (acc, item) => acc + (parseFloat(item.quantity) || 0),
+            0,
+          ) || 0;
         return (
           <Input
-            value={`${format((product.sourceItem?.currentQuantity || 0) - (product.items?.reduce((acc, item) => acc + item.quantity || 0, 0) || 0))} ${product?.sourceProduct?.unit || ""}`}
+            value={`${format(sourceCurrent + alreadyConsumedInOrder - totalCut)} ${product?.sourceProduct?.unit || ""}`}
             size="sm"
             isReadOnly
           />

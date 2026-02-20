@@ -207,7 +207,7 @@ export default function SupplierDetailPage() {
   };
 
   const handleDelete = async () => {
-    const res = await deleteSupplier(supplierId);
+    const res = await deleteSupplier(supplier.documentId);
     if (res.error) {
       addToast({
         title: "Error",

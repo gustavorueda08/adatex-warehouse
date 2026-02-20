@@ -15,19 +15,24 @@ import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
 import { addToast } from "@heroui/react";
 import { v4 as uuidv4 } from "uuid";
+import { useRouter } from "next/navigation";
 
 export default function TransformationDetailPage({ params }) {
   const { id } = use(params);
-  const { orders, updateOrder, refetch } = useOrders({
+  const router = useRouter();
+  const { orders, updateOrder, deleteOrder, refetch } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
       "orderProducts.product",
       "orderProducts.items",
-      "orderProducts.items.transformedFromItem",
-      "orderProducts.items.transformedFromItem.product",
+      "orderProducts.items.product",
       "orderProducts.items.parentItem",
       "orderProducts.items.parentItem.product",
+      "orderProducts.items.transformedFromItem",
+      "orderProducts.items.transformedFromItem.product",
+      "sourceItems",
+      "sourceItems.product",
       "sourceWarehouse",
       "destinationWarehouse",
     ],
@@ -36,40 +41,161 @@ export default function TransformationDetailPage({ params }) {
   const [document, setDocument] = useState(null);
   const [loadings, setLoadings] = useState({
     isUpdating: false,
+    isDeleting: false,
   });
 
   // Inicializar el estado del documento desde orders[0]
-  // Mapear orderProducts → rows para TransformProducts
+  // Mapear items del order → rows para TransformProducts
   useEffect(() => {
     if (orders.length > 0) {
       const order = orders[0];
-      console.log("ORDEN", order);
+      console.log(order, JSON.stringify(order));
 
-      // Convertir orderProducts a filas de transformación
-      const rows = [];
+      // Extract generated items from orderProducts.items
+      // Los items fuente están en order.sourceItems
+      // order.orderProducts contiene el producto destino
+      const generatedItems = (order.orderProducts || []).flatMap(
+        (op) => op.items || [],
+      );
+      const sourceItemsMap = {};
+      (order.sourceItems || []).forEach((si) => {
+        sourceItemsMap[si.id] = si;
+      });
+
+      // Construir un mapa de orderProduct por producto ID
+      const orderProductsByProductId = {};
       (order.orderProducts || []).forEach((op) => {
-        (op.items || []).forEach((item) => {
-          // Determinar el sourceItem (transformedFromItem para transformación, parentItem para partición)
-          const sourceItemObj =
-            item.transformedFromItem || item.parentItem || null;
-          const sourceProduct = sourceItemObj?.product || op.product;
+        const prodId = op.product?.id || op.id;
+        if (prodId) orderProductsByProductId[prodId] = op;
+      });
+
+      // Determinar primero si es transformación o partición general mirando el primer item
+      let defaultTransformType = "cut";
+      if (generatedItems.length > 0) {
+        const firstItem = generatedItems[0];
+        const targetProdId = firstItem.product?.id;
+        const sourceRef =
+          firstItem.parentItem || firstItem.transformedFromItem || null;
+        let sourceProdId = null;
+        if (sourceRef) {
+          sourceProdId =
+            sourceItemsMap[sourceRef.id]?.product?.id || sourceRef.product?.id;
+        }
+        if (sourceProdId && targetProdId && sourceProdId !== targetProdId) {
+          defaultTransformType = "transform";
+        }
+      }
+
+      // Agrupar items.
+      // - Si es transformación: agrupar por producto destino (orderProduct) (o tratar cada uno por separado).
+      // - Si es partición (corte): agrupar por PRODUCTO DESTINO Y SOURCE_ITEM.
+      const groups = {};
+
+      generatedItems.forEach((item) => {
+        const targetProduct = item.product;
+        if (!targetProduct) return;
+
+        const sourceItemRef =
+          item.parentItem || item.transformedFromItem || null;
+        const sourceItemObj = sourceItemRef
+          ? sourceItemsMap[sourceItemRef.id] || sourceItemRef
+          : null;
+        // fallback
+        const sourceProduct = sourceItemObj?.product || targetProduct;
+
+        const isPartition = sourceProduct?.id === targetProduct?.id;
+
+        let groupKey;
+        if (isPartition) {
+          groupKey = `cut_${targetProduct.id}_${sourceItemObj?.id || "unknown"}`;
+        } else {
+          groupKey = `transform_${item.id}`; // Para transformación cada uno en una fila por ahora, como estaba el código original
+        }
+
+        if (!groups[groupKey]) {
+          groups[groupKey] = {
+            targetProduct,
+            sourceProduct,
+            sourceItemObj,
+            isPartition,
+            orderProduct: orderProductsByProductId[targetProduct.id],
+            items: [],
+          };
+        }
+        groups[groupKey].items.push(item);
+      });
+
+      const rows = [];
+      Object.values(groups).forEach((group) => {
+        const {
+          targetProduct,
+          sourceProduct,
+          sourceItemObj,
+          isPartition,
+          orderProduct,
+          items,
+        } = group;
+
+        if (isPartition) {
+          // Para cortes: una fila con array de items para CutItemsModal
+          const cutItems = items.map((item) => ({
+            id: item.id || uuidv4(),
+            quantity: String(item.currentQuantity ?? item.quantity ?? 0),
+            sourceQuantityConsumed: item.sourceQuantityConsumed || 0, // importante mantener
+            _originalItem: item,
+          }));
 
           rows.push({
-            id: item.id || uuidv4(),
+            id: orderProduct?.id || uuidv4(), // Esto falla si hay múltiples items del mismo orderProduct. Usamos uuid base también.
+            rowId: uuidv4(), // Add unique rowId for tracking multiple cuts of same product
             sourceProduct: sourceProduct,
             sourceItem: sourceItemObj,
-            product: op.product,
-            sourceQuantity: String(item.sourceQuantityConsumed || 0),
-            targetQuantity: String(item.currentQuantity ?? item.quantity ?? 0),
-            // Keep reference to original item for updates
-            _originalItem: item,
+            targetProduct: targetProduct,
+            sourceQuantity: String(
+              items.reduce(
+                (sum, i) => sum + (Number(i.sourceQuantityConsumed) || 0),
+                0,
+              ),
+            ),
+            targetQuantity: String(
+              items.reduce(
+                (sum, i) =>
+                  sum + (Number(i.currentQuantity ?? i.quantity) || 0),
+                0,
+              ),
+            ),
+            items: cutItems,
+            _originalItems: items,
           });
-        });
+        } else {
+          // Para transformaciones: cada item es una fila separada
+          items.forEach((item) => {
+            rows.push({
+              id: item.id || uuidv4(),
+              rowId: uuidv4(),
+              sourceProduct: sourceProduct,
+              sourceItem: sourceItemObj,
+              targetProduct: targetProduct,
+              sourceQuantity: String(item.sourceQuantityConsumed || 0),
+              targetQuantity: String(
+                item.currentQuantity ?? item.quantity ?? 0,
+              ),
+              _originalItem: item,
+            });
+          });
+        }
       });
+
+      // Fix IDs so that `id` is unique per row, not just orderProduct id which can be duplicated in partition if there are multiple origin items for same dest.
+      const processedRows = rows.map((r) => ({
+        ...r,
+        id: r.rowId || uuidv4(),
+      }));
 
       setDocument({
         ...order,
-        products: rows,
+        transformType: defaultTransformType,
+        products: processedRows,
       });
     }
   }, [orders]);
@@ -81,6 +207,19 @@ export default function TransformationDetailPage({ params }) {
       document?.state === "processing"
     );
   }, [document?.state]);
+
+  const transformType = useMemo(() => {
+    if (document?.transformType) return document.transformType;
+    if (!document || !document.products || document.products.length === 0)
+      return "cut";
+    const firstRow = document.products[0];
+    if (firstRow.sourceProduct && firstRow.targetProduct) {
+      return firstRow.sourceProduct.id !== firstRow.targetProduct.id
+        ? "transform"
+        : "cut";
+    }
+    return "cut";
+  }, [document]);
 
   const headerFields = useMemo(() => {
     if (!document) return [];
@@ -94,18 +233,20 @@ export default function TransformationDetailPage({ params }) {
         selectedOption: document?.sourceWarehouse,
         selectedOptionLabel: document?.sourceWarehouse?.name || "",
         render: (warehouse) => warehouse.name,
-        filters: (search) => ({
-          $and: [
-            {
-              $or: [{ type: "stock" }, { type: "printlab" }],
-            },
-            {
-              name: {
-                $containsi: search,
-              },
-            },
-          ],
-        }),
+        filters: (search) => {
+          const base = { $and: [{ type: { $eq: "stock" } }] };
+          if (!search) return base;
+          const terms = search.split(/\s+/).filter(Boolean);
+          if (terms.length === 0) return base;
+          return {
+            $and: [
+              { type: { $eq: "stock" } },
+              ...terms.map((term) => ({
+                $or: [{ name: { $containsi: term } }],
+              })),
+            ],
+          };
+        },
         onChange: (sourceWarehouse) => {
           setDocument((prev) => ({
             ...prev,
@@ -122,18 +263,20 @@ export default function TransformationDetailPage({ params }) {
         selectedOption: document?.destinationWarehouse,
         selectedOptionLabel: document?.destinationWarehouse?.name || "",
         render: (warehouse) => warehouse.name,
-        filters: (search) => ({
-          $and: [
-            {
-              $or: [{ type: "stock" }, { type: "printlab" }],
-            },
-            {
-              name: {
-                $containsi: search,
-              },
-            },
-          ],
-        }),
+        filters: (search) => {
+          const base = { $and: [{ type: { $eq: "stock" } }] };
+          if (!search) return base;
+          const terms = search.split(/\s+/).filter(Boolean);
+          if (terms.length === 0) return base;
+          return {
+            $and: [
+              { type: { $eq: "stock" } },
+              ...terms.map((term) => ({
+                $or: [{ name: { $containsi: term } }],
+              })),
+            ],
+          };
+        },
         onChange: (destinationWarehouse) => {
           setDocument((prev) => ({
             ...prev,
@@ -156,6 +299,17 @@ export default function TransformationDetailPage({ params }) {
         onChange: () => {},
       },
       {
+        label: "Tipo de Transformación",
+        type: "select",
+        value: transformType,
+        disabled: true,
+        options: [
+          { key: "cut", label: "Corte" },
+          { key: "transform", label: "Conversión" },
+        ],
+        onChange: () => {},
+      },
+      {
         label: "Fecha de Creación",
         type: "date-picker",
         disabled: true,
@@ -165,52 +319,42 @@ export default function TransformationDetailPage({ params }) {
         onChange: () => {},
       },
     ];
-  }, [document, isReadOnly]);
+  }, [document, isReadOnly, transformType]);
 
-  const transformType = useMemo(() => {
-    if (!document || !document.products || document.products.length === 0)
-      return "cut";
-    const firstRow = document.products[0];
-    if (firstRow.sourceProduct && firstRow.product) {
-      // If source and target products are DIFFERENT, it's a transform.
-      // If SAME, it's a cut.
-      return firstRow.sourceProduct.id !== firstRow.product.id
-        ? "transform"
-        : "cut";
+  const handleDelete = async () => {
+    try {
+      setLoadings((prev) => ({ ...prev, isDeleting: true }));
+      await deleteOrder(document.id);
+      addToast({
+        title: "Transformación Eliminada",
+        description: "La transformación ha sido eliminada correctamente",
+        type: "success",
+      });
+      router.push("/transformations");
+    } catch (error) {
+      console.error(error);
+      addToast({
+        title: "Error al eliminar",
+        description: "Ocurrió un error al eliminar la transformación",
+        type: "error",
+      });
+    } finally {
+      setLoadings((prev) => ({ ...prev, isDeleting: false }));
     }
-    return "cut";
-  }, [document]);
+  };
 
-  const handleUpdate = async (doc) => {
+  const handleUpdate = async (newState = null) => {
     try {
       setLoadings({ isUpdating: true });
-
       // Agrupar filas por producto destino
       const groupedProducts = {};
-      const originalItemIds = new Set();
-
-      // Collect all original item IDs from the initial document state to track deletions
       (document.products || []).forEach((row) => {
-        if (row._originalItem && row._originalItem.id) {
-          originalItemIds.add(row._originalItem.id);
-        }
-      });
-
-      const currentItemIds = new Set();
-
-      (doc.products || []).forEach((row) => {
-        // Validate row completeness
         if (!row.sourceProduct || !row.sourceItem) return;
-
-        // Determine target product based on transform type or fallback
-        // In detail page, product is already set on the row usually
-        let targetProduct = row.product || row.targetProduct;
-
-        // For cuts, if no target product set, assume source product
+        // Determinar el producto destino
+        let targetProduct = row.targetProduct;
         if (!targetProduct && transformType === "cut") {
           targetProduct = row.sourceProduct;
         }
-
         if (!targetProduct) return;
 
         const productId = targetProduct.id;
@@ -218,49 +362,46 @@ export default function TransformationDetailPage({ params }) {
         if (!groupedProducts[productId]) {
           groupedProducts[productId] = {
             product: productId,
+            requestedQuantity: 0,
             items: [],
           };
         }
 
-        // Handle items array from CutItemsModal
+        // Manejar items del CutItemsModal o fila simple
         const itemsToProcess =
           row.items && row.items.length > 0
             ? row.items
             : [
                 {
                   quantity: row.targetQuantity,
-                  id: row.id, // ID from the row itself
-                  _originalItem: row._originalItem, // original item ref
+                  _originalItem: row._originalItem,
                 },
               ];
 
         itemsToProcess.forEach((item) => {
-          const quantity = Number(item.quantity);
-          // Check if it's an existing item (has _originalItem with ID)
-          const originalItem =
-            item._originalItem ||
-            (row._originalItem && row.id === item.id
-              ? row._originalItem
-              : null);
+          const quantity = Number(item.quantity || item.targetQuantity || 0);
+          const originalItem = item._originalItem || row._originalItem || null;
 
           if (originalItem && originalItem.id) {
-            // Existing item - send with ID to KEEP it.
-            currentItemIds.add(originalItem.id);
+            // Item existente — para actualizar solo mandamos id y currentQuantity
+            groupedProducts[productId].requestedQuantity += quantity;
             groupedProducts[productId].items.push({
               id: originalItem.id,
+              currentQuantity: quantity,
             });
           } else {
-            // New item - send full payload WITHOUT ID
+            // Item nuevo — enviar payload completo sin ID
             if (quantity > 0) {
-              const itemPayload = {
+              groupedProducts[productId].requestedQuantity += quantity;
+              groupedProducts[productId].items.push({
                 sourceItemId: row.sourceItem.id || row.sourceItem,
                 quantity: quantity,
                 targetQuantity: quantity,
                 sourceQuantityConsumed:
-                  Number(row.sourceQuantity || 0) || quantity, // Fallback logic
-                warehouse: doc.destinationWarehouse?.id,
-              };
-              groupedProducts[productId].items.push(itemPayload);
+                  transformType === "cut"
+                    ? quantity
+                    : Number(row.sourceQuantity || 0) || quantity,
+              });
             }
           }
         });
@@ -268,14 +409,21 @@ export default function TransformationDetailPage({ params }) {
 
       const data = {
         products: Object.values(groupedProducts),
-        sourceWarehouse: doc.sourceWarehouse?.id || doc.sourceWarehouse,
+        sourceWarehouse:
+          document.sourceWarehouse?.id || document.sourceWarehouse,
         destinationWarehouse:
-          doc.destinationWarehouse?.id || doc.destinationWarehouse,
-        notes: doc.notes || "",
-        createdDate: doc.createdDate,
+          document.destinationWarehouse?.id || document.destinationWarehouse,
+        notes: document.notes || "",
+        createdDate: document.createdDate,
       };
 
-      await updateOrder(doc.id, data);
+      // Si se solicita completar
+      if (newState === "completed") {
+        data.state = "completed";
+        data.completedDate = moment.tz("America/Bogota").toDate();
+      }
+
+      await updateOrder(document.id, data);
       await refetch();
       addToast({
         title: "Transformación Actualizada",
@@ -324,7 +472,11 @@ export default function TransformationDetailPage({ params }) {
         description="Notas sobre la transformación"
         icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
       >
-        <Comments comments={document?.notes || ""} setDocument={setDocument} />
+        <Comments
+          comments={document?.notes || ""}
+          setDocument={setDocument}
+          disabled={isReadOnly}
+        />
       </Section>
 
       <Section
@@ -335,51 +487,8 @@ export default function TransformationDetailPage({ params }) {
         <Actions
           document={document}
           onUpdate={handleUpdate}
-          onInvoice={async () => {
-            try {
-              await updateOrder(document.id, {
-                state: "completed",
-                completedDate: moment.tz("America/Bogota").toDate(),
-              });
-              await refetch();
-              addToast({
-                title: "Transformación Completada",
-                description:
-                  "La transformación ha sido marcada como completada",
-                type: "success",
-              });
-            } catch (error) {
-              console.error(error);
-              addToast({
-                title: "Error",
-                description: "Ocurrió un error al completar la transformación",
-                type: "error",
-              });
-            }
-          }}
-          onDelete={async () => {
-            try {
-              const res = await fetch(`/api/strapi/orders/${document.id}`, {
-                method: "DELETE",
-              });
-              if (!res.ok) throw new Error("Error deleting order");
-
-              addToast({
-                title: "Transformación Eliminada",
-                description:
-                  "La transformación ha sido eliminada correctamente",
-                type: "success",
-              });
-              window.location.href = "/transformations";
-            } catch (error) {
-              console.error(error);
-              addToast({
-                title: "Error al eliminar",
-                description: "Ocurrió un error al eliminar la transformación",
-                type: "error",
-              });
-            }
-          }}
+          onComplete={handleUpdate}
+          onDelete={handleDelete}
           loadings={loadings}
         />
       </Section>

@@ -34,6 +34,7 @@ export default function DebouncedInput({
   debounce = 500,
   type = "text",
   disabled,
+  required = false,
   ...props
 }) {
   const [value, setValue] = useState("");
@@ -93,6 +94,7 @@ export default function DebouncedInput({
       classNames={{
         innerWrapper: "min-w-[200px]",
       }}
+      isRequired={required}
     />
   );
 }

@@ -1,52 +1,46 @@
 "use client";
-import React, { use, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Entity from "@/components/entities/Entity";
 import { useCollections } from "@/lib/hooks/useCollections";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import Section from "@/components/ui/Section";
 import { addToast, Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
-import EntityActions from "@/components/entities/EntityActions";
 
-export default function CollectionDetailPage({ params }) {
-  const { id } = use(params);
+export default function NewCollectionPage() {
   const router = useRouter();
-  const {
-    collections = [],
-    createCollection,
-    loading,
-    deleteCollection,
-    updateCollection,
-  } = useCollections(
+  const { createCollection, creating } = useCollections(
+    {},
     {
-      filters: { id: [id] },
-      populate: ["line", "products"],
-    },
-    {
-      onUpdate: () => {
+      enabled: false,
+      onCreate: () => {
         addToast({
-          title: "Colección actualizada",
-          description: "La colección ha sido actualizada correctamente",
-          type: "success",
+          title: "Colección creada",
+          description: "La colección se ha creado exitosamente",
+          color: "success",
         });
-      },
-      onDelete: () => {
         router.push("/collections");
+      },
+      onError: (error) => {
         addToast({
-          title: "Colección eliminada",
-          description: "La colección ha sido eliminada correctamente",
-          type: "success",
+          title: "Error al crear la colección",
+          description: error.message,
+          color: "danger",
         });
       },
     },
   );
-  const [collection, setCollection] = useState(null);
+  const [collection, setCollection] = useState({
+    name: "",
+    description: "",
+    products: [],
+  });
   const headerFields = [
     {
       key: "name",
       label: "Nombre",
       type: "input",
-      value: collection?.name,
+      value: collection.name,
       onChange: (name) => setCollection({ ...collection, name }),
       required: true,
     },
@@ -56,7 +50,6 @@ export default function CollectionDetailPage({ params }) {
       listType: "lines",
       type: "async-select",
       selectedOption: collection?.line,
-      selectedOptionLabel: collection?.line?.name,
       onChange: (line) => setCollection({ ...collection, line }),
       render: (line) => line.name,
       required: true,
@@ -65,48 +58,31 @@ export default function CollectionDetailPage({ params }) {
       key: "description",
       label: "Descripción",
       type: "textarea",
-      value: collection?.description,
+      value: collection.description,
       fullWidth: true,
       onChange: (description) => setCollection({ ...collection, description }),
     },
   ];
   const isValid = useMemo(() => {
-    return collection?.name?.trim().length > 0 && collection?.line;
+    return collection.name.trim().length > 0 && collection.line;
   }, [collection]);
-  const handleUpdate = async () => {
+  const handleCreate = async () => {
     try {
       const data = {
         name: collection.name,
         description: collection.description,
-        line: collection.line?.id || collection.line,
+        line: collection.line.id,
         products: (collection.products || []).map((p) =>
           typeof p === "object" ? p.id : p,
         ),
       };
-      await updateCollection(collection.id, data);
+      await createCollection(data);
     } catch (error) {
       console.error(error);
     }
   };
-  const handleDelete = async () => {
-    try {
-      await deleteCollection(collection?.documentId);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-  useEffect(() => {
-    if (collections.length > 0) {
-      setCollection(collections[0]);
-    }
-  }, [collections]);
   return (
-    <Entity
-      title="Colección"
-      headerFields={headerFields}
-      entity={collection}
-      setEntity={setCollection}
-    >
+    <Entity title="Nueva Colección" headerFields={headerFields}>
       <Section
         className="flex flex-col gap-4"
         title="Productos"
@@ -117,18 +93,23 @@ export default function CollectionDetailPage({ params }) {
             label="Productos"
             listType="products"
             selectionMode="multiple"
-            value={collection?.products || []}
+            value={collection.products || []}
             onChange={(products) => setCollection({ ...collection, products })}
             renderItem={(item) => item.name}
           />
         </div>
       </Section>
-      <EntityActions
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-        isValid={isValid}
-        isUpdating={loading}
-      />
+      <div className="flex lg:justify-end">
+        <Button
+          color="success"
+          className="w-full lg:w-auto"
+          isDisabled={!isValid || creating}
+          isLoading={creating}
+          onPress={handleCreate}
+        >
+          Crear Colección
+        </Button>
+      </div>
     </Entity>
   );
 }

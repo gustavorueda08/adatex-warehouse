@@ -19,7 +19,7 @@ export async function PUT(request, context) {
     if (!supplierId) {
       return NextResponse.json(
         { error: "ID del customer requerido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,16 +29,16 @@ export async function PUT(request, context) {
     if (!body || !body.data) {
       return NextResponse.json(
         {
-          error: "Datos del customer requeridos. Se requiere un objeto 'data'",
+          error: "Datos del supplier requeridos. Se requiere un objeto 'data'",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Construir la URL de Strapi
     const strapiUrl = new URL(
       `/api/suppliers/${supplierId}`,
-      STRAPI_URL.toString()
+      STRAPI_URL.toString(),
     );
 
     // Configurar headers
@@ -65,11 +65,11 @@ export async function PUT(request, context) {
 
       return NextResponse.json(
         {
-          error: "Error al actualizar el customer en Strapi",
+          error: "Error al actualizar el supplier en Strapi",
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -79,7 +79,7 @@ export async function PUT(request, context) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -91,7 +91,7 @@ export async function PUT(request, context) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -112,19 +112,19 @@ export async function DELETE(request, context) {
     if (!supplierId) {
       return NextResponse.json(
         { error: "ID de cliente requerido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Construir la URL de Strapi
     const strapiUrl = new URL(
-      `/api/customers/${supplierId}`,
-      STRAPI_URL.toString()
+      `/api/suppliers/${supplierId}`,
+      STRAPI_URL.toString(),
     );
 
     console.log(
-      `🗑️ Attempting to DELETE customer ${supplierId} from:`,
-      strapiUrl.toString()
+      `🗑️ Attempting to DELETE supplier ${supplierId} from:`,
+      strapiUrl.toString(),
     );
 
     // Configurar headers
@@ -161,15 +161,15 @@ export async function DELETE(request, context) {
 
           if (verifyResponse.ok) {
             console.log(
-              `⚠️ WARNING: Customer ${supplierId} STILL EXISTS after DELETE!`
+              `⚠️ WARNING: Supplier ${supplierId} STILL EXISTS after DELETE!`,
             );
           } else if (verifyResponse.status === 404) {
             console.log(
-              `✅ VERIFIED: Customer ${supplierId} was successfully deleted`
+              `✅ VERIFIED: Supplier ${supplierId} was successfully deleted`,
             );
           } else {
             console.log(
-              `❓ Unable to verify deletion, status: ${verifyResponse.status}`
+              `❓ Unable to verify deletion, status: ${verifyResponse.status}`,
             );
           }
         } catch (err) {
@@ -189,11 +189,11 @@ export async function DELETE(request, context) {
 
       return NextResponse.json(
         {
-          error: "Error al eliminar el customer en Strapi",
+          error: "Error al eliminar el supplier en Strapi",
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
     // Manejar respuesta vacía (HTTP 204 o sin contenido)
@@ -202,7 +202,7 @@ export async function DELETE(request, context) {
       response.headers.get("content-length") === "0"
     ) {
       console.log(
-        `✅ Customer ${supplierId} deleted successfully (204 No Content)`
+        `✅ Supplier ${supplierId} deleted successfully (204 No Content)`,
       );
       return NextResponse.json(
         {
@@ -211,7 +211,7 @@ export async function DELETE(request, context) {
             deletedAt: new Date().toISOString(),
           },
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -221,7 +221,7 @@ export async function DELETE(request, context) {
       const text = await response.text();
       if (text.trim().length === 0) {
         console.log(
-          `✅ Customer ${supplierId} deleted successfully (empty JSON)`
+          `✅ Supplier ${supplierId} deleted successfully (empty JSON)`,
         );
         return NextResponse.json(
           {
@@ -230,18 +230,18 @@ export async function DELETE(request, context) {
               deletedAt: new Date().toISOString(),
             },
           },
-          { status: 200 }
+          { status: 200 },
         );
       }
 
       const data = JSON.parse(text);
-      console.log(`✅ Customer ${supplierId} deleted, Strapi response:`, data);
+      console.log(`✅ Supplier ${supplierId} deleted, Strapi response:`, data);
 
       // Validar estructura de respuesta
       if (!data || typeof data !== "object") {
         return NextResponse.json(
           { error: "Respuesta inválida de Strapi" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -250,7 +250,7 @@ export async function DELETE(request, context) {
 
     // Si no es JSON, asumir éxito
     console.log(
-      `✅ Customer ${supplierId} deleted successfully (non-JSON response)`
+      `✅ Supplier ${supplierId} deleted successfully (non-JSON response)`,
     );
     return NextResponse.json(
       {
@@ -259,7 +259,7 @@ export async function DELETE(request, context) {
           deletedAt: new Date().toISOString(),
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("API Route Error:", error);
@@ -268,7 +268,7 @@ export async function DELETE(request, context) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

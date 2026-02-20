@@ -52,6 +52,7 @@ export default function ProductDetailPage({ params }) {
     const filters = {
       product: { id: { $eq: id } },
       warehouse: { $null: false },
+      currentQuantity: { $gt: 0 },
     };
     if (warehouseFilter) {
       filters.warehouse = { id: { $eq: warehouseFilter } };

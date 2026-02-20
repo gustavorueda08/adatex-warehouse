@@ -150,6 +150,7 @@ export default function SellersPage() {
         pathname={"/new-seller"}
         search={search}
         setSearch={setSearch}
+        showCreate={false}
       />
       <Entities
         screenSize={screenSize}

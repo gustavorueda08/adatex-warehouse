@@ -21,6 +21,7 @@ export default function Entities({
   loading,
   className = "",
   emptyContent = "No se encontraron entidades",
+  keyField = "id",
 }) {
   const renderCell = (entity, columnKey) => {
     const column = columns.find((column) => column.key === columnKey);
@@ -93,7 +94,7 @@ export default function Entities({
           emptyContent={emptyContent}
         >
           {(entity) => (
-            <TableRow>
+            <TableRow key={entity[keyField]}>
               {(columnKey) => (
                 <TableCell>{renderCell(entity, columnKey)}</TableCell>
               )}

@@ -697,10 +697,10 @@ export default function PackingList({
       />
       <Divider />
       {/* Tabla de Items de cada producto */}
-      {products.map((product) => (
+      {products.map((product, index) => (
         <PackingListProduct
           document={document}
-          key={product.id}
+          key={product.id ? `${product.id}-${index}` : `product-${index}`}
           product={product}
           setDocument={setDocument}
           isItemEditable={isItemEditable}

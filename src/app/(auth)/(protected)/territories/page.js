@@ -46,10 +46,21 @@ export default function TerritoriesPage() {
     deleteTerritory,
     refetch,
     pagination: { pageCount },
-  } = useTerritories({
-    pagination,
-    filters,
-  });
+  } = useTerritories(
+    {
+      pagination,
+      filters,
+    },
+    {
+      onError: (error) => {
+        addToast({
+          title: "Error al obtener territorios",
+          description: "Ocurrió un error al intentar obtener los territorios.",
+          type: "error",
+        });
+      },
+    },
+  );
 
   const columns = [
     {
@@ -89,7 +100,6 @@ export default function TerritoriesPage() {
 
   const handleDelete = async () => {
     if (selectedKeys.size === 0 && selectedKeys !== "all") return;
-
     try {
       let idsToDelete = [];
       if (selectedKeys === "all") {
@@ -97,15 +107,12 @@ export default function TerritoriesPage() {
       } else {
         idsToDelete = Array.from(selectedKeys);
       }
-
       await Promise.all(idsToDelete.map((id) => deleteTerritory(id)));
-
       addToast({
         title: "Territorios eliminados",
         description: `Se han eliminado ${idsToDelete.length} territorios correctamente.`,
         type: "success",
       });
-
       setSelectedKeys(new Set());
       refetch();
     } catch (error) {
@@ -136,6 +143,7 @@ export default function TerritoriesPage() {
         pageCount={pageCount}
         selectedKeys={selectedKeys}
         setSelectedKeys={setSelectedKeys}
+        keyField="documentId"
       />
       {(selectedKeys === "all" || selectedKeys?.size > 0) && (
         <BulkEntitiesActions

@@ -47,7 +47,13 @@ export async function generateQuotationPDF(document) {
 
     // 1. Filtrar productos válidos
     const validProducts =
-      document?.orderProducts?.filter((p) => p.product) || [];
+      document?.orderProducts?.filter((p) => {
+        if (!p.product) return false;
+        if (document.state === "draft") {
+          return Number(p.requestedQuantity) > 0;
+        }
+        return p.items && p.items.length > 0;
+      }) || [];
 
     // 2. Calcular Subtotal, Subtotal para impuestos y bases
     let subtotalForTaxes = 0;
