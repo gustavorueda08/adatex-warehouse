@@ -14,6 +14,7 @@ import {
   useDisclosure,
 } from "@heroui/react";
 import React, { useState } from "react";
+import { useUser } from "@/lib/hooks/useUser";
 
 // Filter document to remove empty products and items before export
 function filterDocumentForExport(document) {
@@ -178,6 +179,7 @@ export default function Actions({
   onDelete,
   loadings: parentLoadings,
 }) {
+  const { user } = useUser();
   const [localLoadings, setLocalLoadings] = useState({
     downloadingQuotation: false,
     downloadingPackingList: false, // kept for backward compat or generic loading
@@ -307,7 +309,9 @@ export default function Actions({
             await onUpdate();
           }
         }}
-        isDisabled={document?.state === ORDER_STATES.COMPLETED}
+        isDisabled={
+          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+        }
       >
         Actualizar
       </Button>
@@ -399,7 +403,9 @@ export default function Actions({
         className="col-span-2"
         isLoading={localLoadings.deleting}
         onPress={() => openConfirmModal("delete")}
-        isDisabled={document?.state === ORDER_STATES.COMPLETED}
+        isDisabled={
+          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+        }
       >
         Eliminar Orden
       </Button>

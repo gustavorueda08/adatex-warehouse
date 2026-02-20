@@ -18,10 +18,12 @@ import Products from "@/components/documents/Products";
 import { addToast } from "@heroui/react";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/lib/hooks/useUser";
 
 export default function SaleDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const { user } = useUser();
   const { orders, updateOrder, refetch, addItem, removeItem, getInvoices } =
     useOrders({
       filters: { id: [id] },
@@ -89,7 +91,8 @@ export default function SaleDetailPage({ params }) {
             customer,
           });
         },
-        disabled: document?.state === ORDER_STATES.COMPLETED,
+        disabled:
+          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin",
       },
       {
         listType: "customers",
@@ -131,7 +134,8 @@ export default function SaleDetailPage({ params }) {
             customerForInvoice,
           });
         },
-        disabled: document?.state === ORDER_STATES.COMPLETED,
+        disabled:
+          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin",
       },
       {
         listType: "warehouses",
@@ -196,7 +200,8 @@ export default function SaleDetailPage({ params }) {
             estimatedCompletedDate: moment(date.toString()).toDate(),
           });
         },
-        disabled: document?.state === ORDER_STATES.COMPLETED,
+        disabled:
+          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin",
       },
       {
         label: "Fecha de Despacho",
@@ -214,7 +219,7 @@ export default function SaleDetailPage({ params }) {
         disabled: true,
       },
     ];
-  }, [orders, document]);
+  }, [orders, document, user]);
   const handleDelete = async () => {
     try {
       setLoadings({
@@ -383,7 +388,9 @@ export default function SaleDetailPage({ params }) {
           products={document?.orderProducts || []}
           setDocument={setDocument}
           priceList={document?.customerForInvoice?.prices || []}
-          disabled={document?.state === ORDER_STATES.COMPLETED}
+          disabled={
+            document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+          }
         />
       </Section>
       <Section
@@ -396,7 +403,9 @@ export default function SaleDetailPage({ params }) {
           setDocument={setDocument}
           onHeaderScan={addItem}
           onRemoveItem={removeItem}
-          isHeaderInputEnabled={document?.state !== ORDER_STATES.COMPLETED}
+          isHeaderInputEnabled={
+            document?.state !== ORDER_STATES.COMPLETED || user?.type === "admin"
+          }
           isItemEditable={false}
         />
       </Section>
@@ -408,7 +417,9 @@ export default function SaleDetailPage({ params }) {
         <Comments
           comments={document?.notes || ""}
           setDocument={setDocument}
-          disabled={document?.state === ORDER_STATES.COMPLETED}
+          disabled={
+            document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+          }
         />
       </Section>
       <Section
