@@ -94,12 +94,10 @@ export default function ProductsPage() {
       }
     }
 
-    if (selectedLine) {
-      f.line = selectedLine;
-    }
-
     if (selectedCollections.size > 0) {
-      f.collection = { $in: Array.from(selectedCollections) };
+      f.collections = { id: { $in: Array.from(selectedCollections) } };
+    } else if (selectedLine) {
+      f.collections = { line: { id: { $eq: selectedLine } } };
     }
 
     return f;
