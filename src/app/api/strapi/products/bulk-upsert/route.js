@@ -11,17 +11,17 @@ export async function POST(request) {
     // Obtener el body de la petición
     const body = await request.json();
 
-    // Validar que se envió data
-    if (!body || !body.data) {
+    // Validar que se envió products
+    if (!body || !body.products) {
       return NextResponse.json(
-        { error: "Datos inválidos. Se requiere un objeto 'data'" },
-        { status: 400 }
+        { error: "Datos inválidos. Se requiere un array 'products'" },
+        { status: 400 },
       );
     }
     // Construir la URL de Strapi
     const strapiUrl = new URL(
       "/api/products/bulk-upsert",
-      STRAPI_URL.toString()
+      STRAPI_URL.toString(),
     );
 
     // Configurar headers para la petición a Strapi
@@ -52,7 +52,7 @@ export async function POST(request) {
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -62,7 +62,7 @@ export async function POST(request) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -74,7 +74,7 @@ export async function POST(request) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

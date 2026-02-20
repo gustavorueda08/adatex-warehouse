@@ -63,7 +63,7 @@ export function useProducts(queryParams = {}, options = {}) {
       const response = await fetch(`/api/strapi/products/bulk-upsert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: products }),
+        body: JSON.stringify({ products }),
       });
 
       const result = await response.json();
