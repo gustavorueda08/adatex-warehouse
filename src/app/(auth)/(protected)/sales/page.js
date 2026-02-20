@@ -127,6 +127,7 @@ export default function SalesPage() {
       populate: [
         "customer",
         "customerForInvoice",
+        "customerForInvoice.taxes",
         "orderProducts",
         "orderProducts.product",
         "orderProducts.items",

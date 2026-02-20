@@ -179,7 +179,10 @@ function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
                     </h3>
                   </div>
                   <Card className="overflow-hidden">
-                    <PInvoice document={document} />
+                    <PInvoice
+                      document={document}
+                      taxes={document?.customerForInvoice?.taxes || []}
+                    />
                   </Card>
                 </div>
               )}
