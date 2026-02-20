@@ -35,7 +35,7 @@ export default function ReturnDetailView({ config, initialData }) {
   const fetchedData = config.data || {};
 
   const [documentState, setDocumentState] = useState(() =>
-    config.getInitialState ? config.getInitialState(initialData) : {}
+    config.getInitialState ? config.getInitialState(initialData) : {},
   );
 
   const updateState = useCallback((updates) => {
@@ -54,7 +54,7 @@ export default function ReturnDetailView({ config, initialData }) {
         updateState({ [field.key]: value });
       }
     },
-    [config.stateHandlers, documentState, updateState]
+    [config.stateHandlers, documentState, updateState],
   );
 
   const prepareUpdateData = useCallback(
@@ -63,12 +63,12 @@ export default function ReturnDetailView({ config, initialData }) {
         return config.prepareUpdateData(
           document,
           products,
-          stateOverride || documentState
+          stateOverride || documentState,
         );
       }
       return {};
     },
-    [config, documentState]
+    [config, documentState],
   );
 
   // Control de items/productos a través del hook reutilizable
@@ -122,19 +122,21 @@ export default function ReturnDetailView({ config, initialData }) {
   const summary = useMemo(() => {
     const productsWithParent = products.map((p) => {
       const parentProduct = initialData?.parentOrder?.orderProducts?.find(
-        (op) => op.product?.id === p.product?.id
+        (op) => op.product?.id === p.product?.id,
       );
       const parentOriginalQuantity =
-        parentProduct?.items?.reduce(
-          (sum, item) =>
-            sum +
-            Number(
-              item?.currentQuantity !== undefined
-                ? item.currentQuantity
-                : item.quantity || 0
-            ),
-          0
-        ) || 0;
+        Math.round(
+          (parentProduct?.items?.reduce(
+            (sum, item) =>
+              sum +
+              Number(
+                item?.currentQuantity !== undefined
+                  ? item.currentQuantity
+                  : item.quantity || 0,
+              ),
+            0,
+          ) || 0) * 100,
+        ) / 100;
       return { ...p, parentOriginalQuantity };
     });
 
@@ -142,30 +144,34 @@ export default function ReturnDetailView({ config, initialData }) {
     const totals = validProducts.reduce(
       (acc, product) => {
         const original =
-          product.parentOriginalQuantity ||
-          product.items
-            ?.filter((item) => item.parentItem)
-            ?.reduce(
-              (sum, item) =>
-                sum +
-                (item.parentItem?.quantity ||
-                  item.parentItem?.currentQuantity ||
-                  0),
-              0
-            ) ||
-          0;
+          Math.round(
+            (product.parentOriginalQuantity ||
+              product.items
+                ?.filter((item) => item.parentItem)
+                ?.reduce(
+                  (sum, item) =>
+                    sum +
+                    (item.parentItem?.quantity ||
+                      item.parentItem?.currentQuantity ||
+                      0),
+                  0,
+                ) ||
+              0) * 100,
+          ) / 100;
         const returned =
-          product.items?.reduce(
-            (sum, item) => sum + Number(item?.quantity || 0),
-            0
-          ) || 0;
+          Math.round(
+            (product.items?.reduce(
+              (sum, item) => sum + Number(item?.quantity || 0),
+              0,
+            ) || 0) * 100,
+          ) / 100;
         return {
           products: acc.products + 1,
           original: acc.original + original,
           returned: acc.returned + returned,
         };
       },
-      { products: 0, original: 0, returned: 0 }
+      { products: 0, original: 0, returned: 0 },
     );
     const percent =
       totals.original > 0
@@ -199,7 +205,13 @@ export default function ReturnDetailView({ config, initialData }) {
         context.showToast.error(error.message || "Error al ejecutar la acción");
       }
     },
-    [documentState, handleDeleteDocument, handleUpdateDocument, initialData, updateState]
+    [
+      documentState,
+      handleDeleteDocument,
+      handleUpdateDocument,
+      initialData,
+      updateState,
+    ],
   );
 
   return (
@@ -209,13 +221,19 @@ export default function ReturnDetailView({ config, initialData }) {
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold">{title || initialData?.code}</h1>
+              <h1 className="text-3xl font-bold">
+                {title || initialData?.code}
+              </h1>
               <p className="text-gray-400 text-sm mt-1">
                 Detalle y edición de la devolución
               </p>
             </div>
             {initialData?.state && (
-              <Badge variant={initialData.state === "completed" ? "emerald" : "yellow"}>
+              <Badge
+                variant={
+                  initialData.state === "completed" ? "emerald" : "yellow"
+                }
+              >
                 {initialData.state}
               </Badge>
             )}
@@ -254,9 +272,9 @@ export default function ReturnDetailView({ config, initialData }) {
                       isDisabled={isReadOnly || field.disabled}
                     />
                   )}
-                  {field.type === "input" && field.render && (
-                    field.render(field, documentState)
-                  )}
+                  {field.type === "input" &&
+                    field.render &&
+                    field.render(field, documentState)}
                   {field.type === "input" && !field.render && (
                     <Input
                       input={value}
@@ -288,8 +306,14 @@ export default function ReturnDetailView({ config, initialData }) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <SummaryTile label="Productos" value={summary.products} />
-            <SummaryTile label="Cantidad original" value={format(summary.original)} />
-            <SummaryTile label="Cantidad devuelta" value={format(summary.returned)} />
+            <SummaryTile
+              label="Cantidad original"
+              value={format(summary.original)}
+            />
+            <SummaryTile
+              label="Cantidad devuelta"
+              value={format(summary.returned)}
+            />
             <SummaryTile
               label="Progreso"
               value={`${summary.percent}%`}
@@ -427,7 +451,9 @@ function SummaryTile({ label, value, accent = false }) {
   return (
     <div className="p-4 rounded-lg bg-neutral-800 border border-neutral-700">
       <p className="text-xs uppercase tracking-wide text-zinc-400">{label}</p>
-      <p className={`text-xl font-semibold ${accent ? "text-emerald-400" : "text-white"}`}>
+      <p
+        className={`text-xl font-semibold ${accent ? "text-emerald-400" : "text-white"}`}
+      >
         {value}
       </p>
     </div>
@@ -447,21 +473,27 @@ function ReturnProductCard({
 }) {
   const stats = useMemo(() => {
     const original =
-      product.parentOriginalQuantity ||
-      product.items
-        ?.filter((item) => item.parentItem)
-        ?.reduce(
-          (sum, item) =>
-            sum +
-            (item.parentItem?.quantity || item.parentItem?.currentQuantity || 0),
-          0
-        ) ||
-      0;
+      Math.round(
+        (product.parentOriginalQuantity ||
+          product.items
+            ?.filter((item) => item.parentItem)
+            ?.reduce(
+              (sum, item) =>
+                sum +
+                (item.parentItem?.quantity ||
+                  item.parentItem?.currentQuantity ||
+                  0),
+              0,
+            ) ||
+          0) * 100,
+      ) / 100;
     const returned =
-      product.items?.reduce(
-        (sum, item) => sum + Number(item?.quantity || 0),
-        0
-      ) || 0;
+      Math.round(
+        (product.items?.reduce(
+          (sum, item) => sum + Number(item?.quantity || 0),
+          0,
+        ) || 0) * 100,
+      ) / 100;
     const percent = original > 0 ? Math.round((returned / original) * 100) : 0;
     const itemsWithQuantity =
       product.items?.filter((i) => Number(i?.quantity || 0) > 0).length || 0;
@@ -581,12 +613,7 @@ function ReturnProductCard({
                         type="number"
                         input={item.quantity}
                         setInput={(val) =>
-                          updateItemField(
-                            product.id,
-                            item.id,
-                            "quantity",
-                            val
-                          )
+                          updateItemField(product.id, item.id, "quantity", val)
                         }
                         disabled={isReadOnly}
                         className="max-w-36"
@@ -601,7 +628,9 @@ function ReturnProductCard({
                     {!isReadOnly && (
                       <div className="flex-none">
                         <IconButton
-                          onClick={() => handleDeleteItemRow(product.id, item.id)}
+                          onClick={() =>
+                            handleDeleteItemRow(product.id, item.id)
+                          }
                           variant="red"
                         >
                           <TrashIcon className="w-5 h-5" />

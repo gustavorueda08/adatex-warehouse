@@ -237,10 +237,13 @@ export default function DocumentForm({ config, onFormStateChange }) {
       (p) => p.quantity && Number(p.quantity) > 0,
     );
 
-    const totalQuantity = productsWithProduct.reduce(
-      (acc, p) => acc + Number(p.quantity || 0),
-      0,
-    );
+    const totalQuantity =
+      Math.round(
+        productsWithProduct.reduce(
+          (acc, p) => acc + Number(p.quantity || 0),
+          0,
+        ) * 100,
+      ) / 100;
 
     return {
       totalProducts: productsWithProduct.length,
@@ -481,10 +484,11 @@ export default function DocumentForm({ config, onFormStateChange }) {
                     <p className="text-xs text-gray-400">Total estimado</p>
                     <p className="text-lg font-semibold text-emerald-400">
                       $
-                      {formState.products
-                        .filter((p) => p.product && p.quantity)
-                        .reduce((acc, p) => acc + (p.total || 0), 0)
-                        .toLocaleString()}
+                      {Math.round(
+                        formState.products
+                          .filter((p) => p.product && p.quantity)
+                          .reduce((acc, p) => acc + (p.total || 0), 0) * 100,
+                      ) / 100}
                     </p>
                   </div>
                 ) : null}

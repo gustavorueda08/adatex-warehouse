@@ -126,7 +126,7 @@ export default function DocumentDetailBase({
     if (!showInvoice) return [];
 
     const subtotalTaxes = taxes.filter(
-      (tax) => tax.applicationType === "subtotal"
+      (tax) => tax.applicationType === "subtotal",
     );
 
     let subtotalForTaxes = 0;
@@ -180,7 +180,7 @@ export default function DocumentDetailBase({
     const taxAmount = taxesValues.reduce(
       (acc, tax) =>
         tax.use === "increment" ? acc + tax.amount : acc - tax.amount,
-      0
+      0,
     );
 
     const total = Math.round((subtotal + taxAmount) * 100) / 100;
@@ -231,8 +231,8 @@ export default function DocumentDetailBase({
             {format(
               row.items?.reduce(
                 (acc, item) => acc + Number(item?.quantity || 0),
-                0
-              ) || 0
+                0,
+              ) || 0,
             ) || "-"}
           </p>
         ),
@@ -266,7 +266,7 @@ export default function DocumentDetailBase({
         },
       },
     ],
-    []
+    [],
   );
 
   // Columnas para el resumen de factura
@@ -301,7 +301,7 @@ export default function DocumentDetailBase({
         ),
       },
     ],
-    []
+    [],
   );
 
   // Columnas de productos con lógica inyectada
@@ -311,7 +311,7 @@ export default function DocumentDetailBase({
       handleProductSelect,
       getAvailableProductsForRow,
       isReadOnly,
-      user
+      user,
     );
   }, [
     productColumns,
@@ -329,23 +329,31 @@ export default function DocumentDetailBase({
     const productsWithItems = products.filter((p) => p.product);
     const totalItems = productsWithItems.reduce(
       (acc, p) => acc + (p.items?.length || 0),
-      0
+      0,
     );
-    const totalQuantity = productsWithItems.reduce(
-      (acc, p) =>
-        acc +
-        (p.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) ||
-          0),
-      0
-    );
-    const totalRequested = productsWithItems.reduce(
-      (acc, p) => acc + Number(p.requestedQuantity || 0),
-      0
-    );
+    const totalQuantity =
+      Math.round(
+        productsWithItems.reduce(
+          (acc, p) =>
+            acc +
+            (p.items?.reduce(
+              (sum, item) => sum + Number(item.quantity || 0),
+              0,
+            ) || 0),
+          0,
+        ) * 100,
+      ) / 100;
+    const totalRequested =
+      Math.round(
+        productsWithItems.reduce(
+          (acc, p) => acc + Number(p.requestedQuantity || 0),
+          0,
+        ) * 100,
+      ) / 100;
     const itemsWithQuantity = productsWithItems.reduce(
       (acc, p) =>
         acc + (p.items?.filter((item) => item.quantity > 0).length || 0),
-      0
+      0,
     );
 
     return {
@@ -356,7 +364,7 @@ export default function DocumentDetailBase({
       totalRequested,
       percentComplete:
         totalRequested > 0
-          ? Math.round((totalQuantity / totalRequested) * 100)
+          ? Math.round((totalQuantity / totalRequested) * 100 * 100) / 100
           : 0,
     };
   }, [products]);
@@ -484,13 +492,13 @@ export default function DocumentDetailBase({
                       packingListStats.percentComplete >= 100
                         ? "bg-emerald-500"
                         : packingListStats.percentComplete > 0
-                        ? "bg-yellow-500"
-                        : "bg-zinc-600"
+                          ? "bg-yellow-500"
+                          : "bg-zinc-600"
                     }`}
                     style={{
                       width: `${Math.min(
                         packingListStats.percentComplete,
-                        100
+                        100,
                       )}%`,
                     }}
                   />
@@ -540,43 +548,43 @@ export default function DocumentDetailBase({
                 </CardDescription>
               </div>
             </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-12 md:col-span-8">
-              <div className="md:hidden">
-                <MobileList
-                  columns={invoiceColumns}
-                  data={products.filter((p) => p.product)}
-                  footerFilter={(_, value) => value !== "-" && value !== ""}
-                />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-12 md:col-span-8">
+                <div className="md:hidden">
+                  <MobileList
+                    columns={invoiceColumns}
+                    data={products.filter((p) => p.product)}
+                    footerFilter={(_, value) => value !== "-" && value !== ""}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <Table
+                    columns={invoiceColumns}
+                    data={products.filter((p) => p.product)}
+                  />
+                </div>
               </div>
-              <div className="hidden md:block">
-                <Table
-                  columns={invoiceColumns}
-                  data={products.filter((p) => p.product)}
-                />
+              <div className="col-span-12 md:col-span-4">
+                <div className="md:hidden">
+                  <MobileList
+                    columns={invoiceResumeColumns}
+                    data={invoiceData}
+                    footerFilter={(_, value) => value !== "-" && value !== ""}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <Table
+                    columns={invoiceResumeColumns}
+                    data={invoiceData}
+                    hiddenHeader
+                  />
+                </div>
               </div>
             </div>
-            <div className="col-span-12 md:col-span-4">
-              <div className="md:hidden">
-                <MobileList
-                  columns={invoiceResumeColumns}
-                  data={invoiceData}
-                  footerFilter={(_, value) => value !== "-" && value !== ""}
-                />
-              </div>
-              <div className="hidden md:block">
-                <Table
-                  columns={invoiceResumeColumns}
-                  data={invoiceData}
-                  hiddenHeader
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       )}
 
       {/* Secciones personalizadas - cada una en su Card */}

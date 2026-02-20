@@ -40,7 +40,10 @@ function PackingListProductHeader({
 }) {
   const isCompleted = product.confirmedQuantity >= product.requestedQuantity;
   const completedPercentage =
-    (product.confirmedQuantity / product.requestedQuantity) * 100 || 0;
+    Math.round(
+      ((product.confirmedQuantity / product.requestedQuantity) * 100 || 0) *
+        100,
+    ) / 100;
 
   const [inputValue, setInputValue] = useState("");
 
@@ -76,11 +79,14 @@ function PackingListProductHeader({
 
             const newItems = [...(currentProduct.items || []), newItem];
 
-            const newConfirmedQuantity = newItems.reduce(
-              (sum, item) =>
-                sum + (Number(item.quantity || item.currentQuantity) || 0),
-              0,
-            );
+            const newConfirmedQuantity =
+              Math.round(
+                newItems.reduce(
+                  (sum, item) =>
+                    sum + (Number(item.quantity || item.currentQuantity) || 0),
+                  0,
+                ) * 100,
+              ) / 100;
 
             const newOrderProducts = [...prev.orderProducts];
             newOrderProducts[productIndex] = {
@@ -350,10 +356,13 @@ function PackingListProduct({
           );
         }
 
-        const newConfirmedQuantity = newItems.reduce(
-          (sum, item) => sum + (parseFloat(item.currentQuantity) || 0),
-          0,
-        );
+        const newConfirmedQuantity =
+          Math.round(
+            newItems.reduce(
+              (sum, item) => sum + (parseFloat(item.currentQuantity) || 0),
+              0,
+            ) * 100,
+          ) / 100;
 
         const newOrderProducts = [...prev.orderProducts];
         newOrderProducts[productIndex] = {
@@ -384,10 +393,13 @@ function PackingListProduct({
           if (productIndex === -1) return prev;
           const currentProduct = prev.orderProducts[productIndex];
           const newItems = currentProduct.items.filter((i) => i.id !== itemId);
-          const newConfirmedQuantity = newItems.reduce(
-            (sum, item) => sum + (parseFloat(item.currentQuantity) || 0),
-            0,
-          );
+          const newConfirmedQuantity =
+            Math.round(
+              newItems.reduce(
+                (sum, item) => sum + (parseFloat(item.currentQuantity) || 0),
+                0,
+              ) * 100,
+            ) / 100;
           const newOrderProducts = [...prev.orderProducts];
           newOrderProducts[productIndex] = {
             ...currentProduct,
@@ -651,16 +663,23 @@ export default function PackingList({
   onRemoveItem,
 }) {
   const products = document?.orderProducts.filter((op) => op.product?.id) || [];
-  const totalRequested = products.reduce((acc, product) => {
-    return acc + (Number(product.requestedQuantity) || 0);
-  }, 0);
-  const totalConfirmed = products.reduce((acc, product) => {
-    return acc + (Number(product.confirmedQuantity) || 0);
-  }, 0);
+  const totalRequested =
+    Math.round(
+      products.reduce((acc, product) => {
+        return acc + (Number(product.requestedQuantity) || 0);
+      }, 0) * 100,
+    ) / 100;
+  const totalConfirmed =
+    Math.round(
+      products.reduce((acc, product) => {
+        return acc + (Number(product.confirmedQuantity) || 0);
+      }, 0) * 100,
+    ) / 100;
   const totalItems = products.reduce((acc, product) => {
     return acc + (Number(product.items.length) || 0);
   }, 0);
-  const completedPercentage = (totalConfirmed / totalRequested) * 100 || 0;
+  const completedPercentage =
+    Math.round(((totalConfirmed / totalRequested) * 100 || 0) * 100) / 100;
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -678,7 +697,7 @@ export default function PackingList({
           <Card className="px-2 py-2">
             <h3 className="text-sm">Cantidad Confirmada</h3>
             <p className="text-lg font-semibold">
-              {totalConfirmed} {products[0]?.unit || ""}
+              {format(totalConfirmed)} {products[0]?.unit || ""}
             </p>
           </Card>
         )}

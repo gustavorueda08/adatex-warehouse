@@ -86,7 +86,8 @@ export default function PInvoice({ document, taxes = [] }) {
           ),
       )
       .map((t) => {
-        const value = subtotalForTaxes * Number(t.amount);
+        const value =
+          Math.round(subtotalForTaxes * Number(t.amount) * 100) / 100;
         total = t.use === "increment" ? total + value : total - value;
         return {
           ...t,

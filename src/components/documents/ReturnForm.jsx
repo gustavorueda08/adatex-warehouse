@@ -46,7 +46,7 @@ export default function ReturnForm({ config, onFormStateChange }) {
   const handleItemToggle = useCallback((item, checked) => {
     setFormState((current) => {
       const exists = current.selectedItems?.some(
-        (selected) => selected.itemId === item.id
+        (selected) => selected.itemId === item.id,
       );
 
       if (checked) {
@@ -77,7 +77,7 @@ export default function ReturnForm({ config, onFormStateChange }) {
       return {
         ...current,
         selectedItems: current.selectedItems.filter(
-          (selected) => selected.itemId !== item.id
+          (selected) => selected.itemId !== item.id,
         ),
       };
     });
@@ -92,7 +92,7 @@ export default function ReturnForm({ config, onFormStateChange }) {
               ...item,
               returnQuantity: Number(newQuantity) || 0,
             }
-          : item
+          : item,
       ),
     }));
   }, []);
@@ -106,7 +106,7 @@ export default function ReturnForm({ config, onFormStateChange }) {
     const hasDestination = Boolean(formState.selectedWarehouse);
     const hasItems = (formState.selectedItems || []).length > 0;
     const allItemsValid = (formState.selectedItems || []).every(
-      (item) => Number(item.returnQuantity) > 0
+      (item) => Number(item.returnQuantity) > 0,
     );
 
     return hasOrder && hasDestination && hasItems && allItemsValid;
@@ -114,10 +114,11 @@ export default function ReturnForm({ config, onFormStateChange }) {
 
   const selectedItemsStats = useMemo(() => {
     const items = formState.selectedItems || [];
-    const totalUnits = items.reduce(
-      (acc, item) => acc + Number(item.returnQuantity || 0),
-      0
-    );
+    const totalUnits =
+      Math.round(
+        items.reduce((acc, item) => acc + Number(item.returnQuantity || 0), 0) *
+          100,
+      ) / 100;
 
     return {
       count: items.length,
@@ -258,7 +259,7 @@ export default function ReturnForm({ config, onFormStateChange }) {
             <ValidationItem
               label="Cantidades válidas"
               valid={(formState.selectedItems || []).every(
-                (item) => Number(item.returnQuantity) > 0
+                (item) => Number(item.returnQuantity) > 0,
               )}
             />
           </div>
