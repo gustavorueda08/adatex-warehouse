@@ -11,7 +11,7 @@ import Entities from "@/components/entities/Entities";
 import Link from "next/link";
 import format from "@/lib/utils/format";
 import EntityFilters from "@/components/entities/EntityFilters";
-import { Button, Checkbox, Select, SelectItem } from "@heroui/react";
+import { addToast, Button, Checkbox, Select, SelectItem } from "@heroui/react";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import InventoryMode from "@/components/entities/InventoryMode";
 import { useEntityList } from "@/lib/hooks/useEntityList";
@@ -137,11 +137,17 @@ export default function ProductsPage() {
   const handleBulkSync = async (data) => {
     const result = await bulkUpsertProducts(data);
     if (result.success) {
-      toast.success(
-        `Sincronización completada: ${result.data.created} creados, ${result.data.updated} actualizados.`,
-      );
+      addToast({
+        title: "Sincronización completada",
+        description: `${result.data?.created || 0} creados, ${result.data?.updated || 0} actualizados.`,
+        color: "success",
+      });
     } else {
-      toast.error("Error al sincronizar productos");
+      addToast({
+        title: "Error",
+        description: "Error al sincronizar productos",
+        color: "danger",
+      });
     }
   };
 

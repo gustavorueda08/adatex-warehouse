@@ -60,6 +60,7 @@ export function useProducts(queryParams = {}, options = {}) {
 
   const bulkUpsertProducts = async (products) => {
     try {
+      setSyncing(true);
       const response = await fetch(`/api/strapi/products/bulk-upsert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,6 +82,8 @@ export function useProducts(queryParams = {}, options = {}) {
     } catch (err) {
       console.error("Error in bulk upsert:", err);
       return { success: false, error: err };
+    } finally {
+      setSyncing(false);
     }
   };
 

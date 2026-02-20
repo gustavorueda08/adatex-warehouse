@@ -343,14 +343,13 @@ export default function SaleDetailPage({ params }) {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
       await updateOrder(document.id, data);
+      await refetch();
+
       addToast({
         title: "Orden de Venta Actualizada",
         description: "La orden de venta ha sido actualizada correctamente",
         type: "success",
       });
-      if (emitInvoice) {
-        await refetch();
-      }
     } catch (error) {
       console.error(error);
       addToast({
