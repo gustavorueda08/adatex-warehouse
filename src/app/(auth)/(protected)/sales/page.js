@@ -43,10 +43,59 @@ export default function SalesPage() {
     }
 
     const statesArray = Array.from(selectedStates);
+    const hasDespachados = statesArray.includes("despachados");
+    const hasCompleted = statesArray.includes("completed");
+    const standardStates = statesArray.filter(
+      (s) => s !== "despachados" && s !== "completed",
+    );
+
     if (statesArray.length > 0) {
-      f.state = {
-        $in: statesArray,
-      };
+      const orConditions = [];
+
+      // Despachados: completed state, NO invoices/siigo keys
+      if (hasDespachados) {
+        orConditions.push({
+          $and: [
+            { state: "completed" },
+            { invoiceNumberTypeA: { $null: true } },
+            { invoiceNumberTypeB: { $null: true } },
+            { siigoIdTypeA: { $null: true } },
+            { siigoIdTypeB: { $null: true } },
+          ],
+        });
+      }
+
+      // Completed: completed state, HAS AT LEAST ONE invoice/siigo key
+      if (hasCompleted) {
+        orConditions.push({
+          $and: [
+            { state: "completed" },
+            {
+              $or: [
+                { invoiceNumberTypeA: { $null: false } },
+                { invoiceNumberTypeB: { $null: false } },
+                { siigoIdTypeA: { $null: false } },
+                { siigoIdTypeB: { $null: false } },
+              ],
+            },
+          ],
+        });
+      }
+
+      // Other states (draft, confirmed, etc.)
+      if (standardStates.length > 0) {
+        orConditions.push({
+          state: { $in: standardStates },
+        });
+      }
+
+      // Apply conditions
+      if (orConditions.length === 1) {
+        // Flatten the top level object if it's only one block to avoid outer $or
+        Object.assign(f, orConditions[0]);
+      } else if (orConditions.length > 1) {
+        f.$or = orConditions;
+      }
     }
 
     if (dateRange?.start && dateRange?.end) {
@@ -257,6 +306,7 @@ export default function SalesPage() {
         setDateRange={setDateRange}
         selectedStates={selectedStates}
         setSelectedStates={setSelectedStates}
+        extraStates={[{ key: "despachados", label: "Despachados" }]}
       />
       <Documents
         screenSize={screenSize}

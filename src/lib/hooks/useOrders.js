@@ -6,13 +6,20 @@ import { useStrapi } from "./useStrapi";
 import { useCallback, useState } from "react";
 
 export function useOrders(queryParams = {}, options = {}) {
-  const strapiResult = useStrapi("orders", queryParams, {
-    staleTime: 5000, // 1 minuto de caché por defecto
-    ...options,
-    singularName: "order",
-    pluralName: "orders",
-    customNormalizer: normalizeFilters,
-  });
+  const strapiResult = useStrapi(
+    "orders",
+    {
+      sort: ["updatedAt:desc"],
+      ...queryParams,
+    },
+    {
+      staleTime: 5000, // 1 minuto de caché por defecto
+      ...options,
+      singularName: "order",
+      pluralName: "orders",
+      customNormalizer: normalizeFilters,
+    },
+  );
 
   const [addingItem, setAddingItem] = useState(false);
   const [removingItem, setRemovingItem] = useState(false);

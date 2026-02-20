@@ -26,6 +26,7 @@ export default function Filters({
   selectedStates,
   setSelectedStates,
   pathname,
+  extraStates = [],
 }) {
   const screenSize = useScreenSize();
   const states = [
@@ -41,6 +42,7 @@ export default function Filters({
       key: "confirmed",
       label: "Confirmada",
     },
+    ...extraStates,
   ];
   return (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4 items-center">
