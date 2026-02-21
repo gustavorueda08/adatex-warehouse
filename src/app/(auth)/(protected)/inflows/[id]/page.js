@@ -199,10 +199,14 @@ export default function InflowDetailPage({ params }) {
             product: p.product.id || p.product,
             items: items,
             confirmedQuantity,
-            requestedQuantity: p.requestedQuantity,
-            price: p.price,
-            ivaIncluded: p.ivaIncluded,
-            invoicePercentage: p.invoicePercentage,
+            requestedQuantity: p.requestedQuantity
+              ? Number(p.requestedQuantity)
+              : 0,
+            price: p.price ? Number(p.price) : 0,
+            ivaIncluded: p.ivaIncluded || false,
+            invoicePercentage: p.invoicePercentage
+              ? Number(p.invoicePercentage)
+              : 100,
           };
         });
       const data = {

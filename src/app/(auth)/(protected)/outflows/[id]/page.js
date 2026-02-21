@@ -175,7 +175,9 @@ export default function OutflowDetailPage({ params }) {
           return {
             product: p.product.id || p.product,
             items: items,
-            requestedQuantity: p.requestedQuantity, // Keep requested as is, or update? usually requested is what was planned.
+            requestedQuantity: p.requestedQuantity
+              ? Number(p.requestedQuantity)
+              : 0, // Keep requested as is, or update? usually requested is what was planned.
             confirmedQuantity: confirmedQuantity,
           };
         });

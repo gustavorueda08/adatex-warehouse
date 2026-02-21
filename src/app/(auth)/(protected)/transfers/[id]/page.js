@@ -236,7 +236,9 @@ export default function TransferDetailPage({ params }) {
             product: p.product.id || p.product,
             items: items,
             confirmedQuantity,
-            requestedQuantity: p.requestedQuantity,
+            requestedQuantity: p.requestedQuantity
+              ? Number(p.requestedQuantity)
+              : 0,
             price: 0,
           };
         });

@@ -24,26 +24,33 @@ export default function SaleDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const { user } = useUser();
-  const { orders, updateOrder, refetch, addItem, removeItem, getInvoices } =
-    useOrders({
-      filters: { id: [id] },
-      populate: [
-        "orderProducts",
-        "orderProducts.product",
-        "orderProducts.items",
-        "customer",
-        "customer.parties",
-        "customer.parties.taxes",
-        "customer.prices",
-        "customer.prices.product",
-        "customer.taxes",
-        "customerForInvoice",
-        "customerForInvoice.prices",
-        "customerForInvoice.prices.product",
-        "customerForInvoice.taxes",
-        "sourceWarehouse",
-      ],
-    });
+  const {
+    orders,
+    updateOrder,
+    deleteOrder,
+    refetch,
+    addItem,
+    removeItem,
+    getInvoices,
+  } = useOrders({
+    filters: { id: [id] },
+    populate: [
+      "orderProducts",
+      "orderProducts.product",
+      "orderProducts.items",
+      "customer",
+      "customer.parties",
+      "customer.parties.taxes",
+      "customer.prices",
+      "customer.prices.product",
+      "customer.taxes",
+      "customerForInvoice",
+      "customerForInvoice.prices",
+      "customerForInvoice.prices.product",
+      "customerForInvoice.taxes",
+      "sourceWarehouse",
+    ],
+  });
   const [document, setDocument] = useState(orders[0] || null);
   const [loadings, setLoadings] = useState({
     isUpdating: false,
@@ -312,10 +319,14 @@ export default function SaleDetailPage({ params }) {
             product: p.product.id || p.product,
             items: items,
             confirmedQuantity,
-            requestedQuantity: p.requestedQuantity,
-            price: p.price,
-            ivaIncluded: p.ivaIncluded,
-            invoicePercentage: p.invoicePercentage,
+            requestedQuantity: p.requestedQuantity
+              ? Number(p.requestedQuantity)
+              : 0,
+            price: p.price ? Number(p.price) : 0,
+            ivaIncluded: p.ivaIncluded || false,
+            invoicePercentage: p.invoicePercentage
+              ? Number(p.invoicePercentage)
+              : 100,
           };
         });
       const data = {

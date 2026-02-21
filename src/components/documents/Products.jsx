@@ -38,7 +38,7 @@ function createEmptyProduct() {
   return {
     id: uuidv4(),
     name: "",
-    quantity: "",
+    requestedQuantity: "",
     price: "",
     product: null,
     key: uuidv4(),
@@ -49,13 +49,31 @@ function createEmptyProduct() {
   };
 }
 
-const ProductAutocompleteCell = ({ product, onUpdate, disabled }) => {
+const ProductAutocompleteCell = ({
+  product,
+  onUpdate,
+  disabled,
+  globalSearch,
+  setGlobalSearch,
+  selectedProductIds,
+}) => {
+  const isNewRow = !product?.product?.id;
   const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(product?.product?.name || "");
+  const [inputValue, setInputValue] = useState(() => {
+    if (product?.product?.name) return product.product.name;
+    return isNewRow ? globalSearch || "" : "";
+  });
   const [isFocused, setIsFocused] = useState(false);
   const [selectedKey, setSelectedKey] = useState(
     product?.product?.id ? String(product.product.id) : null,
   );
+
+  const disabledKeysToUse = useMemo(() => {
+    if (!product?.product?.id) return selectedProductIds;
+    return selectedProductIds.filter((id) => id !== String(product.product.id));
+  }, [selectedProductIds, product?.product?.id]);
+
+  const ignoreNextInputChange = React.useRef(false);
 
   const { options, isLoading, hasMore, onLoadMore, setSearch } = useEntityList({
     listType: "products",
@@ -83,8 +101,17 @@ const ProductAutocompleteCell = ({ product, onUpdate, disabled }) => {
     }
   }, [product, isFocused]);
 
+  // Sync globalSearch to new empty rows
+  useEffect(() => {
+    if (isNewRow && !isFocused) {
+      setInputValue(globalSearch || "");
+      setSearch(globalSearch || "");
+    }
+  }, [globalSearch, isNewRow, isFocused, setSearch]);
+
   const onSelectionChange = (key) => {
     if (!key) return;
+    ignoreNextInputChange.current = true;
     const selectedItem = options.find((item) => item.id == key || item == key);
     if (selectedItem) {
       onUpdate(selectedItem);
@@ -98,7 +125,14 @@ const ProductAutocompleteCell = ({ product, onUpdate, disabled }) => {
   const onInputChange = (value) => {
     setInputValue(value);
     if (isFocused) {
+      if (ignoreNextInputChange.current) {
+        ignoreNextInputChange.current = false;
+        return;
+      }
       setSearch(value);
+      if (setGlobalSearch) {
+        setGlobalSearch(value);
+      }
     }
   };
 
@@ -127,6 +161,7 @@ const ProductAutocompleteCell = ({ product, onUpdate, disabled }) => {
       aria-label="Seleccionar producto"
       disabled={disabled}
       isDisabled={disabled}
+      disabledKeys={disabledKeysToUse}
     >
       {(item) => (
         <AutocompleteItem key={item.id} textValue={item.name}>
@@ -325,6 +360,13 @@ export default function Products({
   const realScreenSize = useScreenSize();
   const screenSize = showSmallColumns ? "sm" : realScreenSize;
   const [isMounted, setIsMounted] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+
+  const selectedProductIds = useMemo(() => {
+    return products
+      .filter((p) => p.product?.id)
+      .map((p) => String(p.product.id));
+  }, [products]);
 
   // Stable ghost row to prevent infinite re-renders
   const ghostProductRef = React.useRef(null);
@@ -578,6 +620,9 @@ export default function Products({
               updateDocumentProduct(orderProduct.id, newProduct)
             }
             disabled={!setDocument || disabled}
+            globalSearch={globalSearch}
+            setGlobalSearch={setGlobalSearch}
+            selectedProductIds={selectedProductIds}
           />
         );
       case "price":
