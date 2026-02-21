@@ -280,7 +280,7 @@ export default function Entity(props) {
       <EntityHeader entity={entity} title={title}>
         {headerFields.map((field, index) => (
           <EntityHeaderField
-            key={`${index}-header-field`}
+            key={field.label || `${index}-header-field`}
             field={field}
             setEntity={setEntity}
           />

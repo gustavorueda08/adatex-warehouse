@@ -15,7 +15,15 @@ import PInvoice from "@/components/documents/PInvoice";
 import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
 import Products from "@/components/documents/Products";
-import { addToast } from "@heroui/react";
+import {
+  addToast,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+} from "@heroui/react";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/hooks/useUser";
@@ -55,6 +63,10 @@ export default function SaleDetailPage({ params }) {
   const [loadings, setLoadings] = useState({
     isUpdating: false,
     isDeleting: false,
+  });
+  const [negativeStockError, setNegativeStockError] = useState({
+    isOpen: false,
+    message: "",
   });
   const headerFields = useMemo(() => {
     return [
@@ -254,7 +266,11 @@ export default function SaleDetailPage({ params }) {
       });
     }
   };
-  const handleUpdate = async (newState = null, emitInvoice = false) => {
+  const handleUpdate = async (
+    newState = null,
+    emitInvoice = false,
+    forceNegativeStock = false,
+  ) => {
     try {
       setLoadings({
         isUpdating: true,
@@ -263,62 +279,52 @@ export default function SaleDetailPage({ params }) {
       const confirmed = products
         .filter((p) => p.product)
         .every((product) => {
-          const validItems = (product.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
+          const type = product.product?.type || "variableQuantityPerItem";
+
+          if (type === "fixedQuantityPerItem") {
+            const count = Number(product.confirmedQuantity);
+            return count > 0;
+          } else if (type === "cutItem") {
+            const validItems = (product.items || []).filter(
+              (i) => Number(i.currentQuantity || i.quantity) > 0,
             );
-          });
-          // Product must have at least one valid item with quantity, lot, and itemNumber
-          return (
-            validItems.length > 0 &&
-            validItems.every((item) => {
-              const qty = Number(item.currentQuantity);
+            return validItems.length > 0;
+          } else {
+            const validItems = (product.items || []).filter((i) => {
+              const qty = Number(i.currentQuantity);
               return (
-                qty > 0 &&
-                item.lotNumber !== "" &&
-                item.lotNumber !== null &&
-                item.lotNumber !== undefined &&
-                item.itemNumber !== "" &&
-                item.itemNumber !== null &&
-                item.itemNumber !== undefined
+                i.currentQuantity !== "" &&
+                i.currentQuantity !== null &&
+                i.currentQuantity !== undefined &&
+                !isNaN(qty) &&
+                qty !== 0
               );
-            })
-          );
+            });
+            // Product must have at least one valid item with quantity, lot, and itemNumber
+            return (
+              validItems.length > 0 &&
+              validItems.every((item) => {
+                const qty = Number(item.currentQuantity);
+                return (
+                  qty > 0 &&
+                  item.lotNumber !== "" &&
+                  item.lotNumber !== null &&
+                  item.lotNumber !== undefined &&
+                  item.itemNumber !== "" &&
+                  item.itemNumber !== null &&
+                  item.itemNumber !== undefined
+                );
+              })
+            );
+          }
         });
       const formattedProducts = products
         .filter((p) => p.product)
         .map((p) => {
-          const validItems = (p.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
-            );
-          });
-          // Calculate confirmedQuantity sum
-          const confirmedQuantity = validItems.reduce(
-            (sum, item) => sum + (Number(item.currentQuantity) || 0),
-            0,
-          );
-          const items = validItems.map((item) => ({
-            id: item.id,
-            quantity: Number(item.currentQuantity),
-            lot: Number(item.lotNumber) || null,
-            itemNumber: Number(item.itemNumber) || null,
-          }));
+          const type = p.product?.type || "variableQuantityPerItem";
 
-          return {
+          let productPayload = {
             product: p.product.id || p.product,
-            items: items,
-            confirmedQuantity,
             requestedQuantity: p.requestedQuantity
               ? Number(p.requestedQuantity)
               : 0,
@@ -328,6 +334,59 @@ export default function SaleDetailPage({ params }) {
               ? Number(p.invoicePercentage)
               : 100,
           };
+
+          if (type === "fixedQuantityPerItem") {
+            const count = Number(p.confirmedQuantity) || 0;
+            productPayload.count = count;
+            productPayload.confirmedQuantity = count;
+          } else if (type === "cutItem") {
+            const validItems = (p.items || []).filter(
+              (i) => Number(i.currentQuantity || i.quantity) > 0,
+            );
+            productPayload.confirmedQuantity = validItems.reduce(
+              (sum, item) =>
+                sum + (Number(item.currentQuantity || item.quantity) || 0),
+              0,
+            );
+            productPayload.items = validItems.map((item) => {
+              const payloadItem = {
+                quantity: Number(item.currentQuantity || item.quantity),
+                confirmNegativeStock:
+                  forceNegativeStock || item.confirmNegativeStock || false,
+              };
+              if (item.id && !String(item.id).includes("-")) {
+                payloadItem.id = item.id;
+              }
+              if (item.quantities) {
+                payloadItem.quantities = item.quantities;
+              }
+              return payloadItem;
+            });
+          } else {
+            const validItems = (p.items || []).filter((i) => {
+              const qty = Number(i.currentQuantity);
+              return (
+                i.currentQuantity !== "" &&
+                i.currentQuantity !== null &&
+                i.currentQuantity !== undefined &&
+                !isNaN(qty) &&
+                qty !== 0
+              );
+            });
+            productPayload.confirmedQuantity = validItems.reduce(
+              (sum, item) => sum + (Number(item.currentQuantity) || 0),
+              0,
+            );
+            productPayload.items = validItems.map((item) => ({
+              id:
+                item.id && !String(item.id).includes("-") ? item.id : undefined,
+              quantity: Number(item.currentQuantity),
+              lot: Number(item.lotNumber) || null,
+              itemNumber: Number(item.itemNumber) || null,
+            }));
+          }
+
+          return productPayload;
         });
       const data = {
         products: formattedProducts,
@@ -363,11 +422,28 @@ export default function SaleDetailPage({ params }) {
       });
     } catch (error) {
       console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la orden de venta",
-        type: "error",
-      });
+      let isNegativeStock = false;
+      let negativeStockMessage = "";
+
+      try {
+        const errObj = JSON.parse(error.message);
+        if (errObj.code === "NEGATIVE_STOCK") {
+          isNegativeStock = true;
+          negativeStockMessage = errObj.message;
+        }
+      } catch (e) {
+        // Not a JSON error
+      }
+
+      if (isNegativeStock) {
+        setNegativeStockError({ isOpen: true, message: negativeStockMessage });
+      } else {
+        addToast({
+          title: "Error al actualizar",
+          description: "Ocurrió un error al actualizar la orden de venta",
+          type: "error",
+        });
+      }
     } finally {
       setLoadings({
         isUpdating: false,
@@ -458,6 +534,41 @@ export default function SaleDetailPage({ params }) {
           loadings={loadings}
         />
       </Section>
+      <Modal
+        isOpen={negativeStockError.isOpen}
+        onClose={() => setNegativeStockError({ isOpen: false, message: "" })}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            Stock Negativo Detectado
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-500">
+              {negativeStockError.message}
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="danger"
+              variant="light"
+              onPress={() =>
+                setNegativeStockError({ isOpen: false, message: "" })
+              }
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="primary"
+              onPress={() => {
+                setNegativeStockError({ isOpen: false, message: "" });
+                handleUpdate(null, false, true);
+              }}
+            >
+              Confirmar Corte
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Document>
   );
 }

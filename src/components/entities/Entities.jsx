@@ -76,7 +76,7 @@ export default function Entities({
         isStriped
         isCompact
         classNames={{
-          wrapper: "p-0",
+          wrapper: "p-4",
           th: "py-2",
           td: "py-1",
           tr: "h-auto",

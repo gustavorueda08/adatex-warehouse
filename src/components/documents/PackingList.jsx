@@ -47,76 +47,142 @@ function PackingListProductHeader({
 
   const [inputValue, setInputValue] = useState("");
 
+  const type = product.product?.type || "variableQuantityPerItem";
+
+  let placeholderText = "Escanear código de barras o cantidad";
+  if (type === "fixedQuantityPerItem")
+    placeholderText = "Ingresar cantidad en bulto a reservar";
+  if (type === "cutItem") placeholderText = "Ingresar metros/cantidad a cortar";
+
+  const submitItem = async (value, forceNegativeStock = false) => {
+    let result;
+    if (type === "fixedQuantityPerItem") {
+      const count = Number(value);
+      if (!count || count <= 0) {
+        addToast({
+          title: "Error",
+          description: "Ingrese una cantidad válida",
+          color: "danger",
+        });
+        return;
+      }
+      result = await onHeaderScan(document.id, {
+        product: product.product.id,
+        item: { count },
+      });
+    } else if (type === "cutItem") {
+      const quantity = Number(value);
+      if (!quantity || quantity <= 0) {
+        addToast({
+          title: "Error",
+          description: "Ingrese una cantidad válida",
+          color: "danger",
+        });
+        return;
+      }
+      result = await onHeaderScan(document.id, {
+        product: product.product.id,
+        item: { quantity, confirmNegativeStock: forceNegativeStock },
+      });
+    } else {
+      const { barcode, quantity } = parseItemData(value);
+      result = await onHeaderScan(document.id, {
+        product: product.product.id,
+        item: {
+          barcode,
+          quantity,
+          product: product.product.id,
+          warehouse: document.sourceWarehouse?.id,
+        },
+      });
+    }
+
+    if (result?.success && result?.data) {
+      const newItem = result.data;
+      setDocument((prev) => {
+        const productIndex = prev.orderProducts.findIndex(
+          (p) => p.id === product.id,
+        );
+        if (productIndex === -1) return prev;
+        const currentProduct = prev.orderProducts[productIndex];
+
+        let newItems = [...(currentProduct.items || [])];
+        if (type === "fixedQuantityPerItem" && Array.isArray(newItem)) {
+          newItems = [...newItems, ...newItem];
+        } else {
+          if (newItem.quantity && !newItem.currentQuantity) {
+            newItem.currentQuantity = newItem.quantity;
+          }
+          newItems.push(newItem);
+        }
+
+        const newConfirmedQuantity =
+          Math.round(
+            newItems.reduce(
+              (sum, item) =>
+                sum +
+                (Number(
+                  item.quantity || item.currentQuantity || item.count || 1,
+                ) || 0),
+              0,
+            ) * 100,
+          ) / 100;
+
+        const newOrderProducts = [...prev.orderProducts];
+        newOrderProducts[productIndex] = {
+          ...currentProduct,
+          items: newItems,
+          confirmedQuantity: newConfirmedQuantity,
+        };
+
+        return {
+          ...prev,
+          state: "confirmed",
+          orderProducts: newOrderProducts,
+        };
+      });
+
+      addToast({
+        title: "Agregado",
+        description: "El item/cantidad ha sido agregado correctamente",
+        color: "success",
+      });
+    } else {
+      addToast({
+        title: "Error al agregar",
+        description: "El Item no está disponible o hubo un error",
+        color: "danger",
+      });
+    }
+  };
+
   const handleKeyDown = async (e) => {
     try {
       if (e.key === "Enter" && onHeaderScan) {
         const value = inputValue;
         setInputValue("");
-        const { barcode, quantity } = parseItemData(value);
-        const result = await onHeaderScan(document.id, {
-          product: product.product.id,
-          item: {
-            barcode,
-            quantity,
-            product: product.product.id,
-            warehouse: document.sourceWarehouse?.id,
-          },
-        });
-        if (result?.success && result?.data) {
-          const newItem = result.data;
-          setDocument((prev) => {
-            const productIndex = prev.orderProducts.findIndex(
-              (p) => p.id === product.id,
-            );
-            if (productIndex === -1) return prev;
-
-            const currentProduct = prev.orderProducts[productIndex];
-
-            // Ensure compatibility with PackingList expected quantity field
-            if (newItem.quantity && !newItem.currentQuantity) {
-              newItem.currentQuantity = newItem.quantity;
-            }
-
-            const newItems = [...(currentProduct.items || []), newItem];
-
-            const newConfirmedQuantity =
-              Math.round(
-                newItems.reduce(
-                  (sum, item) =>
-                    sum + (Number(item.quantity || item.currentQuantity) || 0),
-                  0,
-                ) * 100,
-              ) / 100;
-
-            const newOrderProducts = [...prev.orderProducts];
-            newOrderProducts[productIndex] = {
-              ...currentProduct,
-              items: newItems,
-              confirmedQuantity: newConfirmedQuantity,
-            };
-
-            return {
-              ...prev,
-              state: "confirmed",
-              orderProducts: newOrderProducts,
-            };
-          });
-
-          addToast({
-            title: "Item agregado",
-            description: "El item ha sido agregado correctamente",
-            color: "success",
-          });
-        } else {
-          addToast({
-            title: "Error al agregar Item",
-            description: "El Item no está disponible o no existe",
-            color: "danger",
-          });
-        }
+        await submitItem(value);
       }
     } catch (error) {
-      console.error(error.message);
+      console.error(error);
+      try {
+        const errObj = JSON.parse(error.message);
+        if (errObj.code === "NEGATIVE_STOCK") {
+          if (window.confirm(errObj.message)) {
+            // Re-submit the same value with confirmNegativeStock = true
+            // Because we cleared inputValue, we use 'value'
+            // wait, where is value? It is out of scope if we don't pass it.
+            // But we can just use the previous value we were processing
+            await submitItem(e.target.value, true);
+          }
+          return;
+        }
+      } catch (err) {}
+      addToast({
+        title: "Error",
+        description: error.message || "Error al agregar",
+        color: "danger",
+      });
     }
   };
 
@@ -134,8 +200,11 @@ function PackingListProductHeader({
           </Chip>
         </div>
         <Input
-          placeholder={
-            isInputEnabled ? "Escanear código de barras o cantidad" : ""
+          placeholder={isInputEnabled ? placeholderText : ""}
+          type={
+            type === "fixedQuantityPerItem" || type === "cutItem"
+              ? "number"
+              : "text"
           }
           size="md"
           value={inputValue}
@@ -156,8 +225,11 @@ function PackingListProductHeader({
         </span>
       </div>
       <Input
-        placeholder={
-          isInputEnabled ? "Escanear código de barras o cantidad" : ""
+        placeholder={isInputEnabled ? placeholderText : ""}
+        type={
+          type === "fixedQuantityPerItem" || type === "cutItem"
+            ? "number"
+            : "text"
         }
         size="sm"
         value={inputValue}
@@ -533,6 +605,8 @@ function PackingListProduct({
     }
   };
 
+  const type = product.product?.type || "variableQuantityPerItem";
+
   return (
     <div className="flex flex-col gap-4">
       <Accordion variant="shadow">
@@ -549,22 +623,29 @@ function PackingListProduct({
           }
           textValue={product.name}
         >
-          <Table shadow="none" classNames={{ wrapper: "p-0" }}>
-            <TableHeader columns={columns}>
-              {(column) => (
-                <TableColumn key={column.key}>{column.label}</TableColumn>
-              )}
-            </TableHeader>
-            <TableBody items={itemsWithGhost} emptyContent="Sin Items">
-              {(item) => (
-                <TableRow key={item.id}>
-                  {(columnKey) => (
-                    <TableCell>{renderCell(item, columnKey)}</TableCell>
-                  )}
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          {type === "fixedQuantityPerItem" && !isItemEditable ? (
+            <div className="p-4 text-sm text-center text-zinc-500">
+              Cantidad en Bulto Automática. Actualice la cantidad escaneando en
+              la cabecera, o en la orden.
+            </div>
+          ) : (
+            <Table shadow="none" classNames={{ wrapper: "p-0" }}>
+              <TableHeader columns={columns}>
+                {(column) => (
+                  <TableColumn key={column.key}>{column.label}</TableColumn>
+                )}
+              </TableHeader>
+              <TableBody items={itemsWithGhost} emptyContent="Sin Items">
+                {(item) => (
+                  <TableRow key={item.id}>
+                    {(columnKey) => (
+                      <TableCell>{renderCell(item, columnKey)}</TableCell>
+                    )}
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </AccordionItem>
       </Accordion>
 
