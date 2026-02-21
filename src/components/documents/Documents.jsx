@@ -363,6 +363,8 @@ export default function Documents({
           <>
             <Button
               isIconOnly
+              size="sm"
+              className="w-8 h-8 min-w-0"
               aria-label="Editar"
               variant="light"
               onPress={() => {
@@ -393,7 +395,7 @@ export default function Documents({
 
   if (loading) {
     return (
-      <Table aria-label="Cargando documentos">
+      <Table aria-label="Cargando documentos" isCompact>
         <TableHeader columns={columns}>
           {(column) => (
             <TableColumn key={column.key}>{column.label}</TableColumn>
@@ -428,6 +430,13 @@ export default function Documents({
       )}
       <Table
         isStriped
+        isCompact
+        classNames={{
+          wrapper: "p-4",
+          th: "py-2",
+          td: "py-1",
+          tr: "h-auto",
+        }}
         selectionMode={screenSize !== "lg" ? "none" : "multiple"}
         onSelectionChange={handleSelectionChange}
         selectedKeys={selectedKeys}

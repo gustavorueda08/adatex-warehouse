@@ -425,7 +425,8 @@ export default function ProductsPage() {
         pagination={pagination}
         setPagination={setPagination}
         pageCount={pageCount}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
       />
       <div className="flex lg:justify-end justify-center">
         <Button

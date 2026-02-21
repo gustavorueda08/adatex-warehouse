@@ -1,4 +1,4 @@
-import { Pagination, Skeleton } from "@heroui/react";
+import { Pagination, Skeleton, Progress } from "@heroui/react";
 import {
   Table,
   TableBody,
@@ -19,6 +19,7 @@ export default function Entities({
   pageCount,
   setPagination,
   loading,
+  isFetching = false,
   className = "",
   emptyContent = "No se encontraron entidades",
   keyField = "id",
@@ -37,7 +38,7 @@ export default function Entities({
 
   if (loading) {
     return (
-      <Table aria-label="Entidades">
+      <Table aria-label="Entidades" isCompact>
         <TableHeader columns={columns}>
           {(column) => (
             <TableColumn key={column.key}>{column.label}</TableColumn>
@@ -61,10 +62,25 @@ export default function Entities({
   }
 
   return (
-    <>
+    <div className="relative">
+      {isFetching && (
+        <Progress
+          size="sm"
+          isIndeterminate
+          color="primary"
+          className="absolute top-0 w-full z-50 rounded-t-lg"
+        />
+      )}
       <Table
         className={className}
         isStriped
+        isCompact
+        classNames={{
+          wrapper: "p-0",
+          th: "py-2",
+          td: "py-1",
+          tr: "h-auto",
+        }}
         selectionMode={screenSize !== "lg" ? "none" : "multiple"}
         onSelectionChange={handleSelectionChange}
         selectedKeys={selectedKeys}
@@ -102,6 +118,6 @@ export default function Entities({
           )}
         </TableBody>
       </Table>
-    </>
+    </div>
   );
 }
