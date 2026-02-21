@@ -161,7 +161,8 @@ export default function TransformationsPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

@@ -103,7 +103,7 @@ function buildPopulate(populate) {
     if (Array.isArray(config)) {
       // Convertir array a objeto para manejar populate anidado correctamente
       const hasNestedPopulate = config.some(
-        (item) => typeof item === "string" && item.includes(".")
+        (item) => typeof item === "string" && item.includes("."),
       );
 
       if (hasNestedPopulate) {
@@ -186,6 +186,8 @@ function buildPopulate(populate) {
               } else {
                 result[`${currentPath}[${configKey}]`] = configValue;
               }
+            } else if (configKey === "count" && configValue === true) {
+              result[`${currentPath}[count]`] = "true";
             } else {
               // Otras configuraciones
               result[`${currentPath}[${configKey}]`] = String(configValue);
@@ -380,7 +382,7 @@ export function debugStrapiQuery(params) {
   console.log("🌐 URL completa:", `/api/strapi/orders?${query}`);
   console.log(
     "📋 URL decodificada:",
-    decodeURIComponent(`/api/strapi/orders?${query}`)
+    decodeURIComponent(`/api/strapi/orders?${query}`),
   );
   return query;
 }

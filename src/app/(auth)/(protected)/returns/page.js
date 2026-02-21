@@ -74,14 +74,19 @@ export default function ReturnsPage() {
     {
       pagination,
       filters,
-      populate: [
-        "parentOrder",
-        "parentOrder.customer",
-        "orderProducts",
-        "orderProducts.items",
-        "orderProducts.product",
-        "destinationWarehouse",
-      ],
+      populate: {
+        parentOrder: {
+          populate: {
+            customer: true,
+          },
+        },
+        destinationWarehouse: true,
+        orderProducts: {
+          populate: {
+            items: { count: true },
+          },
+        },
+      },
     },
     {},
   );
@@ -168,7 +173,8 @@ export default function ReturnsPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

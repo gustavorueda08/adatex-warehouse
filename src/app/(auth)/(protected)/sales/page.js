@@ -124,14 +124,14 @@ export default function SalesPage() {
     {
       pagination,
       filters,
-      populate: [
-        "customer",
-        "customerForInvoice",
-        "customerForInvoice.taxes",
-        "orderProducts",
-        "orderProducts.product",
-        "orderProducts.items",
-      ],
+      populate: {
+        customer: true,
+        orderProducts: {
+          populate: {
+            items: { count: true },
+          },
+        },
+      },
     },
     {},
   );
@@ -311,7 +311,8 @@ export default function SalesPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

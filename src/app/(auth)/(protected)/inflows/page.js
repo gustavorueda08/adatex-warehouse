@@ -71,12 +71,14 @@ export default function InflowsPage() {
     {
       pagination,
       filters,
-      populate: [
-        "destinationWarehouse",
-        "orderProducts",
-        "orderProducts.items",
-        "orderProducts.product",
-      ],
+      populate: {
+        destinationWarehouse: true,
+        orderProducts: {
+          populate: {
+            items: { count: true },
+          },
+        },
+      },
     },
     {},
   );
@@ -230,7 +232,8 @@ export default function InflowsPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

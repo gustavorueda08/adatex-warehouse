@@ -72,12 +72,14 @@ export default function OutflowsPage() {
     {
       pagination,
       filters,
-      populate: [
-        "sourceWarehouse",
-        "orderProducts",
-        "orderProducts.items",
-        "orderProducts.product",
-      ],
+      populate: {
+        sourceWarehouse: true,
+        orderProducts: {
+          populate: {
+            items: { count: true },
+          },
+        },
+      },
     },
     {},
   );
@@ -233,7 +235,8 @@ export default function OutflowsPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

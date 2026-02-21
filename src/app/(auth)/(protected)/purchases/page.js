@@ -73,13 +73,15 @@ export default function PurchasesPage() {
     {
       pagination,
       filters,
-      populate: [
-        "supplier",
-        "orderProducts",
-        "orderProducts.product",
-        "orderProducts.items",
-        "destinationWarehouse",
-      ],
+      populate: {
+        supplier: true,
+        destinationWarehouse: true,
+        orderProducts: {
+          populate: {
+            items: { count: true },
+          },
+        },
+      },
     },
     {},
   );
@@ -251,7 +253,8 @@ export default function PurchasesPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

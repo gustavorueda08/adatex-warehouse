@@ -73,13 +73,15 @@ export default function TransfersPage() {
     {
       pagination,
       filters,
-      populate: [
-        "sourceWarehouse",
-        "destinationWarehouse",
-        "orderProducts",
-        "orderProducts.items",
-        "orderProducts.product",
-      ],
+      populate: {
+        sourceWarehouse: true,
+        destinationWarehouse: true,
+        orderProducts: {
+          populate: {
+            items: { count: true },
+          },
+        },
+      },
     },
     {},
   );
@@ -260,7 +262,8 @@ export default function TransfersPage() {
       />
       <Documents
         screenSize={screenSize}
-        loading={loading || isFetching}
+        loading={loading}
+        isFetching={isFetching}
         documents={orders}
         columns={columns}
         pagination={pagination}

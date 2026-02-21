@@ -33,6 +33,7 @@ import {
   ModalFooter,
   Chip,
   Card,
+  Progress,
 } from "@heroui/react";
 import moment from "moment-timezone";
 import Link from "next/link";
@@ -40,7 +41,31 @@ import { useState } from "react";
 import Products from "./Products";
 import PInvoice from "./PInvoice";
 
+import { Spinner } from "@heroui/react";
+
 function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
+  const { orders, isFetching } = useOrders(
+    {
+      filters: { id: [document?.id] },
+      populate: [
+        "customer",
+        "supplier",
+        "customerForInvoice",
+        "customerForInvoice.taxes",
+        "orderProducts",
+        "orderProducts.product",
+        "orderProducts.items",
+        "sourceWarehouse",
+        "destinationWarehouse",
+      ],
+    },
+    {
+      enabled: isOpen && !!document?.id,
+    },
+  );
+
+  const fullDocument = orders.length > 0 ? orders[0] : document;
+
   if (!document) return null;
 
   return (
@@ -57,28 +82,33 @@ function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
             <ModalHeader className="flex flex-row justify-between items-center py-4">
               <div className="flex flex-col  gap-3">
                 <h2 className="text-xl font-bold text-default-900">
-                  Orden {document.code}
+                  Orden {fullDocument.code}
                 </h2>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-small text-default-500 font-normal">
-                    {getDocumentLabel(document, {
+                    {getDocumentLabel(fullDocument, {
                       includeCode: false,
                       includeInvoices: true,
                       includeContainerCode: true,
                     })}
                   </span>
                   <Chip
-                    color={getChipVariant(document)}
+                    color={getChipVariant(fullDocument)}
                     size="sm"
                     variant="flat"
                     className="capitalize"
                   >
-                    {getOrderStateDataFromState(document.state).label}
+                    {getOrderStateDataFromState(fullDocument.state).label}
                   </Chip>
                 </div>
               </div>
             </ModalHeader>
-            <ModalBody className="p-4 md:p-6 gap-6">
+            <ModalBody className="p-4 md:p-6 gap-6 relative">
+              {isFetching && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-lg">
+                  <Spinner size="lg" color="primary" />
+                </div>
+              )}
               {/* Metadata Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Card de Cliente o Proveedor */}
@@ -89,25 +119,25 @@ function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-tiny text-default-500 font-bold">
-                        {document.type === ORDER_TYPES.SALE
+                        {fullDocument.type === ORDER_TYPES.SALE
                           ? "Cliente"
                           : "Proveedor"}
                       </span>
                       <span className="text-sm font-semibold text-default-900">
                         {getPartyLabel(
-                          document.type === ORDER_TYPES.SALE
-                            ? document.customer
-                            : document.supplier,
+                          fullDocument.type === ORDER_TYPES.SALE
+                            ? fullDocument.customer
+                            : fullDocument.supplier,
                         )}
                       </span>
-                      {document.customerForInvoice &&
-                        document.type === ORDER_TYPES.SALE && (
+                      {fullDocument.customerForInvoice &&
+                        fullDocument.type === ORDER_TYPES.SALE && (
                           <div className="mt-1 flex flex-col">
                             <span className="text-tiny text-default-400 font-bold">
                               Facturar a:
                             </span>
                             <span className="text-tiny text-default-700">
-                              {getPartyLabel(document.customerForInvoice)}
+                              {getPartyLabel(fullDocument.customerForInvoice)}
                             </span>
                           </div>
                         )}
@@ -128,22 +158,26 @@ function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
                         <div className="flex justify-between gap-2">
                           <span className="text-default-500">Creado:</span>
                           <span className="text-default-900 font-medium">
-                            {moment(document.createdAt).format("DD/MM/YYYY")}
+                            {moment(fullDocument.createdAt).format(
+                              "DD/MM/YYYY",
+                            )}
                           </span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-default-500">Actualizado:</span>
                           <span className="text-default-900 font-medium">
-                            {moment(document.updatedAt).format("DD/MM/YYYY")}
+                            {moment(fullDocument.updatedAt).format(
+                              "DD/MM/YYYY",
+                            )}
                           </span>
                         </div>
-                        {document.state === ORDER_STATES.COMPLETED && (
+                        {fullDocument.state === ORDER_STATES.COMPLETED && (
                           <div className="flex justify-between gap-2">
                             <span className="text-default-500">
                               Completado:
                             </span>
                             <span className="text-default-900 font-medium">
-                              {moment(document.completedDate).format(
+                              {moment(fullDocument.completedDate).format(
                                 "DD/MM/YYYY",
                               )}
                             </span>
@@ -164,13 +198,15 @@ function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
                 </div>
                 <Card className="overflow-hidden">
                   <Products
-                    products={document.orderProducts}
+                    products={
+                      fullDocument.orderProducts || fullDocument.products
+                    }
                     showSmallColumns={true}
                   />
                 </Card>
               </div>
               {/* Financial Section (Sales Only) */}
-              {document.type === ORDER_TYPES.SALE && (
+              {fullDocument.type === ORDER_TYPES.SALE && (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 px-1">
                     <DocumentTextIcon className="w-5 h-5 text-default-500" />
@@ -180,8 +216,8 @@ function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
                   </div>
                   <Card className="overflow-hidden">
                     <PInvoice
-                      document={document}
-                      taxes={document?.customerForInvoice?.taxes || []}
+                      document={fullDocument}
+                      taxes={fullDocument?.customerForInvoice?.taxes || []}
                     />
                   </Card>
                 </div>
@@ -206,6 +242,7 @@ export default function Documents({
   setPagination,
   pageCount,
   loading = true,
+  isFetching = false,
   screenSize,
   selectedKeys,
   setSelectedKeys,
@@ -300,7 +337,7 @@ export default function Documents({
         return (
           <p className="text-xs md:text-sm">
             {document?.orderProducts?.reduce(
-              (acc, p) => acc + p?.items?.length || 0,
+              (acc, p) => acc + (p?.items?.count || p?.items?.length || 0),
               0,
             )}
           </p>
@@ -380,7 +417,15 @@ export default function Documents({
   }
 
   return (
-    <>
+    <div className="relative">
+      {isFetching && (
+        <Progress
+          size="sm"
+          isIndeterminate
+          color="primary"
+          className="absolute top-0 w-full z-50 rounded-t-lg"
+        />
+      )}
       <Table
         isStriped
         selectionMode={screenSize !== "lg" ? "none" : "multiple"}
@@ -421,6 +466,6 @@ export default function Documents({
         onOpenChange={onOpenChange}
         screenSize={screenSize}
       />
-    </>
+    </div>
   );
 }

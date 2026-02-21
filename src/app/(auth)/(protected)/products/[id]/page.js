@@ -200,7 +200,10 @@ export default function ProductDetailPage({ params }) {
       },
     ];
   }, [warehouses, warehouseFilter]);
-  const { createOrder, creating: creatingOrder } = useOrders();
+  const { createOrder, creating: creatingOrder } = useOrders(
+    {},
+    { enabled: false },
+  );
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const handleDeleteItems = async () => {
     try {
