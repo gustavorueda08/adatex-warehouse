@@ -18,8 +18,10 @@ import {
 import { ArrowsRightLeftIcon, WrenchIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useEffect, useMemo, useRef, useState, memo } from "react";
 import logo from "../../../public/logo.png";
+import { Skeleton } from "@heroui/react";
 
 // Componente memoizado para el menú de usuario
 const UserMenu = memo(function UserMenu({
@@ -56,10 +58,16 @@ const UserMenu = memo(function UserMenu({
         aria-haspopup="menu"
         aria-expanded={openUserMenu}
         onClick={() => setOpenUserMenu((v) => !v)}
-        className="flex text-sm bg-gray-700 rounded-full focus:ring-4 focus:ring-gray-600"
+        className="flex text-sm bg-gray-700 rounded-full focus:ring-4 focus:ring-gray-600 overflow-hidden"
       >
-        <div className="w-10 h-10  items-center self-center flex justify-center align-middle">
-          {showInitials ? initials : ""}
+        <div className="w-10 h-10 items-center self-center flex justify-center align-middle">
+          {loading ? (
+            <Skeleton className="w-full h-full rounded-full" />
+          ) : showInitials ? (
+            initials
+          ) : (
+            <UserIcon className="w-6 h-6 text-gray-400" />
+          )}
         </div>
         <span className="sr-only">Open user menu</span>
       </button>
@@ -79,12 +87,12 @@ const UserMenu = memo(function UserMenu({
           </div>
           <ul className="py-1">
             <li>
-              <a
+              <Link
                 href={`/`}
                 className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 hover:text-white"
               >
                 Dashboard
-              </a>
+              </Link>
             </li>
             <li>
               <button
@@ -244,9 +252,12 @@ function Sidebar({ links, onSignOut, children }) {
                 <span className="sr-only">Open sidebar</span>
                 <DefaultIconMenu className="w-6 h-6" />
               </button>
-              <a href="#" className="flex items-center ms-2 md:me-24 max-w-50">
+              <Link
+                href="/"
+                className="flex items-center ms-2 md:me-24 max-w-50"
+              >
                 <Image src={logo} alt="Logo" objectFit="contain" priority />
-              </a>
+              </Link>
             </div>
 
             {/* Menú usuario */}
@@ -282,7 +293,7 @@ function Sidebar({ links, onSignOut, children }) {
               if (!hasChildren) {
                 return (
                   <li key={groupId}>
-                    <a
+                    <Link
                       href={item.href || "#"}
                       title={item.label}
                       className="flex items-center p-2 sm:min-w-0 text-white rounded-lg hover:bg-gray-700 group"
@@ -306,7 +317,7 @@ function Sidebar({ links, onSignOut, children }) {
                           {item.badge}
                         </span>
                       ) : null}
-                    </a>
+                    </Link>
                   </li>
                 );
               }
@@ -344,7 +355,7 @@ function Sidebar({ links, onSignOut, children }) {
                   >
                     {item.links.map((link, i) => (
                       <li key={`${groupId}-child-${i}`}>
-                        <a
+                        <Link
                           href={link.href || "#"}
                           title={link.label}
                           className="flex items-center w-full p-2 text-gray-300 rounded-lg pl-8 sm:pl-2 group-hover/sidebar:sm:pl-8 hover:bg-gray-700 hover:text-white transition-[padding] duration-200"
@@ -352,7 +363,7 @@ function Sidebar({ links, onSignOut, children }) {
                           <span className="sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-none group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,opacity] duration-200">
                             {link.label}
                           </span>
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
