@@ -17,11 +17,14 @@ import {
 } from "@heroicons/react/24/outline";
 import { ArrowsRightLeftIcon, WrenchIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import React, { useEffect, useMemo, useRef, useState, memo } from "react";
+import { useTheme } from "next-themes";
 import logo from "../../../public/logo.png";
+import logoGray from "../../../public/logo-gray.png";
 import { Skeleton } from "@heroui/react";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 // Componente memoizado para el menú de usuario
 const UserMenu = memo(function UserMenu({
@@ -190,6 +193,8 @@ function Sidebar({ links, onSignOut, children }) {
   const [openGroups, setOpenGroups] = useState(() => new Set());
   const { user, loading, signOut } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
+  const { theme, resolvedTheme } = useTheme();
 
   const handleSignOut = async () => {
     await signOut();
@@ -235,9 +240,9 @@ function Sidebar({ links, onSignOut, children }) {
   );
 
   return (
-    <div className="min-h-screen dark bg-zinc-800">
+    <div className="h-[100dvh] bg-[#F8FAFD] dark:bg-[#131314] transition-colors flex flex-col overflow-hidden w-full">
       {/* Top Nav */}
-      <nav className="fixed top-0 z-50 w-full  bg-zinc-800">
+      <nav className="fixed top-0 z-50 w-full bg-[#F8FAFD] dark:bg-[#131314] transition-colors">
         <div className="px-3 py-3 lg:px-5 lg:pl-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -256,19 +261,29 @@ function Sidebar({ links, onSignOut, children }) {
                 href="/"
                 className="flex items-center ms-2 md:me-24 max-w-50"
               >
-                <Image src={logo} alt="Logo" objectFit="contain" priority />
+                <Image
+                  src={resolvedTheme === "light" ? logoGray : logo}
+                  alt="Logo"
+                  objectFit="contain"
+                  priority
+                />
               </Link>
             </div>
 
-            {/* Menú usuario */}
-            <UserMenu
-              user={user}
-              loading={loading}
-              initials={initials}
-              openUserMenu={openUserMenu}
-              setOpenUserMenu={setOpenUserMenu}
-              onSignOut={handleSignOut}
-            />
+            <div className="flex items-center gap-4">
+              {/* Selector de tema */}
+              <ThemeSwitcher />
+
+              {/* Menú usuario */}
+              <UserMenu
+                user={user}
+                loading={loading}
+                initials={initials}
+                openUserMenu={openUserMenu}
+                setOpenUserMenu={setOpenUserMenu}
+                onSignOut={handleSignOut}
+              />
+            </div>
           </div>
         </div>
       </nav>
@@ -278,7 +293,7 @@ function Sidebar({ links, onSignOut, children }) {
         id="logo-sidebar"
         aria-label="Sidebar"
         onMouseLeave={() => setOpenGroups(new Set())}
-        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-zinc-800 transition-[transform,width] duration-200 ease-in-out w-64 ${
+        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-[#F8FAFD] dark:bg-[#131314] transition-[transform,width,background-color] duration-200 ease-in-out w-64 border-none ${
           openSidebar ? "translate-x-0" : "-translate-x-full"
         } sm:translate-x-0 sm:w-16 sm:hover:w-64`}
       >
@@ -291,15 +306,30 @@ function Sidebar({ links, onSignOut, children }) {
               const groupId = `sidebar-group-${index}`;
 
               if (!hasChildren) {
+                const isActive =
+                  item.href &&
+                  (pathname === item.href ||
+                    (item.href !== "/" && pathname.startsWith(item.href)));
                 return (
                   <li key={groupId}>
                     <Link
                       href={item.href || "#"}
                       title={item.label}
-                      className="flex items-center p-2 sm:min-w-0 text-white rounded-lg hover:bg-gray-700 group"
+                      onClick={() => setOpenSidebar(false)}
+                      className={`flex items-center p-2 sm:min-w-0 text-gray-900 dark:text-gray-100 rounded-full group transition-colors ${
+                        isActive
+                          ? "bg-[#C2E7FF] dark:bg-[#004A77] font-semibold"
+                          : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+                      }`}
                     >
                       {item.icon && (
-                        <span className="text-gray-400 group-hover:text-white">
+                        <span
+                          className={`transition-colors ${
+                            isActive
+                              ? "text-zinc-900 dark:text-white"
+                              : "text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"
+                          }`}
+                        >
                           <item.icon className="w-5 h-5" />
                         </span>
                       )}
@@ -322,6 +352,12 @@ function Sidebar({ links, onSignOut, children }) {
                 );
               }
 
+              const isGroupActive = item.links.some(
+                (link) =>
+                  link.href &&
+                  (pathname === link.href ||
+                    (link.href !== "/" && pathname.startsWith(link.href))),
+              );
               return (
                 <li key={groupId}>
                   <button
@@ -330,10 +366,20 @@ function Sidebar({ links, onSignOut, children }) {
                     aria-expanded={isOpen}
                     onClick={() => toggleGroup(index)}
                     title={item.label}
-                    className="flex items-center w-full p-2 sm:min-w-0 text-base text-white transition duration-75 rounded-lg hover:bg-gray-700 group"
+                    className={`flex items-center w-full p-2 sm:min-w-0 text-base text-gray-900 dark:text-gray-100 transition duration-75 rounded-full group ${
+                      isGroupActive
+                        ? "bg-[#C2E7FF]/50 dark:bg-[#004A77]/50 font-semibold"
+                        : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+                    }`}
                   >
                     {item.icon && (
-                      <span className="text-gray-400 group-hover:text-white">
+                      <span
+                        className={`transition-colors ${
+                          isGroupActive
+                            ? "text-zinc-900 dark:text-white"
+                            : "text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"
+                        }`}
+                      >
                         <item.icon className="w-5 h-5" />
                       </span>
                     )}
@@ -349,23 +395,35 @@ function Sidebar({ links, onSignOut, children }) {
 
                   <ul
                     id={`${groupId}-panel`}
-                    className={`ml-2 pl-2 border-l border-gray-700 overflow-hidden transition-all duration-200 sm:pointer-events-none group-hover/sidebar:sm:pointer-events-auto ${
+                    className={`ml-2 pl-2 border-l border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-200 sm:pointer-events-none group-hover/sidebar:sm:pointer-events-auto ${
                       isOpen ? "max-h-96 mt-2" : "max-h-0"
                     } space-y-2`}
                   >
-                    {item.links.map((link, i) => (
-                      <li key={`${groupId}-child-${i}`}>
-                        <Link
-                          href={link.href || "#"}
-                          title={link.label}
-                          className="flex items-center w-full p-2 text-gray-300 rounded-lg pl-8 sm:pl-2 group-hover/sidebar:sm:pl-8 hover:bg-gray-700 hover:text-white transition-[padding] duration-200"
-                        >
-                          <span className="sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-none group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,opacity] duration-200">
-                            {link.label}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
+                    {item.links.map((link, i) => {
+                      const isChildActive =
+                        link.href &&
+                        (pathname === link.href ||
+                          (link.href !== "/" &&
+                            pathname.startsWith(link.href)));
+                      return (
+                        <li key={`${groupId}-child-${i}`}>
+                          <Link
+                            href={link.href || "#"}
+                            title={link.label}
+                            onClick={() => setOpenSidebar(false)}
+                            className={`flex items-center w-full p-2 rounded-full pl-8 sm:pl-2 group-hover/sidebar:sm:pl-8 transition-[padding,background-color,color] duration-200 ${
+                              isChildActive
+                                ? "bg-[#C2E7FF] dark:bg-[#004A77] text-zinc-900 dark:text-white font-semibold"
+                                : "text-gray-600 dark:text-gray-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-gray-900 dark:hover:text-white"
+                            }`}
+                          >
+                            <span className="sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-none group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,opacity] duration-200">
+                              {link.label}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </li>
               );
@@ -383,9 +441,11 @@ function Sidebar({ links, onSignOut, children }) {
         />
       )}
 
-      <main className="pt-16 sm:ml-16 bg-zinc-800 min-h-screen h-full">
-        <div className="bg-zinc-950 md:rounded-tl-3xl h-full p-6 min-h-screen">
-          {children}
+      <main className="pt-16 sm:ml-16 bg-[#F8FAFD] dark:bg-[#131314] flex-1 transition-colors flex flex-col sm:pr-4 sm:pb-4 min-h-0 w-full relative">
+        <div className="bg-white dark:bg-[#1E1F22] rounded-t-2xl sm:rounded-3xl flex-1 flex flex-col mt-2 sm:mx-0 sm:mt-2 shadow-sm border border-transparent dark:border-zinc-800/50 transition-colors overflow-hidden relative w-full sm:w-[calc(100vw-5rem)]">
+          <div className="flex-1 overflow-auto w-full h-full">
+            <div className="p-2 sm:p-6 min-h-full">{children}</div>
+          </div>
         </div>
       </main>
     </div>

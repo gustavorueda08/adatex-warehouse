@@ -6,8 +6,13 @@
 @source '../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
 @custom-variant dark (&:is(.dark *));
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #f8fafd;
+  --foreground: #111827;
+}
+
+.dark {
+  --background: #131314;
+  --foreground: #f3f4f6;
 }
 
 @theme inline {
