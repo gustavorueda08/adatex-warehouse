@@ -1,3 +1,4 @@
+import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { DatePicker, DateRangePicker } from "@heroui/react";
 import { Tabs, Tab } from "@heroui/tabs";
@@ -17,6 +18,7 @@ export default function InventoryMode({
     const now = today(getLocalTimeZone());
     return new CalendarDate(now.year, now.month, 1);
   }, []);
+  const screenSize = useScreenSize();
 
   return (
     <Card className="">
@@ -28,6 +30,7 @@ export default function InventoryMode({
           aria-label="Options"
           selectedKey={inventoryMode}
           onSelectionChange={onSelectionChange}
+          size={screenSize === "lg" ? "md" : "sm"}
         >
           <Tab key="standard" title="Estandar"></Tab>
           <Tab key="historical" title="Historico">
@@ -39,6 +42,7 @@ export default function InventoryMode({
                 className="max-w-xs"
                 showMonthAndYearPickers
                 maxValue={today(getLocalTimeZone())}
+                size={screenSize === "lg" ? "md" : "sm"}
               />
             </I18nProvider>
           </Tab>
@@ -51,6 +55,7 @@ export default function InventoryMode({
                 className="max-w-xs"
                 showMonthAndYearPickers
                 minValue={minDate}
+                size={screenSize === "lg" ? "md" : "sm"}
               />
             </I18nProvider>
           </Tab>

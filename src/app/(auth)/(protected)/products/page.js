@@ -20,8 +20,11 @@ import { exportProductsTemplate } from "@/lib/utils/exportProductsTemplate";
 import { exportInventory } from "@/lib/utils/exportInventory";
 import ExportInventoryModal from "@/components/products/ExportInventoryModal";
 import BreakdownModal from "@/components/products/BreakdownModal";
+import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import { useUser } from "@/lib/hooks/useUser";
 
 export default function ProductsPage() {
+  const { user } = useUser();
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 25,
@@ -48,7 +51,7 @@ export default function ProductsPage() {
     category: "",
     entries: [],
   });
-
+  const screenSize = useScreenSize();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportingInventory, setExportingInventory] = useState(false);
 
@@ -176,15 +179,19 @@ export default function ProductsPage() {
   };
 
   const columns = [
-    {
-      key: "code",
-      label: "Código",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">{`${product.code} ${product.barcode ? `| ${product.barcode}` : ""}`}</span>
-        </Link>
-      ),
-    },
+    ...(screenSize === "md"
+      ? [
+          {
+            key: "code",
+            label: "Código",
+            render: (product) => (
+              <Link href={`/products/${product.id}`} className="text-nowrap">
+                <span className="hover:underline cursor-pointer">{`${product.code} ${product.barcode ? `| ${product.barcode}` : ""}`}</span>
+              </Link>
+            ),
+          },
+        ]
+      : []),
     {
       key: "name",
       label: "Nombre",
@@ -351,6 +358,28 @@ export default function ProductsPage() {
         </Link>
       ),
     },
+    {
+      key: "printlab",
+      label: "PrintLab",
+      render: (product) => (
+        <Link href={`/products/${product.id}`} className="text-nowrap">
+          <span className="hover:underline cursor-pointer">
+            {format(product?.inventory?.printlab || 0)} {product?.unit}
+          </span>
+        </Link>
+      ),
+    },
+    {
+      key: "defective",
+      label: "Defectuosos",
+      render: (product) => (
+        <Link href={`/products/${product.id}`} className="text-nowrap">
+          <span className="hover:underline cursor-pointer">
+            {format(product?.inventory?.defective || 0)} {product?.unit}
+          </span>
+        </Link>
+      ),
+    },
   ];
   const onInventoryModeChange = (key) => {
     setInventoryMode(key);
@@ -364,10 +393,11 @@ export default function ProductsPage() {
         search={search}
         setSearch={setSearch}
         pathname="/new-product"
+        showCreate={user?.type === "admin" || user?.type === "warehouseKeeper"}
       >
         <Select
           className="w-full sm:w-48"
-          size="sm"
+          size={screenSize === "lg" ? "md" : "sm"}
           items={linesList.options}
           isLoading={linesList.isLoading}
           onLoadMore={linesList.onLoadMore}
@@ -389,7 +419,7 @@ export default function ProductsPage() {
 
         <Select
           className="w-full sm:w-48"
-          size="sm"
+          size={screenSize === "lg" ? "md" : "sm"}
           items={collectionsList.options}
           isLoading={collectionsList.isLoading}
           onLoadMore={collectionsList.onLoadMore}
@@ -402,14 +432,6 @@ export default function ProductsPage() {
         >
           {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
         </Select>
-        {/*
-          <Checkbox
-          isSelected={hideProductsWithoutStock}
-          onValueChange={setHideProductsWithoutStock}
-            >
-          Ocultar productos sin stock
-        </Checkbox>
-          */}
       </EntityFilters>
       <InventoryMode
         inventoryMode={inventoryMode}
@@ -437,20 +459,23 @@ export default function ProductsPage() {
           Descargar Inventario
         </Button>
       </div>
-      <BulkProductUploader
-        onSync={handleBulkSync}
-        isSyncing={syncing}
-        onDownloadTemplate={() =>
-          exportProductsTemplate({
-            toast: {
-              loading: (msg) => toast.loading(msg),
-              success: (msg) => toast.success(msg),
-              error: (msg) => toast.error(msg),
-              dismiss: (id) => toast.dismiss(id),
-            },
-          })
-        }
-      />
+      {user?.type === "admin" && (
+        <BulkProductUploader
+          onSync={handleBulkSync}
+          isSyncing={syncing}
+          onDownloadTemplate={() =>
+            exportProductsTemplate({
+              toast: {
+                loading: (msg) => toast.loading(msg),
+                success: (msg) => toast.success(msg),
+                error: (msg) => toast.error(msg),
+                dismiss: (id) => toast.dismiss(id),
+              },
+            })
+          }
+        />
+      )}
+
       <BreakdownModal
         isOpen={breakdownModal.isOpen}
         onClose={() =>

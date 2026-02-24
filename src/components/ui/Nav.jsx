@@ -23,6 +23,7 @@ import React, { useEffect, useMemo, useRef, useState, memo } from "react";
 import { useTheme } from "next-themes";
 import logo from "../../../public/logo.png";
 import logoGray from "../../../public/logo-gray.png";
+import iconWhite from "../../../public/icon-white.png";
 import { Skeleton } from "@heroui/react";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
@@ -195,6 +196,11 @@ function Sidebar({ links, onSignOut, children }) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -240,9 +246,9 @@ function Sidebar({ links, onSignOut, children }) {
   );
 
   return (
-    <div className="h-[100dvh] bg-[#F8FAFD] dark:bg-[#131314] transition-colors flex flex-col overflow-hidden w-full">
+    <div className="h-[100dvh] bg-white dark:bg-[#1E1F22] md:bg-[#F8FAFD] md:dark:bg-[#131314] transition-colors flex flex-col overflow-hidden w-full">
       {/* Top Nav */}
-      <nav className="fixed top-0 z-50 w-full bg-[#F8FAFD] dark:bg-[#131314] transition-colors">
+      <nav className="fixed top-0 z-50 w-full bg-white dark:bg-[#1E1F22] md:bg-[#F8FAFD] md:dark:bg-[#131314] transition-colors">
         <div className="px-3 py-3 lg:px-5 lg:pl-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -252,21 +258,43 @@ function Sidebar({ links, onSignOut, children }) {
                 aria-expanded={openSidebar}
                 aria-label="Open sidebar"
                 onClick={() => setOpenSidebar((v) => !v)}
-                className="inline-flex items-center p-2 text-sm text-gray-400 rounded-lg sm:hidden hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600"
+                className="inline-flex items-center p-2 text-sm text-gray-400 rounded-lg lg:hidden hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600"
               >
                 <span className="sr-only">Open sidebar</span>
                 <DefaultIconMenu className="w-6 h-6" />
               </button>
               <Link
                 href="/"
-                className="flex items-center ms-2 md:me-24 max-w-50"
+                className="flex items-center justify-center ms-4 lg:ms-6 md:me-24 max-w-50 relative h-10 w-10 lg:w-32"
               >
-                <Image
-                  src={resolvedTheme === "light" ? logoGray : logo}
-                  alt="Logo"
-                  objectFit="contain"
-                  priority
-                />
+                {mounted ? (
+                  <>
+                    <div className="hidden lg:block absolute inset-0 transform scale-150 origin-center">
+                      <Image
+                        src={resolvedTheme === "light" ? logoGray : logo}
+                        alt="Logo"
+                        fill
+                        style={{ objectFit: "contain" }}
+                        priority
+                        className="ml-2"
+                      />
+                    </div>
+                    <div className="block lg:hidden absolute   inset-0 transform scale-75 origin-center">
+                      <Image
+                        src={iconWhite}
+                        alt="Logo"
+                        fill
+                        style={{
+                          filter:
+                            resolvedTheme === "light" ? "invert(100%)" : "none",
+                        }}
+                        priority
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-transparent" />
+                )}
               </Link>
             </div>
 
@@ -293,9 +321,9 @@ function Sidebar({ links, onSignOut, children }) {
         id="logo-sidebar"
         aria-label="Sidebar"
         onMouseLeave={() => setOpenGroups(new Set())}
-        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-[#F8FAFD] dark:bg-[#131314] transition-[transform,width,background-color] duration-200 ease-in-out w-64 border-none ${
+        className={`group/sidebar fixed top-0 left-0 z-40 h-screen pt-20 bg-white dark:bg-[#1E1F22] lg:bg-[#F8FAFD] lg:dark:bg-[#131314] transition-[transform,width,background-color] duration-200 ease-in-out w-64 border-none ${
           openSidebar ? "translate-x-0" : "-translate-x-full"
-        } sm:translate-x-0 sm:w-16 sm:hover:w-64`}
+        } lg:translate-x-0 lg:w-16 lg:hover:w-64`}
       >
         <div className="h-full px-3 pb-4 overflow-y-auto">
           <ul className="space-y-2 font-medium">
@@ -316,7 +344,7 @@ function Sidebar({ links, onSignOut, children }) {
                       href={item.href || "#"}
                       title={item.label}
                       onClick={() => setOpenSidebar(false)}
-                      className={`flex items-center p-2 sm:min-w-0 text-gray-900 dark:text-gray-100 rounded-full group transition-colors ${
+                      className={`flex items-center p-2 lg:min-w-0 text-gray-900 dark:text-gray-100 rounded-full group transition-colors ${
                         isActive
                           ? "bg-[#C2E7FF] dark:bg-[#004A77] font-semibold"
                           : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
@@ -333,12 +361,12 @@ function Sidebar({ links, onSignOut, children }) {
                           <item.icon className="w-5 h-5" />
                         </span>
                       )}
-                      <span className="flex-1 ms-3 whitespace-nowrap sm:ms-0 sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:ms-3 group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-1 group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,margin,opacity] duration-200">
+                      <span className="flex-1 ms-3 whitespace-nowrap lg:ms-0 lg:w-0 lg:min-w-0 lg:flex-none lg:opacity-0 lg:overflow-hidden group-hover/sidebar:lg:ms-3 group-hover/sidebar:lg:w-auto group-hover/sidebar:lg:min-w-0 group-hover/sidebar:lg:flex-1 group-hover/sidebar:lg:opacity-100 group-hover/sidebar:lg:overflow-visible transition-[width,margin,opacity] duration-200">
                         {item.label}
                       </span>
                       {item.badge ? (
                         <span
-                          className={`inline-flex items-center justify-center px-2 ms-3 text-sm font-medium rounded-full transition-opacity duration-200 sm:opacity-0 group-hover/sidebar:sm:opacity-100 ${
+                          className={`inline-flex items-center justify-center px-2 ms-3 text-sm font-medium rounded-full transition-opacity duration-200 lg:opacity-0 group-hover/sidebar:lg:opacity-100 ${
                             item.badgeVariant === "blue"
                               ? "text-blue-300 bg-blue-900"
                               : "text-gray-300 bg-gray-700"
@@ -366,7 +394,7 @@ function Sidebar({ links, onSignOut, children }) {
                     aria-expanded={isOpen}
                     onClick={() => toggleGroup(index)}
                     title={item.label}
-                    className={`flex items-center w-full p-2 sm:min-w-0 text-base text-gray-900 dark:text-gray-100 transition duration-75 rounded-full group ${
+                    className={`flex items-center w-full p-2 lg:min-w-0 text-base text-gray-900 dark:text-gray-100 transition duration-75 rounded-full group ${
                       isGroupActive
                         ? "bg-[#C2E7FF]/50 dark:bg-[#004A77]/50 font-semibold"
                         : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
@@ -383,19 +411,19 @@ function Sidebar({ links, onSignOut, children }) {
                         <item.icon className="w-5 h-5" />
                       </span>
                     )}
-                    <span className="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap sm:ms-0 sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:ms-3 group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-1 group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,margin,opacity] duration-200">
+                    <span className="flex-1 ms-3 text-left rtl:text-right whitespace-nowrap lg:ms-0 lg:w-0 lg:min-w-0 lg:flex-none lg:opacity-0 lg:overflow-hidden group-hover/sidebar:lg:ms-3 group-hover/sidebar:lg:w-auto group-hover/sidebar:lg:min-w-0 group-hover/sidebar:lg:flex-1 group-hover/sidebar:lg:opacity-100 group-hover/sidebar:lg:overflow-visible transition-[width,margin,opacity] duration-200">
                       {item.label}
                     </span>
                     <DropDownIcon
                       className={`w-3 h-3 transition-transform ${
                         isOpen ? "rotate-180" : "rotate-0"
-                      } text-gray-400 sm:opacity-0 group-hover/sidebar:sm:opacity-100`}
+                      } text-gray-400 lg:opacity-0 group-hover/sidebar:lg:opacity-100`}
                     />
                   </button>
 
                   <ul
                     id={`${groupId}-panel`}
-                    className={`ml-2 pl-2 border-l border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-200 sm:pointer-events-none group-hover/sidebar:sm:pointer-events-auto ${
+                    className={`ml-2 pl-2 border-l border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-200 lg:pointer-events-none group-hover/sidebar:lg:pointer-events-auto ${
                       isOpen ? "max-h-96 mt-2" : "max-h-0"
                     } space-y-2`}
                   >
@@ -411,13 +439,13 @@ function Sidebar({ links, onSignOut, children }) {
                             href={link.href || "#"}
                             title={link.label}
                             onClick={() => setOpenSidebar(false)}
-                            className={`flex items-center w-full p-2 rounded-full pl-8 sm:pl-2 group-hover/sidebar:sm:pl-8 transition-[padding,background-color,color] duration-200 ${
+                            className={`flex items-center w-full p-2 rounded-full pl-8 lg:pl-2 group-hover/sidebar:lg:pl-8 transition-[padding,background-color,color] duration-200 ${
                               isChildActive
                                 ? "bg-[#C2E7FF] dark:bg-[#004A77] text-zinc-900 dark:text-white font-semibold"
                                 : "text-gray-600 dark:text-gray-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-gray-900 dark:hover:text-white"
                             }`}
                           >
-                            <span className="sm:w-0 sm:min-w-0 sm:flex-none sm:opacity-0 sm:overflow-hidden group-hover/sidebar:sm:w-auto group-hover/sidebar:sm:min-w-0 group-hover/sidebar:sm:flex-none group-hover/sidebar:sm:opacity-100 group-hover/sidebar:sm:overflow-visible transition-[width,opacity] duration-200">
+                            <span className="lg:w-0 lg:min-w-0 lg:flex-none lg:opacity-0 lg:overflow-hidden group-hover/sidebar:lg:w-auto group-hover/sidebar:lg:min-w-0 group-hover/sidebar:lg:flex-none group-hover/sidebar:lg:opacity-100 group-hover/sidebar:lg:overflow-visible transition-[width,opacity] duration-200">
                               {link.label}
                             </span>
                           </Link>
@@ -437,14 +465,14 @@ function Sidebar({ links, onSignOut, children }) {
         <button
           aria-label="Cerrar menú"
           onClick={() => setOpenSidebar(false)}
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] sm:hidden"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] lg:hidden"
         />
       )}
 
-      <main className="pt-16 sm:ml-16 bg-[#F8FAFD] dark:bg-[#131314] flex-1 transition-colors flex flex-col sm:pr-4 sm:pb-4 min-h-0 w-full relative">
-        <div className="bg-white dark:bg-[#1E1F22] rounded-t-2xl sm:rounded-3xl flex-1 flex flex-col mt-2 sm:mx-0 sm:mt-2 shadow-sm border border-transparent dark:border-zinc-800/50 transition-colors overflow-hidden relative w-full sm:w-[calc(100vw-5rem)]">
+      <main className="pt-16 md:pl-4 md:pr-4 md:pb-4 lg:pl-16 lg:pr-4 lg:pb-4 bg-white dark:bg-[#1E1F22] md:bg-[#F8FAFD] md:dark:bg-[#131314] flex-1 transition-colors flex flex-col min-h-0 w-full relative">
+        <div className="bg-white dark:bg-[#1E1F22] md:rounded-3xl flex-1 flex flex-col mx-0 md:mt-2 shadow-sm border border-transparent dark:border-zinc-800/50 transition-colors overflow-hidden relative w-full lg:w-[calc(100vw-5rem)]">
           <div className="flex-1 overflow-auto w-full h-full">
-            <div className="p-2 sm:p-6 min-h-full">{children}</div>
+            <div className="p-2 md:p-6 min-h-full">{children}</div>
           </div>
         </div>
       </main>

@@ -60,7 +60,7 @@ export default function Filters({
             value={dateRange}
             onChange={setDateRange}
             size={screenSize === "lg" ? "md" : "sm"}
-            className="flex-1"
+            className="w-full"
           />
         </I18nProvider>
         {dateRange?.start && dateRange?.end && (
@@ -83,7 +83,7 @@ export default function Filters({
         placeholder="Filtrar por estado"
         isClearable
         size={screenSize === "lg" ? "md" : "sm"}
-        className="!max-w-xs"
+        className="lg:max-w-xs"
       >
         {states.map((state) => (
           <SelectItem key={state.key}>{state.label}</SelectItem>

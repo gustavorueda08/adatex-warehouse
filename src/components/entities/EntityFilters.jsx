@@ -93,7 +93,7 @@ export default function EntityFilters({
           ))}
         </Select>
       ))}
-      <div className="col-span-2 gap-2 flex flex-col md:flex-row">
+      <div className="col-span-1 gap-2 flex flex-col md:flex-row">
         {children}
       </div>
       <div className="col-start-1 md:col-start-2 lg:col-start-4 flex justify-end">

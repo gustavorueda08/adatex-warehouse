@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
     <html lang="es" suppressHydrationWarning>
       <head></head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-[#1E1F22] md:bg-[#F8FAFD] md:dark:bg-[#131314]`}
       >
         <Providers>
           <SocketProvider>

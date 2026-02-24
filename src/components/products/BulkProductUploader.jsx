@@ -355,8 +355,8 @@ export default function BulkProductUploader({
 
   return (
     <Card className="w-full">
-      <CardHeader className="flex flex-col items-start px-6 pt-6 pb-0 gap-3">
-        <div className="flex w-full items-center justify-between">
+      <CardHeader className="flex flex-col items-start px-4 sm:px-6 pt-6 pb-0 gap-3">
+        <div className="flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h4 className="text-xl font-bold">Carga masiva de productos</h4>
             <p className="text-small text-default-500">
@@ -366,6 +366,7 @@ export default function BulkProductUploader({
           </div>
           {onDownloadTemplate && (
             <Button
+              className="w-full sm:w-auto"
               color="primary"
               variant="flat"
               isLoading={isDownloading}
@@ -387,7 +388,7 @@ export default function BulkProductUploader({
         </div>
       </CardHeader>
 
-      <CardBody className="px-6 py-4">
+      <CardBody className="px-4 sm:px-6 py-4">
         <div className="mb-4 p-4 bg-default-100 dark:bg-default-50/10 rounded-lg border border-default-200 dark:border-default-100">
           <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <DocumentArrowUpIcon className="w-5 h-5 text-primary" />
@@ -439,7 +440,7 @@ export default function BulkProductUploader({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={`
-                relative border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
+                relative border-2 border-dashed rounded-lg p-8 sm:p-12 text-center cursor-pointer
                 transition-all duration-200 flex flex-col items-center justify-center gap-4
                 ${
                   isDragging
@@ -460,12 +461,12 @@ export default function BulkProductUploader({
               ) : (
                 <>
                   <DocumentArrowUpIcon
-                    className={`w-16 h-16 ${
+                    className={`w-12 h-12 sm:w-16 sm:h-16 ${
                       isDragging ? "text-primary" : "text-default-400"
                     }`}
                   />
                   <div>
-                    <p className="font-medium text-lg">
+                    <p className="font-medium text-base sm:text-lg">
                       {isDragging
                         ? "Suelta el archivo aquí"
                         : "Arrastra tu archivo aquí"}
@@ -483,7 +484,7 @@ export default function BulkProductUploader({
           </>
         ) : (
           <div className="space-y-4">
-            <div className="p-4 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg flex items-center justify-between">
+            <div className="p-4 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <CheckCircleIcon className="w-8 h-8 text-success-500" />
                 <div>
@@ -496,8 +497,9 @@ export default function BulkProductUploader({
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button
+                  className="flex-1 sm:flex-none"
                   color="primary"
                   onClick={handleSync}
                   isLoading={isSyncing}
@@ -509,6 +511,7 @@ export default function BulkProductUploader({
                 </Button>
                 <Button
                   isIconOnly
+                  className="sm:flex-none"
                   color="danger"
                   variant="flat"
                   onClick={handleRemoveFile}
@@ -524,7 +527,7 @@ export default function BulkProductUploader({
                 <h4 className="text-sm font-semibold mb-3">
                   Vista previa (primeras {previewData.length} filas):
                 </h4>
-                <div className="border border-default-200 dark:border-default-100 rounded-lg overflow-hidden">
+                <div className="border border-default-200 dark:border-default-100 rounded-lg overflow-x-auto w-full max-w-full">
                   <Table aria-label="Vista previa de productos" removeWrapper>
                     <TableHeader>
                       {Object.keys(previewData[0]).map((key) => (
