@@ -27,6 +27,7 @@ export default function Filters({
   setSelectedStates,
   pathname,
   extraStates = [],
+  showCreate = true,
 }) {
   const screenSize = useScreenSize();
   const states = [
@@ -89,16 +90,18 @@ export default function Filters({
           <SelectItem key={state.key}>{state.label}</SelectItem>
         ))}
       </Select>
-      <Button
-        color="success"
-        className="text-white md:col-span-2 lg:col-span-1 lg:max-w-36 lg:justify-self-end"
-        as={Link}
-        href={pathname}
-        size={screenSize === "lg" ? "md" : "sm"}
-      >
-        <PlusCircleIcon className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
-        Crear
-      </Button>
+      {showCreate && (
+        <Button
+          color="success"
+          className="text-white md:col-span-2 lg:col-span-1 lg:max-w-36 lg:justify-self-end"
+          as={Link}
+          href={pathname}
+          size={screenSize === "lg" ? "md" : "sm"}
+        >
+          <PlusCircleIcon className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
+          Crear
+        </Button>
+      )}
     </div>
   );
 }

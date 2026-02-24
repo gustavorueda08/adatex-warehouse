@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { addToast, Button } from "@heroui/react";
 import { useSuppliers } from "@/lib/hooks/useSuppliers";
 import Entity from "@/components/entities/Entity";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewSupplierPage() {
+function NewSupplierPageInner() {
   const router = useRouter();
   const { createSupplier, creating } = useSuppliers(
     {},
@@ -176,5 +177,14 @@ export default function NewSupplierPage() {
         </Button>
       </div>
     </Entity>
+  );
+}
+
+
+export default function NewSupplierPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewSupplierPageInner {...params} />
+    </RoleGuard>
   );
 }

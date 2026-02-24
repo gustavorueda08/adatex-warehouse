@@ -16,8 +16,9 @@ import Comments from "@/components/documents/Comments";
 import TransformProducts from "@/components/documents/TransformProducts";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewTransformPage() {
+function NewTransformPageInner() {
   const router = useRouter();
   const screenSize = useScreenSize();
 
@@ -288,5 +289,14 @@ export default function NewTransformPage() {
         </Button>
       </div>
     </Document>
+  );
+}
+
+
+export default function NewTransformPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewTransformPageInner {...params} />
+    </RoleGuard>
   );
 }

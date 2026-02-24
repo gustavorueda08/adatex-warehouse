@@ -8,7 +8,8 @@ import { useOrders } from "@/lib/hooks/useOrders";
 import { useCustomerSelector } from "@/lib/hooks/useCustomerSelector";
 import toast from "react-hot-toast";
 import { useEffect } from "react";
-export default function NewPartialInvoicePage() {
+import RoleGuard from "@/components/auth/RoleGuard";
+function NewPartialInvoicePageInner() {
   const router = useRouter();
   const customerSelector = useCustomerSelector({ pageSize: 50 });
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
@@ -103,4 +104,13 @@ export default function NewPartialInvoicePage() {
   const formKey = `${selectedCustomerId || "none"}-${loadingItems ? "loading" : "loaded"}`;
 
   return <DocumentForm key={formKey} config={config} />;
+}
+
+
+export default function NewPartialInvoicePage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewPartialInvoicePageInner {...params} />
+    </RoleGuard>
+  );
 }

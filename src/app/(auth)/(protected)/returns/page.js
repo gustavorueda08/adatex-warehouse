@@ -9,8 +9,9 @@ import { EllipsisHorizontalCircleIcon } from "@heroicons/react/24/solid";
 import { getLocalTimeZone } from "@internationalized/date";
 import moment from "moment-timezone";
 import { useMemo, useState } from "react";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function ReturnsPage() {
+function ReturnsPageInner() {
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 50,
@@ -194,5 +195,14 @@ export default function ReturnsPage() {
         />
       )}
     </div>
+  );
+}
+
+
+export default function ReturnsPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <ReturnsPageInner {...params} />
+    </RoleGuard>
   );
 }

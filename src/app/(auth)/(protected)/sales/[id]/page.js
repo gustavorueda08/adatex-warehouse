@@ -111,7 +111,8 @@ export default function SaleDetailPage({ params }) {
           });
         },
         disabled:
-          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin",
+          document?.state === ORDER_STATES.COMPLETED ||
+          (user?.type !== "admin" && user?.type === "seller"),
       },
       {
         listType: "customers",
@@ -154,7 +155,8 @@ export default function SaleDetailPage({ params }) {
           });
         },
         disabled:
-          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin",
+          document?.state === ORDER_STATES.COMPLETED ||
+          (user?.type !== "admin" && user?.type === "seller"),
       },
       {
         listType: "warehouses",
@@ -220,7 +222,8 @@ export default function SaleDetailPage({ params }) {
           });
         },
         disabled:
-          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin",
+          document?.state === ORDER_STATES.COMPLETED ||
+          (user?.type !== "admin" && user?.type === "seller"),
       },
       {
         label: "Fecha de Despacho",
@@ -475,24 +478,39 @@ export default function SaleDetailPage({ params }) {
           setDocument={setDocument}
           priceList={document?.customerForInvoice?.prices || []}
           disabled={
-            document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+            document?.state === ORDER_STATES.COMPLETED ||
+            (user?.type === "seller" && user?.type !== "admin")
           }
         />
       </Section>
+      {user?.type !== "seller" && (
+        <Section
+          title="Lista de Empaque"
+          description="Lista de Empaque de la orden de venta"
+          icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+        >
+          <PackingList
+            document={document}
+            setDocument={setDocument}
+            onHeaderScan={addItem}
+            onRemoveItem={removeItem}
+            isHeaderInputEnabled={
+              document?.state !== ORDER_STATES.COMPLETED ||
+              user?.type === "admin"
+            }
+            isItemEditable={false}
+          />
+        </Section>
+      )}
       <Section
-        title="Lista de Empaque"
-        description="Lista de Empaque de la orden de venta"
+        title="Factura"
+        description="Factura proforma de la orden de venta"
         icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
       >
-        <PackingList
+        <PInvoice
           document={document}
           setDocument={setDocument}
-          onHeaderScan={addItem}
-          onRemoveItem={removeItem}
-          isHeaderInputEnabled={
-            document?.state !== ORDER_STATES.COMPLETED || user?.type === "admin"
-          }
-          isItemEditable={false}
+          taxes={document?.customerForInvoice?.taxes || []}
         />
       </Section>
       <Section
@@ -504,19 +522,9 @@ export default function SaleDetailPage({ params }) {
           comments={document?.notes || ""}
           setDocument={setDocument}
           disabled={
-            document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+            document?.state === ORDER_STATES.COMPLETED ||
+            user?.type === "seller"
           }
-        />
-      </Section>
-      <Section
-        title="Factura"
-        description="Factura de la orden de venta"
-        icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
-      >
-        <PInvoice
-          document={document}
-          setDocument={setDocument}
-          taxes={document?.customerForInvoice?.taxes || []}
         />
       </Section>
       <Section
@@ -532,6 +540,9 @@ export default function SaleDetailPage({ params }) {
           getInvoices={getInvoices}
           onDelete={handleDelete}
           loadings={loadings}
+          showAdminActions={
+            user?.type === "admin" || user?.type === "warehouseKeeper"
+          }
         />
       </Section>
       <Modal

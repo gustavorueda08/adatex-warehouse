@@ -13,8 +13,9 @@ import Documents from "@/components/documents/Documents";
 import EntityActions from "@/components/entities/EntityActions";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewCustomerPage() {
+function NewCustomerPageInner() {
   const router = useRouter();
   const { createCustomer, creating } = useCustomers(
     {},
@@ -231,5 +232,14 @@ export default function NewCustomerPage() {
         </Button>
       </div>
     </Entity>
+  );
+}
+
+
+export default function NewCustomerPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewCustomerPageInner {...params} />
+    </RoleGuard>
   );
 }

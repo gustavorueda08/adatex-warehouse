@@ -42,6 +42,7 @@ import Products from "./Products";
 import PInvoice from "./PInvoice";
 
 import { Spinner } from "@heroui/react";
+import { useUser } from "@/lib/hooks/useUser";
 
 function ModalDocumentResume({ document, isOpen, onOpenChange, screenSize }) {
   const { orders, isFetching } = useOrders(
@@ -247,6 +248,7 @@ export default function Documents({
   selectedKeys,
   setSelectedKeys,
 }) {
+  const { user } = useUser();
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [documentForResume, setDocumentForResume] = useState(null);
 
@@ -437,7 +439,9 @@ export default function Documents({
           td: "py-1",
           tr: "h-auto",
         }}
-        selectionMode={screenSize !== "lg" ? "none" : "multiple"}
+        selectionMode={
+          screenSize !== "lg" || user?.type === "seller" ? "none" : "multiple"
+        }
         onSelectionChange={handleSelectionChange}
         selectedKeys={selectedKeys}
         bottomContent={

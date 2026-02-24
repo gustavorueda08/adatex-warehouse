@@ -178,6 +178,7 @@ export default function Actions({
   getInvoices,
   onDelete,
   loadings: parentLoadings,
+  showAdminActions = false,
 }) {
   const { user } = useUser();
   const [localLoadings, setLocalLoadings] = useState({
@@ -302,20 +303,22 @@ export default function Actions({
 
   return (
     <div className="flex flex-col gap-3 p-4 md:grid md:grid-cols-2 lg:flex-row lg:flex">
-      <Button
-        isLoading={parentLoadings?.isUpdating}
-        onPress={async () => {
-          if (onUpdate) {
-            await onUpdate();
+      {showAdminActions && (
+        <Button
+          isLoading={parentLoadings?.isUpdating}
+          onPress={async () => {
+            if (onUpdate) {
+              await onUpdate();
+            }
+          }}
+          isDisabled={
+            document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
           }
-        }}
-        isDisabled={
-          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
-        }
-      >
-        Actualizar
-      </Button>
-      {document?.state === ORDER_STATES.CONFIRMED && (
+        >
+          Actualizar
+        </Button>
+      )}
+      {document?.state === ORDER_STATES.CONFIRMED && showAdminActions && (
         <Button
           isLoading={localLoadings.completing}
           color="success"
@@ -356,6 +359,7 @@ export default function Actions({
         Descargar Lista de Empaque
       </Button>
       {document?.type === ORDER_TYPES.SALE &&
+        showAdminActions &&
         !(document?.siigoIdTypeA || document?.siigoIdTypeB) && (
           <Button
             color="secondary"
@@ -398,18 +402,19 @@ export default function Actions({
             Descargar Factura
           </Button>
         )}
-      <Button
-        color="danger"
-        className="col-span-2"
-        isLoading={localLoadings.deleting}
-        onPress={() => openConfirmModal("delete")}
-        isDisabled={
-          document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
-        }
-      >
-        Eliminar Orden
-      </Button>
-
+      {showAdminActions && (
+        <Button
+          color="danger"
+          className="col-span-2"
+          isLoading={localLoadings.deleting}
+          onPress={() => openConfirmModal("delete")}
+          isDisabled={
+            document?.state === ORDER_STATES.COMPLETED && user?.type !== "admin"
+          }
+        >
+          Eliminar Orden
+        </Button>
+      )}
       {/* Confirmation Modal */}
       <ActionModalConfirm
         title={modalConfig.title}

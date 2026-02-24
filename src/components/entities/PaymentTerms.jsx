@@ -2,7 +2,12 @@ import React, { useMemo } from "react";
 import DebouncedInput from "../ui/DebounceInput";
 import { Select, SelectItem } from "@heroui/react";
 
-export default function PaymentTerms({ entity, setEntity, termOptions = [] }) {
+export default function PaymentTerms({
+  entity,
+  setEntity,
+  termOptions = [],
+  disabled = false,
+}) {
   const options = useMemo(() => {
     if (termOptions.length > 0) {
       return termOptions.map((term) => ({
@@ -29,6 +34,7 @@ export default function PaymentTerms({ entity, setEntity, termOptions = [] }) {
           setEntity({ ...entity, paymentTerms: Number(keys.currentKey) })
         }
         selectedKeys={[String(entity?.paymentTerms)]}
+        isDisabled={disabled}
       >
         {options.map((option) => (
           <SelectItem key={option.key}>{option.label}</SelectItem>
@@ -41,6 +47,7 @@ export default function PaymentTerms({ entity, setEntity, termOptions = [] }) {
           setEntity({ ...entity, creditLimit: value })
         }
         type="currency"
+        disabled={disabled}
       />
     </div>
   );

@@ -11,8 +11,9 @@ import { DocumentChartBarIcon } from "@heroicons/react/24/outline";
 import { Button } from "@heroui/react";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseDate } from "@internationalized/date";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewSalePage() {
+function NewSalePageInner() {
   const router = useRouter();
   const { createOrder, creating } = useOrders(
     {},
@@ -256,5 +257,14 @@ export default function NewSalePage() {
         </Button>
       </div>
     </Document>
+  );
+}
+
+
+export default function NewSalePage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewSalePageInner {...params} />
+    </RoleGuard>
   );
 }

@@ -6,8 +6,9 @@ import { useProducts } from "@/lib/hooks/useProducts";
 import { addToast, Button } from "@heroui/react";
 import Entity from "@/components/entities/Entity";
 import { CheckIcon } from "@heroicons/react/24/outline";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewProductPage() {
+function NewProductPageInner() {
   const router = useRouter();
   const { createProduct, creating } = useProducts(
     {},
@@ -208,5 +209,14 @@ export default function NewProductPage() {
         </Button>
       </div>
     </Entity>
+  );
+}
+
+
+export default function NewProductPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewProductPageInner {...params} />
+    </RoleGuard>
   );
 }

@@ -8,8 +8,9 @@ import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { addToast, Chip } from "@heroui/react";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function CollectionsPage() {
+function CollectionsPageInner() {
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({
@@ -142,5 +143,14 @@ export default function CollectionsPage() {
         />
       )}
     </div>
+  );
+}
+
+
+export default function CollectionsPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <CollectionsPageInner {...params} />
+    </RoleGuard>
   );
 }

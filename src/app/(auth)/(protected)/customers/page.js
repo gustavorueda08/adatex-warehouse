@@ -8,8 +8,11 @@ import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import moment from "moment-timezone";
+import { useUser } from "@/lib/hooks/useUser";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function CustomersPage() {
+function CustomersPageInner() {
+  const { user } = useUser();
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({
@@ -18,7 +21,9 @@ export default function CustomersPage() {
   });
   const screenSize = useScreenSize();
   const filters = useMemo(() => {
-    const f = {};
+    const f = {
+      ...(user?.type === "seller" ? [{ seller: user?.seller?.id }] : []),
+    };
     if (search) {
       const searchTerms = search
         .split(" ")
@@ -160,14 +165,23 @@ export default function CustomersPage() {
         selectedKeys={selectedKeys}
         setSelectedKeys={setSelectedKeys}
       />
-      {(selectedKeys === "all" || selectedKeys?.size > 0) && (
-        <BulkEntitiesActions
-          entities={customers}
-          selectedKeys={selectedKeys}
-          onDelete={handleDelete}
-          loading={loading || isFetching}
-        />
-      )}
+      {user?.type !== "seller" &&
+        (selectedKeys === "all" || selectedKeys?.size > 0) && (
+          <BulkEntitiesActions
+            entities={customers}
+            selectedKeys={selectedKeys}
+            onDelete={handleDelete}
+            loading={loading || isFetching}
+          />
+        )}
     </div>
+  );
+}
+
+export default function CustomersPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={[]} fallbackRoute="/">
+      <CustomersPageInner {...params} />
+    </RoleGuard>
   );
 }

@@ -7,8 +7,9 @@ import { useTerritories } from "@/lib/hooks/useTerritories";
 import Entity from "@/components/entities/Entity";
 import { useMemo, useState } from "react";
 import { addToast, Button } from "@heroui/react";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewTerritoryPage() {
+function NewTerritoryPageInner() {
   const router = useRouter();
   const { createTerritory, creating } = useTerritories(
     {},
@@ -119,5 +120,14 @@ export default function NewTerritoryPage() {
         </Button>
       </div>
     </Entity>
+  );
+}
+
+
+export default function NewTerritoryPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewTerritoryPageInner {...params} />
+    </RoleGuard>
   );
 }

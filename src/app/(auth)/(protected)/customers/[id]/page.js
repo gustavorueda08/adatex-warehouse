@@ -13,12 +13,14 @@ import Documents from "@/components/documents/Documents";
 import EntityActions from "@/components/entities/EntityActions";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import { useUser } from "@/lib/hooks/useUser";
 
 export default function CustomerDetailPage() {
   const router = useRouter();
   const params = useParams();
   const customerId = params.id;
   const screenSize = useScreenSize();
+  const { user } = useUser();
   const { customers, updateCustomer, updating, refetch, deleteCustomer } =
     useCustomers({
       filters: { id: { $eq: customerId } },
@@ -85,6 +87,7 @@ export default function CustomerDetailPage() {
         onChange: (name) => {
           setCustomer({ ...customer, name });
         },
+        disabled: user?.type === "seller",
       },
       {
         key: "lastName",
@@ -94,6 +97,7 @@ export default function CustomerDetailPage() {
         onChange: (lastName) => {
           setCustomer({ ...customer, lastName });
         },
+        disabled: user?.type === "seller",
       },
       {
         key: "identificationType",
@@ -107,6 +111,7 @@ export default function CustomerDetailPage() {
         onChange: (identificationType) => {
           setCustomer({ ...customer, identificationType });
         },
+        disabled: user?.type === "seller",
       },
       {
         label: "Identificación",
@@ -115,6 +120,7 @@ export default function CustomerDetailPage() {
         onChange: (identification) => {
           setCustomer({ ...customer, identification });
         },
+        disabled: user?.type === "seller",
       },
       {
         label: "Email",
@@ -123,6 +129,7 @@ export default function CustomerDetailPage() {
         onChange: (email) => {
           setCustomer({ ...customer, email });
         },
+        disabled: user?.type === "seller",
       },
       {
         label: "Teléfono",
@@ -131,6 +138,7 @@ export default function CustomerDetailPage() {
         onChange: (phone) => {
           setCustomer({ ...customer, phone });
         },
+        disabled: user?.type === "seller",
       },
       {
         label: "Nombre Comercial",
@@ -140,6 +148,7 @@ export default function CustomerDetailPage() {
           setCustomer({ ...customer, companyName });
         },
         fullWidth: true,
+        disabled: user?.type === "seller",
       },
       {
         label: "Dirección",
@@ -179,6 +188,7 @@ export default function CustomerDetailPage() {
         onChange: (territory) => {
           setCustomer({ ...customer, territory });
         },
+        disabled: user?.type === "seller",
       },
       {
         label: "Vendedor",
@@ -204,6 +214,7 @@ export default function CustomerDetailPage() {
         onChange: (seller) => {
           setCustomer({ ...customer, seller });
         },
+        disabled: user?.type === "seller",
       },
     ];
   }, [customer]);
@@ -284,19 +295,31 @@ export default function CustomerDetailPage() {
         title="Terminos de Pago"
         description={"Plazo de pago asignado y cupo del cliente"}
       >
-        <PaymentTerms entity={customer} setEntity={setCustomer} />
+        <PaymentTerms
+          entity={customer}
+          setEntity={setCustomer}
+          disabled={user?.type === "seller"}
+        />
       </Section>
       <Section
         title="Impuestos"
         description={"Configuración de impuestos aplicables al cliente"}
       >
-        <Taxes taxes={customer?.taxes} setEntity={setCustomer} />
+        <Taxes
+          taxes={customer?.taxes}
+          setEntity={setCustomer}
+          disabled={user?.type === "seller"}
+        />
       </Section>
       <Section
         title={"Precios"}
         description={"Configuración de precios aplicables al cliente"}
       >
-        <Prices prices={customer?.prices} setEntity={setCustomer} />
+        <Prices
+          prices={customer?.prices}
+          setEntity={setCustomer}
+          disabled={user?.type === "seller"}
+        />
       </Section>
       <Section title="Ordenes" description={"Ordenes del Cliente"}>
         <div className="p-4">
@@ -313,15 +336,17 @@ export default function CustomerDetailPage() {
           />
         </div>
       </Section>
-      <Section title={"Acciones"}>
-        <EntityActions
-          entity={customer}
-          setEntity={setCustomer}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
-          isLoading={updating}
-        />
-      </Section>
+      {user?.type !== "seller" && (
+        <Section title={"Acciones"}>
+          <EntityActions
+            entity={customer}
+            setEntity={setCustomer}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            isLoading={updating}
+          />
+        </Section>
+      )}
     </Entity>
   );
 }

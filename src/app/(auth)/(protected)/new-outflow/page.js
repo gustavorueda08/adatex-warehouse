@@ -12,8 +12,9 @@ import { Button } from "@heroui/react";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseDate } from "@internationalized/date";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewOutflowPage() {
+function NewOutflowPageInner() {
   const router = useRouter();
   const { createOrder, creating } = useOrders(
     {},
@@ -131,5 +132,14 @@ export default function NewOutflowPage() {
         </Button>
       </div>
     </Document>
+  );
+}
+
+
+export default function NewOutflowPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewOutflowPageInner {...params} />
+    </RoleGuard>
   );
 }

@@ -14,8 +14,9 @@ import { parseDate } from "@internationalized/date";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { buildInvoiceLabel } from "@/lib/utils/invoiceLabel";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewReturnPage() {
+function NewReturnPageInner() {
   const router = useRouter();
   const { createOrder, creating } = useOrders(
     {},
@@ -240,5 +241,14 @@ export default function NewReturnPage() {
         </Button>
       </div>
     </Document>
+  );
+}
+
+
+export default function NewReturnPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewReturnPageInner {...params} />
+    </RoleGuard>
   );
 }

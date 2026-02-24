@@ -1,8 +1,9 @@
 "use client";
 
 import DocumentListPage from "@/components/documents/DocumentListPage";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function PartialInvoicesPage() {
+function PartialInvoicesPageInner() {
   return (
     <DocumentListPage
       documentType="partial-invoice"
@@ -15,5 +16,14 @@ export default function PartialInvoicesPage() {
       createPath="/new-partial-invoice"
       customColumns={[]}
     />
+  );
+}
+
+
+export default function PartialInvoicesPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <PartialInvoicesPageInner {...params} />
+    </RoleGuard>
   );
 }

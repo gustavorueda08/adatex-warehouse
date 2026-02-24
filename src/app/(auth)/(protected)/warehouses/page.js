@@ -11,6 +11,7 @@ import Card, {
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import {
+import RoleGuard from "@/components/auth/RoleGuard";
   MagnifyingGlassIcon,
   FunnelIcon,
   CubeIcon,
@@ -18,7 +19,7 @@ import {
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
 
-export default function WarehousesPage() {
+function WarehousesPageInner() {
   const { inventory, loading, entities, error } = useInventory(
     {
       filters: {
@@ -530,5 +531,14 @@ export default function WarehousesPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+
+export default function WarehousesPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <WarehousesPageInner {...params} />
+    </RoleGuard>
   );
 }

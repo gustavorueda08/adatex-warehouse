@@ -6,8 +6,9 @@ import SearchableSelect from "@/components/ui/SearchableSelect";
 import Section from "@/components/ui/Section";
 import { addToast, Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewCollectionPage() {
+function NewCollectionPageInner() {
   const router = useRouter();
   const { createCollection, creating } = useCollections(
     {},
@@ -111,5 +112,14 @@ export default function NewCollectionPage() {
         </Button>
       </div>
     </Entity>
+  );
+}
+
+
+export default function NewCollectionPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewCollectionPageInner {...params} />
+    </RoleGuard>
   );
 }

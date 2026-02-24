@@ -26,6 +26,7 @@ import { addToast } from "@heroui/react";
 import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
 import { mapBulkItems } from "@/lib/utils/mapBulkItems";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
+import RoleGuard from "@/components/auth/RoleGuard";
 
 export default function PurchaseDetailPage({ params }) {
   const { id } = use(params);
@@ -390,83 +391,85 @@ export default function PurchaseDetailPage({ params }) {
   };
 
   return (
-    <Document
-      title="Orden de Compra"
-      type="purchase"
-      document={document}
-      setDocument={setDocument}
-      headerFields={headerFields}
-    >
-      <Section
-        title="Productos"
-        description="Productos de la orden de venta"
-        color="primary"
-        icon={<DocumentChartBarIcon className="w-6 h-6" />}
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/sales">
+      <Document
+        title="Orden de Compra"
+        type="purchase"
+        document={document}
+        setDocument={setDocument}
+        headerFields={headerFields}
       >
-        <Products
-          products={document?.orderProducts || []}
-          setDocument={setDocument}
-          priceList={document?.supplier?.prices || []}
-          disabled={document?.state === ORDER_STATES.COMPLETED}
-        />
-      </Section>
-      <Section
-        title="Lista de Empaque"
-        description="Lista de Empaque de la orden de venta"
-        icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
-      >
-        <PackingList
-          document={document}
-          setDocument={setDocument}
-          isHeaderInputEnabled={false}
-          isItemEditable={document?.state !== ORDER_STATES.COMPLETED}
-        />
-      </Section>
-      <Section
-        title="Carga Masiva de Lista de Empaque"
-        description="Carga masiva de lista de empaque de la orden de venta"
-        icon={<DocumentArrowUpIcon className="w-6 h-6" />}
-      >
-        <BulkPackingListUploader
-          onFileLoaded={handleBulkUpload}
-          isReadOnly={document?.state === ORDER_STATES.COMPLETED}
-        />
-      </Section>
-      <Section
-        title="Comentarios"
-        description="Comentarios de la orden de venta"
-        icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
-      >
-        <Comments
-          comments={document?.notes || ""}
-          setDocument={setDocument}
-          disabled={document?.state === ORDER_STATES.COMPLETED}
-        />
-      </Section>
-      <Section
-        title="Factura"
-        description="Factura de la orden de compra"
-        icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
-      >
-        <PInvoice
-          document={document}
-          setDocument={setDocument}
-          taxes={document?.supplier?.taxes || []}
-        />
-      </Section>
-      <Section
-        title="Acciones"
-        description="Acciones de la orden de compra"
-        icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
-      >
-        <Actions
-          document={document}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
-          onComplete={handleUpdate}
-          loadings={loadings}
-        />
-      </Section>
-    </Document>
+        <Section
+          title="Productos"
+          description="Productos de la orden de venta"
+          color="primary"
+          icon={<DocumentChartBarIcon className="w-6 h-6" />}
+        >
+          <Products
+            products={document?.orderProducts || []}
+            setDocument={setDocument}
+            priceList={document?.supplier?.prices || []}
+            disabled={document?.state === ORDER_STATES.COMPLETED}
+          />
+        </Section>
+        <Section
+          title="Lista de Empaque"
+          description="Lista de Empaque de la orden de venta"
+          icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+        >
+          <PackingList
+            document={document}
+            setDocument={setDocument}
+            isHeaderInputEnabled={false}
+            isItemEditable={document?.state !== ORDER_STATES.COMPLETED}
+          />
+        </Section>
+        <Section
+          title="Carga Masiva de Lista de Empaque"
+          description="Carga masiva de lista de empaque de la orden de venta"
+          icon={<DocumentArrowUpIcon className="w-6 h-6" />}
+        >
+          <BulkPackingListUploader
+            onFileLoaded={handleBulkUpload}
+            isReadOnly={document?.state === ORDER_STATES.COMPLETED}
+          />
+        </Section>
+        <Section
+          title="Comentarios"
+          description="Comentarios de la orden de venta"
+          icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+        >
+          <Comments
+            comments={document?.notes || ""}
+            setDocument={setDocument}
+            disabled={document?.state === ORDER_STATES.COMPLETED}
+          />
+        </Section>
+        <Section
+          title="Factura"
+          description="Factura de la orden de compra"
+          icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+        >
+          <PInvoice
+            document={document}
+            setDocument={setDocument}
+            taxes={document?.supplier?.taxes || []}
+          />
+        </Section>
+        <Section
+          title="Acciones"
+          description="Acciones de la orden de compra"
+          icon={<ClipboardDocumentListIcon className="w-6 h-6" />}
+        >
+          <Actions
+            document={document}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onComplete={handleUpdate}
+            loadings={loadings}
+          />
+        </Section>
+      </Document>
+    </RoleGuard>
   );
 }

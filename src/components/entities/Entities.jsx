@@ -1,3 +1,4 @@
+import { useUser } from "@/lib/hooks/useUser";
 import { Pagination, Skeleton, Progress } from "@heroui/react";
 import {
   Table,
@@ -31,7 +32,7 @@ export default function Entities({
     }
     return entity[columnKey] || "-";
   };
-
+  const { user } = useUser();
   const handleSelectionChange = (keys) => {
     setSelectedKeys(keys === "all" ? "all" : new Set([...keys]));
   };
@@ -81,7 +82,9 @@ export default function Entities({
           td: "py-1",
           tr: "h-auto",
         }}
-        selectionMode={screenSize !== "lg" ? "none" : "multiple"}
+        selectionMode={
+          screenSize !== "lg" || user?.type === "seller" ? "none" : "multiple"
+        }
         onSelectionChange={handleSelectionChange}
         selectedKeys={selectedKeys}
         bottomContent={

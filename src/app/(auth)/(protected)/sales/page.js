@@ -5,12 +5,14 @@ import Documents from "@/components/documents/Documents";
 import Filters from "@/components/ui/Filters";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
+import { useUser } from "@/lib/hooks/useUser";
 import { EllipsisHorizontalCircleIcon } from "@heroicons/react/24/solid";
 import { getLocalTimeZone } from "@internationalized/date";
 import moment from "moment-timezone";
 import { useMemo, useState } from "react";
 
 export default function SalesPage() {
+  const { user } = useUser();
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 50,
@@ -205,7 +207,6 @@ export default function SalesPage() {
       },
     ];
   }, [screenSize]);
-
   const handleUpdate = async (document, updates = {}) => {
     try {
       const products = document?.orderProducts || [];
@@ -308,6 +309,7 @@ export default function SalesPage() {
         selectedStates={selectedStates}
         setSelectedStates={setSelectedStates}
         extraStates={[{ key: "despachados", label: "Despachados" }]}
+        showCreate={user?.type !== "seller" || false}
       />
       <Documents
         screenSize={screenSize}
@@ -321,17 +323,18 @@ export default function SalesPage() {
         selectedKeys={selectedKeys}
         setSelectedKeys={setSelectedKeys}
       />
-      {(selectedKeys === "all" || selectedKeys?.size > 0) && (
-        <BulkActions
-          documents={orders}
-          selectedKeys={selectedKeys}
-          onUpdate={handleUpdate}
-          onDelete={deleteOrder}
-          refreshOrders={invalidateAndRefetch}
-          loading={loading || isFetching}
-          showInvoiceButton={true}
-        />
-      )}
+      {user?.type !== "seller" &&
+        (selectedKeys === "all" || selectedKeys?.size > 0) && (
+          <BulkActions
+            documents={orders}
+            selectedKeys={selectedKeys}
+            onUpdate={handleUpdate}
+            onDelete={deleteOrder}
+            refreshOrders={invalidateAndRefetch}
+            loading={loading || isFetching}
+            showInvoiceButton={true}
+          />
+        )}
     </div>
   );
 }

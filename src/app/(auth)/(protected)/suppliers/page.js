@@ -9,8 +9,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import moment from "moment-timezone";
 import { addToast } from "@heroui/react";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function SuppliersPage() {
+function SuppliersPageInner() {
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({
@@ -127,5 +128,14 @@ export default function SuppliersPage() {
         />
       )}
     </div>
+  );
+}
+
+
+export default function SuppliersPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <SuppliersPageInner {...params} />
+    </RoleGuard>
   );
 }

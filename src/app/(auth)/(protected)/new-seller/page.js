@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { addToast, Button } from "@heroui/react";
 import { useSellers } from "@/lib/hooks/useSellers";
 import Entity from "@/components/entities/Entity";
+import RoleGuard from "@/components/auth/RoleGuard";
 
-export default function NewSellerPage() {
+function NewSellerPageInner() {
   const router = useRouter();
   const { createSeller, creating } = useSellers(
     {},
@@ -123,5 +124,14 @@ export default function NewSellerPage() {
         </Button>
       </div>
     </Entity>
+  );
+}
+
+
+export default function NewSellerPage(params) {
+  return (
+    <RoleGuard forbiddenRoles={["seller"]} fallbackRoute="/">
+      <NewSellerPageInner {...params} />
+    </RoleGuard>
   );
 }

@@ -186,6 +186,11 @@ const SELLER_LINKS = [
     icon: BuildingStorefrontIcon,
     href: "/products",
   },
+  {
+    label: "Clientes",
+    icon: UserIcon,
+    href: "/customers",
+  },
 ];
 
 function Sidebar({ links, onSignOut, children }) {
