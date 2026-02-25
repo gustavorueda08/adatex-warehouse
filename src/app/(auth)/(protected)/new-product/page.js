@@ -7,6 +7,8 @@ import { addToast, Button } from "@heroui/react";
 import Entity from "@/components/entities/Entity";
 import { CheckIcon } from "@heroicons/react/24/outline";
 import RoleGuard from "@/components/auth/RoleGuard";
+import TransformationFactorsManager from "@/components/products/TransformationFactorsManager";
+import Section from "@/components/ui/Section";
 
 function NewProductPageInner() {
   const router = useRouter();
@@ -93,8 +95,21 @@ function NewProductPageInner() {
         value: product.type,
         onChange: (type) => setProduct({ ...product, type }),
         required: true,
-        fullWidth: product.type === "cutItem" ? false : true,
+        fullWidth: product?.type === "fixedQuantityPerItem" ? true : false,
       },
+      ...(product?.type === "variableQuantityPerItem"
+        ? [
+            {
+              key: "unitsPerPackage",
+              label: "Cantidad de unidades promedio por paquete",
+              type: "input",
+              value: product?.unitsPerPackage,
+              onChange: (unitsPerPackage) =>
+                setProduct({ ...product, unitsPerPackage }),
+              inputType: "number",
+            },
+          ]
+        : []),
       ...(product.type === "cutItem"
         ? [
             {
@@ -169,7 +184,7 @@ function NewProductPageInner() {
           product.transformationFactors.length > 0
         ) {
           data.transformationFactors = product.transformationFactors.map(
-            (tf) => ({ id: tf.id || tf }),
+            (tf) => (tf.id ? { id: tf.id } : tf),
           );
         }
       }
@@ -203,6 +218,15 @@ function NewProductPageInner() {
       entity={product}
       setEntity={setProduct}
     >
+      {product.type === "cutItem" && (
+        <Section title="Factor de Transformación">
+          <TransformationFactorsManager
+            product={product}
+            setProduct={setProduct}
+          />
+        </Section>
+      )}
+
       <div className="flex justify-end w-full">
         <Button color="success" isLoading={creating} onPress={handleCreate}>
           Crear Producto
@@ -211,7 +235,6 @@ function NewProductPageInner() {
     </Entity>
   );
 }
-
 
 export default function NewProductPage(params) {
   return (

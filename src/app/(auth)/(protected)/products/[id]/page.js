@@ -24,6 +24,8 @@ import Entities from "@/components/entities/Entities";
 import EntityFilters from "@/components/entities/EntityFilters";
 import EntityActions from "@/components/entities/EntityActions";
 import format from "@/lib/utils/format";
+import TransformationFactorsManager from "@/components/products/TransformationFactorsManager";
+import { useUser } from "@/lib/hooks/useUser";
 
 export default function ProductDetailPage({ params }) {
   const { id } = use(params);
@@ -45,7 +47,7 @@ export default function ProductDetailPage({ params }) {
     refetch,
   } = useProducts({
     filters: { id: { $eq: id } },
-    populate: ["collections"],
+    populate: ["collections", "transformationFactor"],
   });
   const { warehouses } = useWarehouses();
   const itemsFilters = useMemo(() => {
@@ -111,6 +113,53 @@ export default function ProductDetailPage({ params }) {
       onChange: (unit) => setProduct({ ...product, unit }),
     },
     {
+      label: "Tipo de Producto",
+      type: "select",
+      options: [
+        {
+          key: "variableQuantityPerItem",
+          label: "Cantidad Variable por Empaque",
+        },
+        { key: "fixedQuantityPerItem", label: "Cantidad Fija por Empaque" },
+        { key: "cutItem", label: "Producto para Corte" },
+      ],
+      value: product?.type || "variableQuantityPerItem",
+      onChange: (type) => setProduct({ ...product, type }),
+      required: true,
+      fullWidth: product?.type === "fixedQuantityPerItem" ? true : false,
+    },
+    ...(product?.type === "cutItem"
+      ? [
+          {
+            label: "Producto Padre (Rollo Maestro)",
+            type: "async-select",
+            listType: "products",
+            value: product?.parentProduct,
+            placeholder: "Selecciona el producto a consumir",
+            selectedOption: product?.parentProduct,
+            selectedOptionLabel: product?.parentProduct?.name,
+            render: (p) => p?.name,
+            filters: (search) => ({ name: { $containsi: search } }),
+            onChange: (parentProduct) =>
+              setProduct({ ...product, parentProduct }),
+            required: true,
+          },
+        ]
+      : []),
+    ...(product?.type === "variableQuantityPerItem" || product?.type === null
+      ? [
+          {
+            key: "unitsPerPackage",
+            label: "Cantidad de unidades promedio por paquete",
+            type: "input",
+            value: product?.unitsPerPackage,
+            onChange: (unitsPerPackage) =>
+              setProduct({ ...product, unitsPerPackage }),
+            inputType: "number",
+          },
+        ]
+      : []),
+    {
       key: "description",
       label: "Descripción",
       type: "textarea",
@@ -128,32 +177,15 @@ export default function ProductDetailPage({ params }) {
       onChange: (collections) => setProduct({ ...product, collections }),
       fullWidth: true,
     },
-    {
-      key: "hasVariableQuantity",
-      label: "¿Tiene cantidad variable por paquete?",
-      type: "checkbox",
-      value: product?.hasVariableQuantity || false,
-      onChange: (hasVariableQuantity) =>
-        setProduct({ ...product, hasVariableQuantity }),
-    },
-    ...(product?.hasVariableQuantity
-      ? [
-          {
-            key: "unitsPerPackage",
-            label: "Cantidad de unidades promedio por paquete",
-            type: "input",
-            value: product?.unitsPerPackage,
-            onChange: (unitsPerPackage) =>
-              setProduct({ ...product, unitsPerPackage }),
-            fullWidth: true,
-            inputType: "number",
-          },
-        ]
-      : []),
   ];
   useEffect(() => {
     if (products.length > 0) {
-      setProduct(products[0]);
+      const p = products[0];
+      // Keep transformationFactors array format for our manager component to use
+      if (p.transformationFactor && !p.transformationFactors) {
+        p.transformationFactors = [p.transformationFactor];
+      }
+      setProduct(p);
     }
   }, [products]);
   const itemColumns = useMemo(() => {
@@ -274,10 +306,28 @@ export default function ProductDetailPage({ params }) {
       barcode: product?.barcode,
       description: product?.description,
       unit: product?.unit,
-      hasVariableQuantity: product?.hasVariableQuantity || false,
-      unitsPerPackage: product?.unitsPerPackage,
-      collections: product?.collections?.map((c) => c.id) || [],
+      type: product?.type || "variableQuantityPerItem",
+      unitsPerPackage:
+        product?.type === "variableQuantityPerItem"
+          ? product?.unitsPerPackage
+          : null,
+      parentProduct:
+        product?.type === "cutItem" && product?.parentProduct
+          ? typeof product.parentProduct === "object"
+            ? product.parentProduct.id
+            : product.parentProduct
+          : null,
     };
+    if (
+      product?.type === "cutItem" &&
+      product?.transformationFactors &&
+      product.transformationFactors.length > 0
+    ) {
+      data.transformationFactors = product.transformationFactors.map((tf) =>
+        tf.id ? { id: tf.id } : tf,
+      );
+    }
+
     await updateProduct(product?.id, data);
     await refetch();
     addToast({
@@ -311,6 +361,15 @@ export default function ProductDetailPage({ params }) {
       backPath="/products"
       headerFields={headerFields}
     >
+      {product?.type === "cutItem" && (
+        <Section title="Factor de Transformación">
+          <TransformationFactorsManager
+            product={product}
+            setProduct={setProduct}
+          />
+        </Section>
+      )}
+
       <Section
         title="Items"
         description={"Items del producto en diferentes bodegas"}

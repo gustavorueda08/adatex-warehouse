@@ -11,13 +11,13 @@ import Card, {
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import {
-import RoleGuard from "@/components/auth/RoleGuard";
   MagnifyingGlassIcon,
   FunnelIcon,
   CubeIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
+import RoleGuard from "@/components/auth/RoleGuard";
 
 function WarehousesPageInner() {
   const { inventory, loading, entities, error } = useInventory(
@@ -26,7 +26,7 @@ function WarehousesPageInner() {
         type: "by-warehouse",
       },
     },
-    {}
+    {},
   );
 
   // Debug: Ver la estructura de datos
@@ -89,13 +89,15 @@ function WarehousesPageInner() {
       // Filtro por búsqueda de texto
       if (searchTerm.trim()) {
         const search = searchTerm.toLowerCase();
-        const matchWarehouse = item.warehouse.name.toLowerCase().includes(search);
+        const matchWarehouse = item.warehouse.name
+          .toLowerCase()
+          .includes(search);
         const matchCode = item.warehouse.code.toLowerCase().includes(search);
         const matchProducts = item.products.some(
           (p) =>
             p.name.toLowerCase().includes(search) ||
             p.code.toLowerCase().includes(search) ||
-            p.barcode?.toLowerCase().includes(search)
+            p.barcode?.toLowerCase().includes(search),
         );
         return matchWarehouse || matchCode || matchProducts;
       }
@@ -264,9 +266,7 @@ function WarehousesPageInner() {
         key: "items",
         label: "Items",
         render: (_, product) => (
-          <span className="text-white">
-            {product.items?.length || 0}
-          </span>
+          <span className="text-white">{product.items?.length || 0}</span>
         ),
       },
       {
@@ -294,7 +294,7 @@ function WarehousesPageInner() {
               {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              }
+              },
             ) || "0.00"}
           </span>
         ),
@@ -304,13 +304,10 @@ function WarehousesPageInner() {
         label: "Reservado",
         render: (_, product) => (
           <span className="text-yellow-400">
-            {product.summary?.totalReservedQuantity?.toLocaleString(
-              undefined,
-              {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            ) || "0.00"}
+            {product.summary?.totalReservedQuantity?.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "0.00"}
           </span>
         ),
       },
@@ -490,7 +487,9 @@ function WarehousesPageInner() {
             </div>
           </div>
 
-          {(searchTerm || selectedWarehouse !== "all" || selectedWarehouseType !== "all") && (
+          {(searchTerm ||
+            selectedWarehouse !== "all" ||
+            selectedWarehouseType !== "all") && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-400">
                 {filteredInventory.length} bodega(s) encontrada(s)
@@ -533,7 +532,6 @@ function WarehousesPageInner() {
     </div>
   );
 }
-
 
 export default function WarehousesPage(params) {
   return (

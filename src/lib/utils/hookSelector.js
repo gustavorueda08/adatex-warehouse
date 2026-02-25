@@ -9,6 +9,7 @@ import { useTerritories } from "../hooks/useTerritories";
 import { useTaxes } from "../hooks/useTaxes";
 import { useLines } from "../hooks/useLines";
 import { useCollections } from "../hooks/useCollections";
+import { useTransformationFactors } from "../hooks/useTransformationFactors";
 
 export function hookSelector(listType) {
   switch (listType) {
@@ -34,6 +35,8 @@ export function hookSelector(listType) {
       return useLines;
     case "collections":
       return useCollections;
+    case "transformation-factors":
+      return useTransformationFactors;
     default:
       return useOrders;
   }
