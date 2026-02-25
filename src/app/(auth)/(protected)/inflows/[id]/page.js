@@ -191,6 +191,9 @@ export default function InflowDetailPage({ params }) {
           const items = validItems.map((item) => ({
             id: item.id,
             quantity: Number(item.currentQuantity),
+            requestedPackages: item.requestedPackages
+              ? Number(item.requestedPackages)
+              : 1,
             lot: Number(item.lotNumber) || null,
             itemNumber: Number(item.itemNumber) || null,
           }));
@@ -202,6 +205,9 @@ export default function InflowDetailPage({ params }) {
             requestedQuantity: p.requestedQuantity
               ? Number(p.requestedQuantity)
               : 0,
+            requestedPackages: p.requestedPackages
+              ? Number(p.requestedPackages)
+              : 1,
             price: p.price ? Number(p.price) : 0,
             ivaIncluded: p.ivaIncluded || false,
             invoicePercentage: p.invoicePercentage
@@ -229,7 +235,11 @@ export default function InflowDetailPage({ params }) {
       if (confirmed && document.state === "draft") {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
-      await updateOrder(document.id, data);
+      const result = await updateOrder(document.id, data);
+      if (!result.success) {
+        throw result.error;
+      }
+
       addToast({
         title: "Orden de Entrada Actualizada",
         description: "La orden de entrada ha sido actualizada correctamente",
@@ -237,11 +247,32 @@ export default function InflowDetailPage({ params }) {
       });
     } catch (error) {
       console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la orden de entrada",
-        type: "error",
-      });
+      let isNegativeStock = false;
+      let negativeStockMessage = "";
+
+      try {
+        const errObj = JSON.parse(error.message);
+        if (errObj.code === "NEGATIVE_STOCK") {
+          isNegativeStock = true;
+          negativeStockMessage = errObj.message;
+        }
+      } catch (e) {
+        // Not a JSON error
+      }
+
+      if (isNegativeStock) {
+        addToast({
+          title: "Error de Inventario",
+          description: negativeStockMessage,
+          color: "danger",
+        });
+      } else {
+        addToast({
+          title: "Error al actualizar",
+          description: "Ocurrió un error al actualizar la orden de entrada",
+          type: "error",
+        });
+      }
     } finally {
       setLoadings({
         isUpdating: false,

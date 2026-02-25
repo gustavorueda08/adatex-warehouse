@@ -215,6 +215,17 @@ export default function ProductsPage() {
         "Es la cantidad de producto que actualmente hay en las bodegas de Adatex",
     },
     {
+      key: "smartCut",
+      label: "Metreados",
+      render: (product) => (
+        <Link href={`/products/${product.id}`} className="text-nowrap">
+          <span className="hover:underline cursor-pointer">
+            {format(product?.inventory?.smartCut || 0)} {product?.unit}
+          </span>
+        </Link>
+      ),
+    },
+    {
       key: "reserved",
       label: "Reservado",
       render: (product) => {
@@ -356,17 +367,6 @@ export default function ProductsPage() {
         <Link href={`/products/${product.id}`} className="text-nowrap">
           <span className="hover:underline cursor-pointer">
             {format(product?.inventory?.netAvailable || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
-    },
-    {
-      key: "smartCut",
-      label: "Metreados",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.smartCut || 0)} {product?.unit}
           </span>
         </Link>
       ),

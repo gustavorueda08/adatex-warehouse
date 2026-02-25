@@ -263,7 +263,11 @@ export default function TransferDetailPage({ params }) {
       if (confirmed && document.state === "draft") {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
-      await updateOrder(document.id, data);
+      const result = await updateOrder(document.id, data);
+      if (!result.success) {
+        throw result.error;
+      }
+
       addToast({
         title: "Transferencia Actualizada",
         description: "La transferencia ha sido actualizada correctamente",
@@ -272,11 +276,32 @@ export default function TransferDetailPage({ params }) {
       await refetch();
     } catch (error) {
       console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la transferencia",
-        type: "error",
-      });
+      let isNegativeStock = false;
+      let negativeStockMessage = "";
+
+      try {
+        const errObj = JSON.parse(error.message);
+        if (errObj.code === "NEGATIVE_STOCK") {
+          isNegativeStock = true;
+          negativeStockMessage = errObj.message;
+        }
+      } catch (e) {
+        // Not a JSON error
+      }
+
+      if (isNegativeStock) {
+        addToast({
+          title: "Error de Inventario",
+          description: negativeStockMessage,
+          color: "danger",
+        });
+      } else {
+        addToast({
+          title: "Error al actualizar",
+          description: "Ocurrió un error al actualizar la transferencia",
+          type: "error",
+        });
+      }
     } finally {
       setLoadings({
         isUpdating: false,

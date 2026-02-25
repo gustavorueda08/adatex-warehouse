@@ -82,7 +82,11 @@ function PackingListProductHeader({
       }
       result = await onHeaderScan(document.id, {
         product: product.product.id,
-        item: { quantity, confirmNegativeStock: forceNegativeStock },
+        item: {
+          quantity,
+          requestedPackages: 1,
+          confirmNegativeStock: forceNegativeStock,
+        },
       });
     } else {
       const { barcode, quantity } = parseItemData(value);

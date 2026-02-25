@@ -164,6 +164,9 @@ export default function OutflowDetailPage({ params }) {
           const items = validItems.map((item) => ({
             id: item.id, // Keep existing ID if present
             quantity: Number(item.currentQuantity),
+            requestedPackages: item.requestedPackages
+              ? Number(item.requestedPackages)
+              : 1,
             // Outflows might not always need lot/itemNumber strictness like Sales depending on specific business logic,
             // but usually yes for traceability. Keeping it flexible or strict based on requirement?
             // Sales logic requires them. For "Out", we will pass what we have.
@@ -178,6 +181,9 @@ export default function OutflowDetailPage({ params }) {
             requestedQuantity: p.requestedQuantity
               ? Number(p.requestedQuantity)
               : 0, // Keep requested as is, or update? usually requested is what was planned.
+            requestedPackages: p.requestedPackages
+              ? Number(p.requestedPackages)
+              : 1,
             confirmedQuantity: confirmedQuantity,
           };
         });
@@ -205,7 +211,10 @@ export default function OutflowDetailPage({ params }) {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
 
-      await updateOrder(document.id, data);
+      const result = await updateOrder(document.id, data);
+      if (!result.success) {
+        throw result.error;
+      }
 
       addToast({
         title: "Orden de Salida Actualizada",
@@ -216,11 +225,35 @@ export default function OutflowDetailPage({ params }) {
       await refetch(); // Refresh data to get latest state from backend/DB triggers
     } catch (error) {
       console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la orden de salida",
-        type: "error",
-      });
+      let isNegativeStock = false;
+      let negativeStockMessage = "";
+
+      try {
+        const errObj = JSON.parse(error.message);
+        if (errObj.code === "NEGATIVE_STOCK") {
+          isNegativeStock = true;
+          negativeStockMessage = errObj.message;
+        }
+      } catch (e) {
+        // Not a JSON error
+      }
+
+      if (isNegativeStock) {
+        // It's fine to just toast it here if there's no modal, but wait, OutflowDetailPage has a modal?
+        // Actually SaleDetailPage uses setNegativeStockError state. OutflowDetailPage doesn't have it.
+        // We will just toast the specific message.
+        addToast({
+          title: "Error de Inventario",
+          description: negativeStockMessage,
+          color: "danger",
+        });
+      } else {
+        addToast({
+          title: "Error al actualizar",
+          description: "Ocurrió un error al actualizar la orden de salida",
+          type: "error",
+        });
+      }
     } finally {
       setLoadings({
         isUpdating: false,

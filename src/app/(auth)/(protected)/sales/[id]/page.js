@@ -40,25 +40,28 @@ export default function SaleDetailPage({ params }) {
     addItem,
     removeItem,
     getInvoices,
-  } = useOrders({
-    filters: { id: [id] },
-    populate: [
-      "orderProducts",
-      "orderProducts.product",
-      "orderProducts.items",
-      "customer",
-      "customer.parties",
-      "customer.parties.taxes",
-      "customer.prices",
-      "customer.prices.product",
-      "customer.taxes",
-      "customerForInvoice",
-      "customerForInvoice.prices",
-      "customerForInvoice.prices.product",
-      "customerForInvoice.taxes",
-      "sourceWarehouse",
-    ],
-  });
+  } = useOrders(
+    {
+      filters: { id: [id] },
+      populate: [
+        "orderProducts",
+        "orderProducts.product",
+        "orderProducts.items",
+        "customer",
+        "customer.parties",
+        "customer.parties.taxes",
+        "customer.prices",
+        "customer.prices.product",
+        "customer.taxes",
+        "customerForInvoice",
+        "customerForInvoice.prices",
+        "customerForInvoice.prices.product",
+        "customerForInvoice.taxes",
+        "sourceWarehouse",
+      ],
+    },
+    { onError: (error) => console.log(error) },
+  );
   const [document, setDocument] = useState(orders[0] || null);
   const [loadings, setLoadings] = useState({
     isUpdating: false,
@@ -334,6 +337,10 @@ export default function SaleDetailPage({ params }) {
             requestedQuantity: p.requestedQuantity
               ? Number(p.requestedQuantity)
               : 0,
+            requestedPackages:
+              p.requestedPackages !== null && p.requestedPackages !== undefined
+                ? parseInt(p.requestedPackages, 10) || 1
+                : 1,
             price: p.price ? Number(p.price) : 0,
             ivaIncluded: p.ivaIncluded || false,
             invoicePercentage: p.invoicePercentage
@@ -357,6 +364,9 @@ export default function SaleDetailPage({ params }) {
             productPayload.items = validItems.map((item) => {
               const payloadItem = {
                 quantity: Number(item.currentQuantity || item.quantity),
+                requestedPackages: item.requestedPackages
+                  ? Number(item.requestedPackages)
+                  : 1,
                 confirmNegativeStock:
                   forceNegativeStock || item.confirmNegativeStock || false,
               };
@@ -387,6 +397,9 @@ export default function SaleDetailPage({ params }) {
               id:
                 item.id && !String(item.id).includes("-") ? item.id : undefined,
               quantity: Number(item.currentQuantity),
+              requestedPackages: item.requestedPackages
+                ? Number(item.requestedPackages)
+                : 1,
               lot: Number(item.lotNumber) || null,
               itemNumber: Number(item.itemNumber) || null,
             }));
@@ -419,7 +432,11 @@ export default function SaleDetailPage({ params }) {
       if (confirmed && document.state === "draft") {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
-      await updateOrder(document.id, data);
+      console.log(JSON.stringify(data));
+      const result = await updateOrder(document.id, data);
+      if (!result.success) {
+        throw result.error;
+      }
       await refetch();
 
       addToast({

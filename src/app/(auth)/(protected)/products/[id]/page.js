@@ -47,7 +47,7 @@ export default function ProductDetailPage({ params }) {
     refetch,
   } = useProducts({
     filters: { id: { $eq: id } },
-    populate: ["collections", "transformationFactor"],
+    populate: ["collections", "transformationFactor", "parentProduct"],
   });
   const { warehouses } = useWarehouses();
   const itemsFilters = useMemo(() => {
@@ -317,6 +317,7 @@ export default function ProductDetailPage({ params }) {
             ? product.parentProduct.id
             : product.parentProduct
           : null,
+      collections: product?.collections?.map((c) => c.id),
     };
     if (
       product?.type === "cutItem" &&
@@ -327,7 +328,6 @@ export default function ProductDetailPage({ params }) {
         tf.id ? { id: tf.id } : tf,
       );
     }
-
     await updateProduct(product?.id, data);
     await refetch();
     addToast({
