@@ -152,70 +152,10 @@ function InflowsPageInner() {
 
   const handleUpdate = async (document, updates = {}) => {
     try {
-      const products = document?.orderProducts || [];
-      const confirmed = products
-        .filter((p) => p.product)
-        .map((p) => ({
-          ...p,
-          items: (p.items || []).filter(
-            (i) => i.quantity !== 0 && i.quantity !== "",
-          ),
-        }))
-        .every(
-          (product) =>
-            Array.isArray(product.items) &&
-            product.items.length > 0 &&
-            product.items.every((item) => {
-              const q = item.quantity;
-              return (
-                q !== null && q !== undefined && q !== "" && !isNaN(Number(q))
-              );
-            }),
-        );
-
-      const formattedProducts = products
-        .filter((p) => p.product)
-        .map((p) => {
-          const validItems = (p.items || []).filter(
-            (i) => i.quantity !== 0 && i.quantity !== "",
-          );
-          // Calculate confirmedQuantity sum
-          const confirmedQuantity = validItems.reduce(
-            (sum, item) => sum + (Number(item.quantity) || 0),
-            0,
-          );
-          const items = validItems.map((item) => ({
-            id: item.id,
-            quantity: item.quantity,
-          }));
-
-          return {
-            product: p.product.id || p.product,
-            items: items,
-            confirmedQuantity,
-            requestedQuantity: p.requestedQuantity,
-            price: p.price,
-            ivaIncluded: p.ivaIncluded,
-            invoicePercentage: p.invoicePercentage,
-          };
-        });
-      const data = {
-        products: formattedProducts,
-        destinationWarehouse:
-          document.destinationWarehouse?.id || document.destinationWarehouse,
-        createdDate: document.createdDate,
-        confirmedDate: document?.confirmedDate
-          ? document.completedDate
-          : moment().toDate(),
-        completedDate: document?.completedDate
-          ? document.completedDate
-          : moment().toDate(),
-        state: "completed",
-      };
-      await updateOrder(document.id, data);
+      await updateOrder(document.id, updates);
     } catch (error) {
       console.error("Error updating order:", error);
-      throw error; // Re-throw for BulkActions to catch
+      throw error;
     }
   };
 
@@ -256,7 +196,6 @@ function InflowsPageInner() {
     </div>
   );
 }
-
 
 export default function InflowsPage(params) {
   return (

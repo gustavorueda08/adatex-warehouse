@@ -414,6 +414,7 @@ export default function SaleDetailPage({ params }) {
             ? "confirmed"
             : document.state,
         emitInvoice: emitInvoice,
+        notes: document.notes || "",
       };
       if (confirmed && document.state === "draft") {
         data.confirmedDate = moment.tz("America/Bogota").toDate();

@@ -1,5 +1,5 @@
 import { useUser } from "@/lib/hooks/useUser";
-import { Pagination, Skeleton, Progress } from "@heroui/react";
+import { Pagination, Skeleton, Progress, Tooltip } from "@heroui/react";
 import {
   Table,
   TableBody,
@@ -104,7 +104,13 @@ export default function Entities({
         }
       >
         <TableHeader columns={columns}>
-          {(column) => <TableColumn>{column.label}</TableColumn>}
+          {(column) => (
+            <TableColumn>
+              <Tooltip content={column.tooltip ? column.tooltip : null}>
+                {column.label}
+              </Tooltip>
+            </TableColumn>
+          )}
         </TableHeader>
         <TableBody
           isLoading={loading}
