@@ -113,6 +113,32 @@ const OPTIONAL_COLUMNS = [
     type: "array",
     description: 'Usernames separados por ; (ej: "vendedor1;vendedor2")',
   },
+  {
+    label: "PRODUCTO_PADRE",
+    variants: ["producto_padre", "parentproduct", "parent_product"],
+    apiKey: "parentProduct",
+    type: "number",
+    description: "ID del producto padre (opcional, ej: 315)",
+  },
+  {
+    label: "FACTORES_TRANSFORMACION",
+    variants: [
+      "factores_transformacion",
+      "transformationfactors",
+      "transformation_factors",
+    ],
+    apiKey: "transformationFactors",
+    type: "json",
+    description:
+      'ID o JSON de los factores de transformación (ej: 5 o [{"name": "1m=0.5kg"...}])',
+  },
+  {
+    label: "PRODUCTOS_PARA_CORTES",
+    variants: ["productos_para_cortes", "productsforcuts", "products_for_cuts"],
+    apiKey: "productsForCuts",
+    type: "array_numbers",
+    description: "IDs de productos para cortes separados por ; (ej: 121;122)",
+  },
 ];
 
 const ALL_COLUMNS = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
@@ -188,8 +214,32 @@ export default function BulkProductUploader({
       } else if (col.type === "array") {
         product[col.apiKey] = strValue
           .split(";")
-          .map((s) => s.trim())
+          .map((s) => {
+            const trimmed = s.trim();
+            // Try to parse as number if it looks like one
+            const asNum = Number(trimmed);
+            return isNaN(asNum) ? trimmed : asNum;
+          })
           .filter(Boolean);
+      } else if (col.type === "array_numbers") {
+        product[col.apiKey] = strValue
+          .split(";")
+          .map((s) => Number(s.trim()))
+          .filter((n) => !isNaN(n));
+      } else if (col.type === "json") {
+        // First try parsing it directly as an ID
+        const asId = Number(strValue);
+        if (!isNaN(asId)) {
+          product[col.apiKey] = [{ id: asId }];
+        } else {
+          // Fallback to JSON parsing
+          try {
+            const parsed = JSON.parse(strValue);
+            product[col.apiKey] = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            console.warn(`Failed to parse json column ${col.label}:`, strValue);
+          }
+        }
       } else {
         product[col.apiKey] = strValue;
       }

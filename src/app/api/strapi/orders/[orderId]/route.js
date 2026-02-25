@@ -19,7 +19,7 @@ export async function PUT(request, context) {
     if (!orderId) {
       return NextResponse.json(
         { error: "ID de orden requerido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,7 +29,7 @@ export async function PUT(request, context) {
     if (!body || !body.data) {
       return NextResponse.json(
         { error: "Datos de orden requeridos. Se requiere un objeto 'data'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,6 +53,12 @@ export async function PUT(request, context) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorText);
+      } catch (e) {
+        parsedError = { error: { message: errorText } };
+      }
       console.error("Strapi Error:", {
         status: response.status,
         statusText: response.statusText,
@@ -62,11 +68,12 @@ export async function PUT(request, context) {
 
       return NextResponse.json(
         {
-          error: "Error al actualizar la orden en Strapi",
-          details: errorText,
+          error: parsedError.error || {
+            message: "Error al actualizar la orden en Strapi",
+          },
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -76,7 +83,7 @@ export async function PUT(request, context) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -88,7 +95,7 @@ export async function PUT(request, context) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -109,7 +116,7 @@ export async function DELETE(request, context) {
     if (!orderId) {
       return NextResponse.json(
         { error: "ID de orden requerido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -130,6 +137,12 @@ export async function DELETE(request, context) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorText);
+      } catch (e) {
+        parsedError = { error: { message: errorText } };
+      }
       console.error("Strapi Error:", {
         status: response.status,
         statusText: response.statusText,
@@ -139,11 +152,12 @@ export async function DELETE(request, context) {
 
       return NextResponse.json(
         {
-          error: "Error al eliminar la orden en Strapi",
-          details: errorText,
+          error: parsedError.error || {
+            message: "Error al eliminar la orden en Strapi",
+          },
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -153,7 +167,7 @@ export async function DELETE(request, context) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -165,7 +179,7 @@ export async function DELETE(request, context) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -31,6 +31,24 @@ const TEMPLATE_COLUMNS = [
     type: "array",
     subKey: "username",
   },
+  {
+    header: "PRODUCTO_PADRE",
+    key: "parentProduct",
+    type: "object",
+    subKey: "id",
+  },
+  {
+    header: "FACTORES_TRANSFORMACION",
+    key: "transformationFactor",
+    type: "object",
+    subKey: "id",
+  },
+  {
+    header: "PRODUCTOS_PARA_CORTES",
+    key: "productsForCuts",
+    type: "array",
+    subKey: "id",
+  },
 ];
 
 /**
@@ -58,7 +76,13 @@ export async function exportProductsTemplate({ toast } = {}) {
       const queryString = buildStrapiQuery({
         pagination: { page, pageSize },
         sort: ["code:asc"],
-        populate: ["collections", "hideFor"],
+        populate: [
+          "collections",
+          "hideFor",
+          "parentProduct",
+          "transformationFactor",
+          "productsForCuts",
+        ],
       });
 
       const res = await fetch(`/api/strapi/products?${queryString}`);
@@ -90,6 +114,13 @@ export async function exportProductsTemplate({ toast } = {}) {
           // Convert array of objects to semicolon-separated string
           if (Array.isArray(value) && value.length > 0) {
             row[header] = value.map((item) => item[subKey] || item).join(";");
+          } else {
+            row[header] = "";
+          }
+        } else if (type === "object") {
+          // Extract a specific key from a single relation object
+          if (value && typeof value === "object") {
+            row[header] = value[subKey] || "";
           } else {
             row[header] = "";
           }

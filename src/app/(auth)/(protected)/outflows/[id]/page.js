@@ -28,6 +28,7 @@ export default function OutflowDetailPage({ params }) {
       populate: [
         "orderProducts",
         "orderProducts.product",
+        "orderProducts.product.parentProduct",
         "orderProducts.items",
         "sourceWarehouse",
       ],

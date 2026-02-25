@@ -23,6 +23,7 @@ import {
   ModalBody,
   ModalFooter,
   Button,
+  useDisclosure,
 } from "@heroui/react";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { useRouter } from "next/navigation";
@@ -46,6 +47,7 @@ export default function SaleDetailPage({ params }) {
       populate: [
         "orderProducts",
         "orderProducts.product",
+        "orderProducts.product.parentProduct",
         "orderProducts.items",
         "customer",
         "customer.parties",
@@ -67,10 +69,12 @@ export default function SaleDetailPage({ params }) {
     isUpdating: false,
     isDeleting: false,
   });
-  const [negativeStockError, setNegativeStockError] = useState({
-    isOpen: false,
-    message: "",
-  });
+  const {
+    isOpen: isNegativeStockOpen,
+    onOpen: onNegativeStockOpen,
+    onOpenChange: onNegativeStockOpenChange,
+  } = useDisclosure();
+  const [negativeStockMessage, setNegativeStockMessage] = useState("");
   const headerFields = useMemo(() => {
     return [
       {
@@ -435,39 +439,16 @@ export default function SaleDetailPage({ params }) {
       console.log(JSON.stringify(data));
       const result = await updateOrder(document.id, data);
       if (!result.success) {
-        throw result.error;
       }
       await refetch();
-
       addToast({
         title: "Orden de Venta Actualizada",
         description: "La orden de venta ha sido actualizada correctamente",
         type: "success",
       });
     } catch (error) {
-      console.error(error);
       let isNegativeStock = false;
       let negativeStockMessage = "";
-
-      try {
-        const errObj = JSON.parse(error.message);
-        if (errObj.code === "NEGATIVE_STOCK") {
-          isNegativeStock = true;
-          negativeStockMessage = errObj.message;
-        }
-      } catch (e) {
-        // Not a JSON error
-      }
-
-      if (isNegativeStock) {
-        setNegativeStockError({ isOpen: true, message: negativeStockMessage });
-      } else {
-        addToast({
-          title: "Error al actualizar",
-          description: "Ocurrió un error al actualizar la orden de venta",
-          type: "error",
-        });
-      }
     } finally {
       setLoadings({
         isUpdating: false,
@@ -567,41 +548,6 @@ export default function SaleDetailPage({ params }) {
           }
         />
       </Section>
-      <Modal
-        isOpen={negativeStockError.isOpen}
-        onClose={() => setNegativeStockError({ isOpen: false, message: "" })}
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            Stock Negativo Detectado
-          </ModalHeader>
-          <ModalBody>
-            <p className="text-sm text-default-500">
-              {negativeStockError.message}
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              color="danger"
-              variant="light"
-              onPress={() =>
-                setNegativeStockError({ isOpen: false, message: "" })
-              }
-            >
-              Cancelar
-            </Button>
-            <Button
-              color="primary"
-              onPress={() => {
-                setNegativeStockError({ isOpen: false, message: "" });
-                handleUpdate(null, false, true);
-              }}
-            >
-              Confirmar Corte
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </Document>
   );
 }

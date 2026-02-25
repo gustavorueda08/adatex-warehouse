@@ -14,7 +14,7 @@ export async function POST(request, context) {
     if (!orderId) {
       return NextResponse.json(
         { error: "ID de orden requerido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -25,14 +25,14 @@ export async function POST(request, context) {
     if (!body || !body.data) {
       return NextResponse.json(
         { error: "Datos inválidos. Se requiere un objeto 'data'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Construir la URL de Strapi
     const strapiUrl = new URL(
       `/api/orders/${orderId}/add`,
-      STRAPI_URL.toString()
+      STRAPI_URL.toString(),
     );
 
     // Configurar headers para la petición a Strapi
@@ -50,6 +50,12 @@ export async function POST(request, context) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorText);
+      } catch (e) {
+        parsedError = { error: { message: errorText } };
+      }
       console.error("Strapi Error:", {
         status: response.status,
         statusText: response.statusText,
@@ -59,11 +65,12 @@ export async function POST(request, context) {
 
       return NextResponse.json(
         {
-          error: "Error al crear la orden en Strapi",
-          details: errorText,
+          error: parsedError.error || {
+            message: "Error al crear la orden en Strapi",
+          },
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -73,7 +80,7 @@ export async function POST(request, context) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -85,7 +92,7 @@ export async function POST(request, context) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

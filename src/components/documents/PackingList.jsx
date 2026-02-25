@@ -30,6 +30,7 @@ import { v4 as uuidv4 } from "uuid";
 import DebouncedInput from "../ui/DebounceInput";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseItemData } from "@/lib/utils/parseItemData";
+import QuickTransferModal from "./QuickTransferModal";
 
 function PackingListProductHeader({
   document,
@@ -46,6 +47,14 @@ function PackingListProductHeader({
     ) / 100;
 
   const [inputValue, setInputValue] = useState("");
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const {
+    isOpen: isTransferOpen,
+    onOpen: onTransferOpen,
+    onOpenChange: onTransferOpenChange,
+  } = useDisclosure();
+  const [negativeStockMessage, setNegativeStockMessage] = useState("");
+  const [pendingSubmitValue, setPendingSubmitValue] = useState("");
 
   const type = product.product?.type || "variableQuantityPerItem";
 
@@ -152,6 +161,9 @@ function PackingListProductHeader({
         color: "success",
       });
     } else {
+      if (result?.error) {
+        throw result?.error;
+      }
       addToast({
         title: "Error al agregar",
         description: "El Item no está disponible o hubo un error",
@@ -161,24 +173,21 @@ function PackingListProductHeader({
   };
 
   const handleKeyDown = async (e) => {
+    if (e.key !== "Enter" || !onHeaderScan) return;
+
+    // Guardamos el valor antes de limpiar el input para poder reintentar si falla
+    const scannedValue = inputValue;
+    setInputValue("");
     try {
-      if (e.key === "Enter" && onHeaderScan) {
-        const value = inputValue;
-        setInputValue("");
-        await submitItem(value);
-      }
+      await submitItem(scannedValue);
     } catch (error) {
       console.error(error);
       try {
         const errObj = JSON.parse(error.message);
         if (errObj.code === "NEGATIVE_STOCK") {
-          if (window.confirm(errObj.message)) {
-            // Re-submit the same value with confirmNegativeStock = true
-            // Because we cleared inputValue, we use 'value'
-            // wait, where is value? It is out of scope if we don't pass it.
-            // But we can just use the previous value we were processing
-            await submitItem(e.target.value, true);
-          }
+          setNegativeStockMessage(errObj.message);
+          setPendingSubmitValue(scannedValue);
+          onOpen();
           return;
         }
       } catch (err) {}
@@ -251,6 +260,54 @@ function PackingListProductHeader({
         color={isCompleted ? "success" : "warning"}
         showValueLabel
         label="Progreso"
+      />
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Stock Negativo Detectado
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-default-500">
+                  {negativeStockMessage}
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="default" variant="light" onPress={onClose}>
+                  Cancelar
+                </Button>
+                {/* {product?.product?.parentProduct && (
+                  <Button
+                    color="secondary"
+                    onPress={() => {
+                      onClose();
+                      onTransferOpen();
+                    }}
+                  >
+                    Transferencia Rápida
+                  </Button>
+                )} */}
+                <Button
+                  color="danger"
+                  onPress={() => {
+                    submitItem(pendingSubmitValue, true);
+                    onClose();
+                  }}
+                >
+                  Confirmar Corte
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <QuickTransferModal
+        isOpen={isTransferOpen}
+        onOpenChange={onTransferOpenChange}
+        cutItemProduct={product?.product}
+        onTransferComplete={() => submitItem(pendingSubmitValue)}
       />
     </div>
   );
