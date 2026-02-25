@@ -338,7 +338,7 @@ export default function SaleDetailPage({ params }) {
             ivaIncluded: p.ivaIncluded || false,
             invoicePercentage: p.invoicePercentage
               ? Number(p.invoicePercentage)
-              : 100,
+              : 0,
           };
 
           if (type === "fixedQuantityPerItem") {
