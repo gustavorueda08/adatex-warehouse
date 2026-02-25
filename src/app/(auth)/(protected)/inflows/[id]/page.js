@@ -352,6 +352,7 @@ export default function InflowDetailPage({ params }) {
           onDelete={handleDelete}
           onComplete={handleUpdate}
           loadings={loadings}
+          showAdminActions={true}
         />
       </Section>
     </Document>

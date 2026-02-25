@@ -23,9 +23,7 @@ function NewProductPageInner() {
           color: "success",
         });
         // Strapi v4 returns id in the top level response or documentId
-        router.push(
-          `/products/${createdProduct.documentId || createdProduct.id}`,
-        );
+        router.push(`/products/${createdProduct.id}`);
       },
       onError: (error) => {
         addToast({
@@ -200,7 +198,7 @@ function NewProductPageInner() {
         data.collections = product.collections.map((c) => c.id || c);
       }
 
-      await createProduct({ data });
+      await createProduct(data);
     } catch (error) {
       console.error(error);
       addToast({

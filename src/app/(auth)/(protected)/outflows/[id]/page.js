@@ -296,9 +296,9 @@ export default function OutflowDetailPage({ params }) {
           document={document}
           onUpdate={handleUpdate}
           onComplete={() => handleUpdate("completed")}
-          // No Invoice action for Outflows
           onDelete={handleDelete}
           loadings={loadings}
+          showAdminActions={true}
         />
       </Section>
     </Document>

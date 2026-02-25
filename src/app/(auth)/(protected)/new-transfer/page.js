@@ -54,7 +54,9 @@ function NewTransferPageInner() {
           : "",
         render: (warehouse) => `${warehouse?.name}`,
         filters: (search) => {
-          const base = { $and: [{ type: { $eq: "stock" } }] };
+          const base = {
+            $or: [{ type: { $eq: "stock" } }, { type: { $eq: "smartCut" } }],
+          };
           if (!search) return base;
           const terms = search.split(/\s+/).filter(Boolean);
           if (terms.length === 0) return base;
@@ -85,7 +87,9 @@ function NewTransferPageInner() {
           : "",
         render: (warehouse) => `${warehouse?.name}`,
         filters: (search) => {
-          const base = { $and: [{ type: { $eq: "stock" } }] };
+          const base = {
+            $or: [{ type: { $eq: "stock" } }, { type: { $eq: "smartCut" } }],
+          };
           if (!search) return base;
           const terms = search.split(/\s+/).filter(Boolean);
           if (terms.length === 0) return base;
@@ -191,7 +195,6 @@ function NewTransferPageInner() {
     </Document>
   );
 }
-
 
 export default function NewTransferPage(params) {
   return (

@@ -48,7 +48,7 @@ export async function GET(request) {
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -58,7 +58,7 @@ export async function GET(request) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
     // Añadir headers de cache si es necesario
@@ -76,7 +76,7 @@ export async function GET(request) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -94,7 +94,7 @@ export async function POST(request) {
     if (!body || !body.data) {
       return NextResponse.json(
         { error: "Datos inválidos. Se requiere un objeto 'data'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -106,6 +106,8 @@ export async function POST(request) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     };
+
+    console.log("SENDING TO STRAPI:", JSON.stringify(body, null, 2));
 
     // Realizar la petición POST a Strapi
     const response = await fetch(strapiUrl.toString(), {
@@ -129,7 +131,7 @@ export async function POST(request) {
           details: errorText,
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -139,7 +141,7 @@ export async function POST(request) {
     if (!data || typeof data !== "object") {
       return NextResponse.json(
         { error: "Respuesta inválida de Strapi" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -151,7 +153,7 @@ export async function POST(request) {
         error: "Error interno del servidor",
         message: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

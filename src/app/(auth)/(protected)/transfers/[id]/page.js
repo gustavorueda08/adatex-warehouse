@@ -346,6 +346,7 @@ export default function TransferDetailPage({ params }) {
           onComplete={handleUpdate}
           onDelete={handleDelete}
           loadings={loadings}
+          showAdminActions={true}
         />
       </Section>
     </Document>

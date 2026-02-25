@@ -178,7 +178,7 @@ export default function Actions({
   getInvoices,
   onDelete,
   loadings: parentLoadings,
-  showAdminActions = false,
+  showAdminActions = true,
 }) {
   const { user } = useUser();
   const [localLoadings, setLocalLoadings] = useState({
