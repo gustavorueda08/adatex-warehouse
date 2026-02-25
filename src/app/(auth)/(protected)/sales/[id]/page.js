@@ -111,8 +111,9 @@ export default function SaleDetailPage({ params }) {
           });
         },
         disabled:
-          document?.state === ORDER_STATES.COMPLETED ||
-          (user?.type !== "admin" && user?.type === "seller"),
+          user?.type !== "admin" &&
+          (document?.state === ORDER_STATES.COMPLETED ||
+            user?.type === "seller"),
       },
       {
         listType: "customers",
@@ -155,8 +156,9 @@ export default function SaleDetailPage({ params }) {
           });
         },
         disabled:
-          document?.state === ORDER_STATES.COMPLETED ||
-          (user?.type !== "admin" && user?.type === "seller"),
+          user?.type !== "admin" &&
+          (document?.state === ORDER_STATES.COMPLETED ||
+            user?.type === "seller"),
       },
       {
         listType: "warehouses",
@@ -222,8 +224,9 @@ export default function SaleDetailPage({ params }) {
           });
         },
         disabled:
-          document?.state === ORDER_STATES.COMPLETED ||
-          (user?.type !== "admin" && user?.type === "seller"),
+          user?.type !== "admin" &&
+          (document?.state === ORDER_STATES.COMPLETED ||
+            user?.type === "seller"),
       },
       {
         label: "Fecha de Despacho",
@@ -478,8 +481,9 @@ export default function SaleDetailPage({ params }) {
           setDocument={setDocument}
           priceList={document?.customerForInvoice?.prices || []}
           disabled={
-            document?.state === ORDER_STATES.COMPLETED ||
-            (user?.type === "seller" && user?.type !== "admin")
+            user?.type !== "admin" &&
+            (document?.state === ORDER_STATES.COMPLETED ||
+              user?.type === "seller")
           }
         />
       </Section>
