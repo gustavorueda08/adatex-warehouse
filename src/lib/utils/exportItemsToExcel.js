@@ -96,7 +96,7 @@ export async function exportItemsToExcel({
 
         const queryString = buildStrapiQuery(params);
         const res = await fetch(
-          `/api/strapi/products/inventory?${queryString}`
+          `/api/strapi/products/inventory?${queryString}`,
         );
 
         if (!res.ok) throw new Error("Error fetching data");

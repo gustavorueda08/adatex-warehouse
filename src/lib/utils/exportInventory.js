@@ -66,7 +66,7 @@ export async function exportInventory({
         // The ProductsPage hook internally calls `/api/strapi/products/inventory` if we need projection etc.
         // We replicate this backend query building:
 
-        let endpoint = "/api/strapi/products";
+        let endpoint = "/api/strapi/products/inventory";
         const queryOptions = {
           pagination: { page, pageSize },
           filters,
@@ -78,8 +78,7 @@ export async function exportInventory({
         const queryStr = buildStrapiQuery(queryOptions);
 
         // Append date/inventory params manually to match useProducts behavior
-        const urlParams = new URLSearchParams(queryStr);
-        urlParams.append("withInventory", "true");
+        const urlParams = new URLSearchParams();
         if (dateParams.date)
           urlParams.append("date", dateParams.date.toString());
         if (dateParams.fromDate)
@@ -87,7 +86,11 @@ export async function exportInventory({
         if (dateParams.toDate)
           urlParams.append("toDate", dateParams.toDate.toString());
 
-        const res = await fetch(`${endpoint}?${urlParams.toString()}`);
+        const fullQueryStr = urlParams.toString()
+          ? `${queryStr}&${urlParams.toString()}`
+          : queryStr;
+
+        const res = await fetch(`${endpoint}?${fullQueryStr}`);
         if (!res.ok) throw new Error(`Error fetching products (page ${page})`);
 
         const data = await res.json();
