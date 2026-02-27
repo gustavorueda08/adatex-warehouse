@@ -125,42 +125,64 @@ export default function NewPurchasePage() {
         label: "Fecha de Creación",
         type: "date-picker",
         disabled: true,
-        value: parseDate(moment(document?.createdDate).format("YYYY-MM-DD")),
+        value:
+          document?.createdDate && moment(document.createdDate).isValid()
+            ? parseDate(moment(document.createdDate).format("YYYY-MM-DD"))
+            : null,
         onChange: (date) => {
           setDocument({
             ...document,
-            createdDate: moment(date).toDate(),
+            createdDate: date
+              ? moment(
+                  `${date.year}-${date.month}-${date.day}`,
+                  "YYYY-M-D",
+                ).toDate()
+              : null,
           });
         },
       },
       {
         label: "Fecha Estimada de Transito",
         type: "date-picker",
-        value: parseDate(
-          document?.estimatedTransitDate
-            ? moment(document?.estimatedTransitDate).format("YYYY-MM-DD")
-            : moment().add(30, "days").format("YYYY-MM-DD"),
-        ),
+        value:
+          document?.estimatedTransitDate &&
+          moment(document.estimatedTransitDate).isValid()
+            ? parseDate(
+                moment(document.estimatedTransitDate).format("YYYY-MM-DD"),
+              )
+            : null,
         onChange: (date) => {
           setDocument({
             ...document,
-            estimatedTransitDate: moment(date).toDate(),
+            estimatedTransitDate: date
+              ? moment(
+                  `${date.year}-${date.month}-${date.day}`,
+                  "YYYY-M-D",
+                ).toDate()
+              : null,
           });
         },
       },
       {
         label: "Fecha Estimada de Recepción",
         type: "date-picker",
-        value: parseDate(
-          document?.estimatedCompletedDate
-            ? moment(document?.estimatedCompletedDate).format("YYYY-MM-DD")
-            : moment().add(65, "days").format("YYYY-MM-DD"),
-        ),
+        value:
+          document?.estimatedCompletedDate &&
+          moment(document.estimatedCompletedDate).isValid()
+            ? parseDate(
+                moment(document.estimatedCompletedDate).format("YYYY-MM-DD"),
+              )
+            : null,
         fullWidth: true,
         onChange: (date) => {
           setDocument({
             ...document,
-            estimatedCompletedDate: moment(date).toDate(),
+            estimatedCompletedDate: date
+              ? moment(
+                  `${date.year}-${date.month}-${date.day}`,
+                  "YYYY-M-D",
+                ).toDate()
+              : null,
           });
         },
       },
