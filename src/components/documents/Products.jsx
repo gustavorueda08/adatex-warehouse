@@ -487,6 +487,14 @@ export default function Products({
         ? specificPrice.unitPrice
         : newProductData.price || 0;
       const ivaIncluded = specificPrice ? specificPrice.ivaIncluded : false;
+      const invoicePercentage =
+        specificPrice?.invoicePercentage !== undefined &&
+        specificPrice?.invoicePercentage !== null
+          ? specificPrice.invoicePercentage
+          : newProductData.invoicePercentage !== undefined &&
+              newProductData.invoicePercentage !== null
+            ? newProductData.invoicePercentage
+            : 100;
 
       // Check if we are updating an existing product or adding a new one
       const exists = prev.orderProducts.some((op) => op.id === orderProductId);
@@ -502,6 +510,7 @@ export default function Products({
               items: newProductData.items || [],
               price,
               ivaIncluded,
+              invoicePercentage,
             };
           }
           return op;
@@ -521,6 +530,7 @@ export default function Products({
           product: newProductData,
           price, // Set retrieved price or default
           ivaIncluded, // Set retrieved ivaIncluded or default
+          invoicePercentage, // Set retrieved invoicePercentage or default
           name: newProductData.name,
           unit: newProductData.unit,
           items: newProductData.items || [],
@@ -618,13 +628,26 @@ export default function Products({
             ? specificPrice.unitPrice
             : op.price;
           const expectedIva = specificPrice ? specificPrice.ivaIncluded : false;
+          const expectedInvoicePercentage =
+            specificPrice?.invoicePercentage !== undefined &&
+            specificPrice?.invoicePercentage !== null
+              ? specificPrice.invoicePercentage
+              : op.invoicePercentage !== undefined &&
+                  op.invoicePercentage !== null
+                ? op.invoicePercentage
+                : 100;
 
-          if (op.price !== expectedPrice || op.ivaIncluded !== expectedIva) {
+          if (
+            op.price !== expectedPrice ||
+            op.ivaIncluded !== expectedIva ||
+            op.invoicePercentage !== expectedInvoicePercentage
+          ) {
             hasChanges = true;
             return {
               ...op,
               price: expectedPrice,
               ivaIncluded: expectedIva,
+              invoicePercentage: expectedInvoicePercentage,
             };
           }
           return op;
