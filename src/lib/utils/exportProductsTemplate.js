@@ -18,6 +18,9 @@ const TEMPLATE_COLUMNS = [
   { header: "UNIDADES_POR_PAQUETE", key: "unitsPerPackage" },
   { header: "ACTIVO", key: "isActive", type: "boolean" },
   { header: "CANTIDAD_VARIABLE", key: "hasVariableQuantity", type: "boolean" },
+  { header: "PERMITE_CORTE", key: "canCut", type: "boolean" },
+  { header: "UNIDAD_DE_CORTE", key: "cutUnit" },
+  { header: "FACTOR_DE_CORTE", key: "cutTransformationFactor" },
   { header: "SIIGO_ID", key: "siigoId" },
   {
     header: "COLECCIONES",

@@ -31,11 +31,10 @@ export default function ProductsPage() {
   });
   const [search, setSearch] = useState("");
   const [inventoryMode, setInventoryMode] = useState("standard"); // standard, historical, projection
-  const [selectedDate, setSelectedDate] = useState(today(getLocalTimeZone()));
-  const [dateRange, setDateRange] = useState({
-    start: today(getLocalTimeZone()),
-    end: today(getLocalTimeZone()).add({ months: 1 }),
-  });
+  const [selectedDate, setSelectedDate] = useState(today("America/Bogota"));
+  const [projectionDate, setProjectionDate] = useState(
+    today("America/Bogota").add({ months: 1 }),
+  );
   const [selectedLine, setSelectedLine] = useState(null);
   const [selectedCollections, setSelectedCollections] = useState(new Set());
   const linesList = useEntityList({
@@ -112,14 +111,14 @@ export default function ProductsPage() {
       return { date: selectedDate };
     }
     if (inventoryMode === "projection") {
-      if (!dateRange?.start || !dateRange?.end) return {};
+      if (!projectionDate) return {};
       return {
-        fromDate: dateRange.start,
-        toDate: dateRange.end,
+        fromDate: today("America/Bogota"),
+        toDate: projectionDate,
       };
     }
     return {};
-  }, [inventoryMode, selectedDate, dateRange]);
+  }, [inventoryMode, selectedDate, projectionDate]);
   const {
     products,
     pagination: { pageCount },
@@ -451,8 +450,8 @@ export default function ProductsPage() {
         onSelectionChange={onInventoryModeChange}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
-        dateRange={dateRange}
-        setDateRange={setDateRange}
+        projectionDate={projectionDate}
+        setProjectionDate={setProjectionDate}
       />
       <Entities
         entities={products}

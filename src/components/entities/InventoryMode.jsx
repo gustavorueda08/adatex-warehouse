@@ -9,13 +9,13 @@ import React, { useMemo } from "react";
 export default function InventoryMode({
   inventoryMode,
   onSelectionChange,
-  dateRange,
-  setDateRange,
+  projectionDate,
+  setProjectionDate,
   selectedDate,
   setSelectedDate,
 }) {
   const minDate = useMemo(() => {
-    const now = today(getLocalTimeZone());
+    const now = today("America/Bogota");
     return new CalendarDate(now.year, now.month, 1);
   }, []);
   const screenSize = useScreenSize();
@@ -41,17 +41,17 @@ export default function InventoryMode({
                 onChange={setSelectedDate}
                 className="max-w-xs"
                 showMonthAndYearPickers
-                maxValue={today(getLocalTimeZone())}
+                maxValue={today("America/Bogota")}
                 size={screenSize === "lg" ? "md" : "sm"}
               />
             </I18nProvider>
           </Tab>
           <Tab key="projection" title="Proyección">
             <I18nProvider locale="es-CL">
-              <DateRangePicker
-                label="Rango de Proyección"
-                value={dateRange}
-                onChange={setDateRange}
+              <DatePicker
+                label="Fecha de Proyección"
+                value={projectionDate}
+                onChange={setProjectionDate}
                 className="max-w-xs"
                 showMonthAndYearPickers
                 minValue={minDate}

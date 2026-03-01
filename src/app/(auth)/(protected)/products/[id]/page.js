@@ -146,7 +146,9 @@ export default function ProductDetailPage({ params }) {
           },
         ]
       : []),
-    ...(product?.type === "variableQuantityPerItem" || product?.type === null
+    ...(product?.type === "variableQuantityPerItem" ||
+    product?.type === "fixedQuantityPerItem" ||
+    !product?.type
       ? [
           {
             key: "unitsPerPackage",
@@ -156,6 +158,41 @@ export default function ProductDetailPage({ params }) {
             onChange: (unitsPerPackage) =>
               setProduct({ ...product, unitsPerPackage }),
             inputType: "number",
+          },
+          {
+            key: "canCut",
+            label: "¿Crear Producto de Corte Automáticamente?",
+            type: "checkbox",
+            value: product?.canCut || false,
+            onChange: (canCut) => setProduct({ ...product, canCut }),
+            fullWidth: true,
+          },
+        ]
+      : []),
+    ...(product?.canCut
+      ? [
+          {
+            key: "cutUnit",
+            label: "Unidad de Corte",
+            type: "select",
+            options: [
+              { key: "kg", label: "Kilogramo (kg)" },
+              { key: "m", label: "Metro (m)" },
+              { key: "unit", label: "Unidad (und)" },
+            ],
+            value: product?.cutUnit,
+            required: true,
+            onChange: (cutUnit) => setProduct({ ...product, cutUnit }),
+          },
+          {
+            key: "cutTransformationFactor",
+            label: "Factor de Transformación",
+            type: "input",
+            inputType: "number",
+            value: product?.cutTransformationFactor,
+            required: true,
+            onChange: (cutTransformationFactor) =>
+              setProduct({ ...product, cutTransformationFactor }),
           },
         ]
       : []),
@@ -317,6 +354,11 @@ export default function ProductDetailPage({ params }) {
             ? product.parentProduct.id
             : product.parentProduct
           : null,
+      canCut: product?.canCut,
+      cutUnit: product?.canCut ? product.cutUnit : undefined,
+      cutTransformationFactor: product?.canCut
+        ? Number(product.cutTransformationFactor)
+        : undefined,
       collections: product?.collections?.map((c) => c.id),
     };
     if (

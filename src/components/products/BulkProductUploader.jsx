@@ -94,6 +94,32 @@ const OPTIONAL_COLUMNS = [
     description: "true/false (default: true)",
   },
   {
+    label: "PERMITE_CORTE",
+    variants: ["permite_corte", "cancut", "can_cut"],
+    apiKey: "canCut",
+    type: "boolean",
+    description: "true/false (indica si se crea un producto de corte)",
+  },
+  {
+    label: "UNIDAD_DE_CORTE",
+    variants: ["unidad_corte", "cutunit", "cut_unit", "unidad_de_corte"],
+    apiKey: "cutUnit",
+    description: "Unidad para el producto de corte ('m', 'kg', 'unit')",
+  },
+  {
+    label: "FACTOR_DE_CORTE",
+    variants: [
+      "factor_corte",
+      "cutfactor",
+      "cut_transformation_factor",
+      "cuttransformationfactor",
+      "factor_de_corte",
+    ],
+    apiKey: "cutTransformationFactor",
+    type: "number",
+    description: "Multiplicador de transformación (ej: 2.5)",
+  },
+  {
     label: "SIIGO_ID",
     variants: ["siigo_id", "siigoid"],
     apiKey: "siigoId",

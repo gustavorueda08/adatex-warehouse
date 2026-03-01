@@ -44,6 +44,9 @@ function NewProductPageInner() {
     unit: "m",
     category: "Confeccion",
     isActive: true,
+    canCut: false,
+    cutUnit: "m",
+    cutTransformationFactor: null,
     unitsPerPackage: 1,
     hasVariableQuantity: true,
     defaultCutProduct: false,
@@ -108,6 +111,46 @@ function NewProductPageInner() {
             },
           ]
         : []),
+      ...(product?.type === "variableQuantityPerItem" ||
+      product?.type === "fixedQuantityPerItem"
+        ? [
+            {
+              key: "canCut",
+              label: "¿Crear Producto de Corte Automáticamente?",
+              type: "checkbox",
+              value: product?.canCut,
+              onChange: (canCut) => setProduct({ ...product, canCut }),
+              fullWidth: true,
+            },
+          ]
+        : []),
+      ...(product?.canCut
+        ? [
+            {
+              key: "cutUnit",
+              label: "Unidad de Corte",
+              type: "select",
+              options: [
+                { key: "kg", label: "Kilogramo (kg)" },
+                { key: "m", label: "Metro (m)" },
+                { key: "unit", label: "Unidad (und)" },
+              ],
+              value: product?.cutUnit,
+              required: true,
+              onChange: (cutUnit) => setProduct({ ...product, cutUnit }),
+            },
+            {
+              key: "cutTransformationFactor",
+              label: "Factor de Transformación",
+              type: "input",
+              inputType: "number",
+              value: product?.cutTransformationFactor,
+              required: true,
+              onChange: (cutTransformationFactor) =>
+                setProduct({ ...product, cutTransformationFactor }),
+            },
+          ]
+        : []),
       ...(product.type === "cutItem"
         ? [
             {
@@ -165,6 +208,11 @@ function NewProductPageInner() {
         unit: product.unit,
         category: product.category,
         isActive: product.isActive,
+        canCut: product.canCut,
+        cutUnit: product.canCut ? product.cutUnit : undefined,
+        cutTransformationFactor: product.canCut
+          ? Number(product.cutTransformationFactor)
+          : undefined,
         unitsPerPackage: product.unitsPerPackage,
         siigoId: product.siigoId,
       };
