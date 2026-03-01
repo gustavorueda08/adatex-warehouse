@@ -486,9 +486,7 @@ export default function Products({
       const price = specificPrice
         ? specificPrice.unitPrice
         : newProductData.price || 0;
-      const ivaIncluded = specificPrice
-        ? specificPrice.ivaIncluded
-        : newProductData.ivaIncluded || false;
+      const ivaIncluded = specificPrice ? specificPrice.ivaIncluded : false;
 
       // Check if we are updating an existing product or adding a new one
       const exists = prev.orderProducts.some((op) => op.id === orderProductId);
@@ -599,6 +597,50 @@ export default function Products({
       };
     });
   };
+
+  useEffect(() => {
+    // Recalculate price and ivaIncluded when priceList changes
+    if (isMounted && setDocument && products.length > 0) {
+      setDocument((prev) => {
+        if (!prev) return prev;
+
+        let hasChanges = false;
+        const newOrderProducts = prev.orderProducts.map((op) => {
+          if (!op.product) return op; // Skip ghost row or incomplete rows
+
+          const productId = op.product.id || op.product;
+          const specificPrice = priceList.find(
+            (p) => String(p.product?.id || p.product) === String(productId),
+          );
+
+          // Determine expected values
+          const expectedPrice = specificPrice
+            ? specificPrice.unitPrice
+            : op.price;
+          const expectedIva = specificPrice ? specificPrice.ivaIncluded : false;
+
+          if (op.price !== expectedPrice || op.ivaIncluded !== expectedIva) {
+            hasChanges = true;
+            return {
+              ...op,
+              price: expectedPrice,
+              ivaIncluded: expectedIva,
+            };
+          }
+          return op;
+        });
+
+        // Only update if something actually changed to avoid infinite loops
+        if (hasChanges) {
+          return {
+            ...prev,
+            orderProducts: newOrderProducts,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [priceList]); // Only depend on priceList explicitly to trigger the update
 
   const removeProduct = (id) => {
     setDocument((prev) => {
