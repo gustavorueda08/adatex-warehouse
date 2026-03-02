@@ -47,8 +47,14 @@ export default function ProductDetailPage({ params }) {
     refetch,
   } = useProducts({
     filters: { id: { $eq: id } },
-    populate: ["collections", "transformationFactor", "parentProduct"],
+    populate: [
+      "collections",
+      "transformationFactor",
+      "parentProduct",
+      "orderProducts",
+    ],
   });
+  const { user } = useUser();
   const { warehouses } = useWarehouses();
   const itemsFilters = useMemo(() => {
     const filters = {
@@ -496,7 +502,12 @@ export default function ProductDetailPage({ params }) {
           entity={product}
           setEntity={setProduct}
           onUpdate={handleUpdate}
-          onDelete={handleDeleteProduct}
+          onDelete={
+            user?.type === "admin" &&
+            (!product?.orderProducts || product.orderProducts.length === 0)
+              ? handleDeleteProduct
+              : undefined
+          }
           isLoading={updating}
         />
       </Section>

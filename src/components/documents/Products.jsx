@@ -33,6 +33,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import DebouncedInput from "../ui/DebounceInput";
 import { useInfiniteScroll } from "@heroui/use-infinite-scroll";
+import { PlusIcon } from "@heroicons/react/24/outline";
+import CreateCutItemModal from "../products/CreateCutItemModal";
 
 function createEmptyProduct() {
   return {
@@ -56,9 +58,11 @@ const ProductAutocompleteCell = ({
   globalSearch,
   setGlobalSearch,
   selectedProductIds,
+  onProductCreated,
 }) => {
   const isNewRow = !product?.product?.id;
   const [isOpen, setIsOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [inputValue, setInputValue] = useState(() => {
     if (product?.product?.name) return product.product.name;
     return isNewRow ? globalSearch || "" : "";
@@ -139,36 +143,62 @@ const ProductAutocompleteCell = ({
   const screenSize = useScreenSize();
 
   return (
-    <Autocomplete
-      inputValue={inputValue}
-      isLoading={isLoading}
-      items={options}
-      placeholder="Buscar producto"
-      onInputChange={onInputChange}
-      onSelectionChange={onSelectionChange}
-      onOpenChange={setIsOpen}
-      onFocus={() => setIsFocused(true)}
-      scrollRef={isOpen ? scrollerRef : null}
-      onBlur={() => {
-        setIsFocused(false);
-        if (product?.product?.name) {
-          setInputValue(product.product.name);
-        }
-      }}
-      size={screenSize === "lg" ? "md" : "sm"}
-      className="md:w-full min-w-[250px] px-2   md:px-0  md:min-w-[300px]"
-      selectedKey={selectedKey}
-      aria-label="Seleccionar producto"
-      disabled={disabled}
-      isDisabled={disabled}
-      disabledKeys={disabledKeysToUse}
-    >
-      {(item) => (
-        <AutocompleteItem key={item.id} textValue={item.name}>
-          {item.name}
-        </AutocompleteItem>
+    <div className="flex items-center gap-1 w-full">
+      <Autocomplete
+        inputValue={inputValue}
+        isLoading={isLoading}
+        items={options}
+        placeholder="Buscar producto"
+        onInputChange={onInputChange}
+        onSelectionChange={onSelectionChange}
+        onOpenChange={setIsOpen}
+        onFocus={() => setIsFocused(true)}
+        scrollRef={isOpen ? scrollerRef : null}
+        onBlur={() => {
+          setIsFocused(false);
+          if (product?.product?.name) {
+            setInputValue(product.product.name);
+          }
+        }}
+        size={screenSize === "lg" ? "md" : "sm"}
+        className="md:w-full min-w-[250px] px-2   md:px-0  md:min-w-[300px]"
+        selectedKey={selectedKey}
+        aria-label="Seleccionar producto"
+        disabled={disabled}
+        isDisabled={disabled}
+        disabledKeys={disabledKeysToUse}
+      >
+        {(item) => (
+          <AutocompleteItem key={item.id} textValue={item.name}>
+            {item.name}
+          </AutocompleteItem>
+        )}
+      </Autocomplete>
+      {!disabled && isNewRow && (
+        <>
+          <Button
+            isIconOnly
+            size={screenSize === "lg" ? "md" : "sm"}
+            color="primary"
+            variant="flat"
+            onPress={() => setIsModalOpen(true)}
+            title="Crear nuevo producto de sublimado"
+            className="min-w-unit-8 w-unit-8"
+          >
+            <PlusIcon className="w-5 h-5" />
+          </Button>
+          <CreateCutItemModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSuccess={(newProduct) => {
+              if (onProductCreated) {
+                onProductCreated(newProduct);
+              }
+            }}
+          />
+        </>
       )}
-    </Autocomplete>
+    </div>
   );
 };
 
@@ -684,6 +714,9 @@ export default function Products({
             onUpdate={(newProduct) =>
               updateDocumentProduct(orderProduct.id, newProduct)
             }
+            onProductCreated={(newProduct) => {
+              updateDocumentProduct(orderProduct.id, newProduct);
+            }}
             disabled={!setDocument || disabled}
             globalSearch={globalSearch}
             setGlobalSearch={setGlobalSearch}
