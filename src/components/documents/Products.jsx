@@ -535,6 +535,13 @@ export default function Products({
       if (exists) {
         const newOrderProducts = prev.orderProducts.map((op) => {
           if (op.id === orderProductId) {
+            // When updating an existing order line with a DIFFERENT product:
+            // if it's the same product ID being updated, preserve existing values
+            // if we just wanted a partial update. But this runs on Autocomplete selection,
+            // which usually means a NEW product is replacing the old one in this row.
+            // If it's a new product selection in the same row, we apply the priceList defaults.
+            // But if it's somehow the exact same product as before, we might want to keep op.ivaIncluded.
+            // The safest is: if they explicitly selected a product, we load the defaults for it.
             return {
               ...op,
               product: newProductData,
@@ -640,79 +647,6 @@ export default function Products({
       };
     });
   };
-
-  const currentPriceListStr = useMemo(() => {
-    return JSON.stringify(
-      priceList.map((p) => ({
-        product: p.product?.id || p.product,
-        unitPrice: p.unitPrice,
-        ivaIncluded: p.ivaIncluded,
-        invoicePercentage: p.invoicePercentage,
-      })),
-    );
-  }, [priceList]);
-
-  useEffect(() => {
-    // Recalculate price and ivaIncluded when priceList changes
-    if (isMounted && setDocument && products.length > 0) {
-      setDocument((prev) => {
-        if (!prev) return prev;
-
-        let hasChanges = false;
-        const newOrderProducts = prev.orderProducts.map((op) => {
-          if (!op.product) return op; // Skip ghost row or incomplete rows
-
-          const productId = op.product.id || op.product;
-          const specificPrice = priceList.find(
-            (p) => String(p.product?.id || p.product) === String(productId),
-          );
-
-          // Determine expected values
-          const expectedPrice = specificPrice
-            ? specificPrice.unitPrice
-            : op.price;
-          const expectedIva =
-            specificPrice && specificPrice.ivaIncluded !== undefined
-              ? specificPrice.ivaIncluded
-              : op.ivaIncluded !== undefined
-                ? op.ivaIncluded
-                : false;
-          const expectedInvoicePercentage =
-            specificPrice?.invoicePercentage !== undefined &&
-            specificPrice?.invoicePercentage !== null
-              ? specificPrice.invoicePercentage
-              : op.invoicePercentage !== undefined &&
-                  op.invoicePercentage !== null
-                ? op.invoicePercentage
-                : 100;
-
-          if (
-            op.price !== expectedPrice ||
-            op.ivaIncluded !== expectedIva ||
-            op.invoicePercentage !== expectedInvoicePercentage
-          ) {
-            hasChanges = true;
-            return {
-              ...op,
-              price: expectedPrice,
-              ivaIncluded: expectedIva,
-              invoicePercentage: expectedInvoicePercentage,
-            };
-          }
-          return op;
-        });
-
-        // Only update if something actually changed to avoid infinite loops
-        if (hasChanges) {
-          return {
-            ...prev,
-            orderProducts: newOrderProducts,
-          };
-        }
-        return prev;
-      });
-    }
-  }, [currentPriceListStr]); // Only depend on currentPriceListStr explicitly to trigger the update
 
   const removeProduct = (id) => {
     setDocument((prev) => {
