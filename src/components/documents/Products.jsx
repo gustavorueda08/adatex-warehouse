@@ -516,7 +516,10 @@ export default function Products({
       const price = specificPrice
         ? specificPrice.unitPrice
         : newProductData.price || 0;
-      const ivaIncluded = specificPrice ? specificPrice.ivaIncluded : false;
+      const ivaIncluded =
+        specificPrice && specificPrice.ivaIncluded !== undefined
+          ? specificPrice.ivaIncluded
+          : newProductData.ivaIncluded || false;
       const invoicePercentage =
         specificPrice?.invoicePercentage !== undefined &&
         specificPrice?.invoicePercentage !== null
@@ -657,7 +660,12 @@ export default function Products({
           const expectedPrice = specificPrice
             ? specificPrice.unitPrice
             : op.price;
-          const expectedIva = specificPrice ? specificPrice.ivaIncluded : false;
+          const expectedIva =
+            specificPrice && specificPrice.ivaIncluded !== undefined
+              ? specificPrice.ivaIncluded
+              : op.ivaIncluded !== undefined
+                ? op.ivaIncluded
+                : false;
           const expectedInvoicePercentage =
             specificPrice?.invoicePercentage !== undefined &&
             specificPrice?.invoicePercentage !== null
