@@ -641,6 +641,17 @@ export default function Products({
     });
   };
 
+  const currentPriceListStr = useMemo(() => {
+    return JSON.stringify(
+      priceList.map((p) => ({
+        product: p.product?.id || p.product,
+        unitPrice: p.unitPrice,
+        ivaIncluded: p.ivaIncluded,
+        invoicePercentage: p.invoicePercentage,
+      })),
+    );
+  }, [priceList]);
+
   useEffect(() => {
     // Recalculate price and ivaIncluded when priceList changes
     if (isMounted && setDocument && products.length > 0) {
@@ -701,7 +712,7 @@ export default function Products({
         return prev;
       });
     }
-  }, [priceList]); // Only depend on priceList explicitly to trigger the update
+  }, [currentPriceListStr]); // Only depend on currentPriceListStr explicitly to trigger the update
 
   const removeProduct = (id) => {
     setDocument((prev) => {
