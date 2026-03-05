@@ -54,15 +54,13 @@ function NewTransferPageInner() {
           : "",
         render: (warehouse) => `${warehouse?.name}`,
         filters: (search) => {
-          const base = {
-            $or: [{ type: { $eq: "stock" } }, { type: { $eq: "smartCut" } }],
-          };
+          const base = { type: { $notIn: ["transit", "production"] } };
           if (!search) return base;
           const terms = search.split(/\s+/).filter(Boolean);
           if (terms.length === 0) return base;
           return {
             $and: [
-              { type: { $eq: "stock" } },
+              base,
               ...terms.map((term) => ({
                 $or: [{ name: { $containsi: term } }],
               })),
@@ -87,15 +85,13 @@ function NewTransferPageInner() {
           : "",
         render: (warehouse) => `${warehouse?.name}`,
         filters: (search) => {
-          const base = {
-            $or: [{ type: { $eq: "stock" } }, { type: { $eq: "smartCut" } }],
-          };
+          const base = { type: { $notIn: ["transit", "production"] } };
           if (!search) return base;
           const terms = search.split(/\s+/).filter(Boolean);
           if (terms.length === 0) return base;
           return {
             $and: [
-              { type: { $eq: "stock" } },
+              base,
               ...terms.map((term) => ({
                 $or: [{ name: { $containsi: term } }],
               })),

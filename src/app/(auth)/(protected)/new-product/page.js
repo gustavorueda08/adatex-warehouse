@@ -59,6 +59,7 @@ function NewProductPageInner() {
     suppliers: [],
     collections: [],
     siigoId: "",
+    cutWarehouseType: "smartCut",
   });
 
   const headerFields = useMemo(() => {
@@ -167,6 +168,18 @@ function NewProductPageInner() {
                 setProduct({ ...product, parentProduct }),
               required: true,
             },
+            {
+              label: "Tipo de Proceso",
+              type: "select",
+              options: [
+                { key: "smartCut", label: "Corte Estándar (SmartCut)" },
+                { key: "printlab", label: "Impresión / Sublimado (PrintLab)" },
+              ],
+              value: product.cutWarehouseType,
+              onChange: (cutWarehouseType) =>
+                setProduct({ ...product, cutWarehouseType }),
+              required: true,
+            },
           ]
         : []),
       {
@@ -233,6 +246,7 @@ function NewProductPageInner() {
             (tf) => (tf.id ? { id: tf.id } : tf),
           );
         }
+        data.cutWarehouseType = product.cutWarehouseType;
       }
 
       if (product.productsForCuts && product.productsForCuts.length > 0) {

@@ -48,13 +48,13 @@ export default function TransferDetailPage({ params }) {
         selectedOptionLabel: document?.sourceWarehouse?.name || "",
         render: (warehouse) => `${warehouse?.name}`,
         filters: (search) => {
-          const base = { $and: [{ type: { $eq: "stock" } }] };
+          const base = { type: { $notIn: ["transit", "production"] } };
           if (!search) return base;
           const terms = search.split(/\s+/).filter(Boolean);
           if (terms.length === 0) return base;
           return {
             $and: [
-              { type: { $eq: "stock" } },
+              base,
               ...terms.map((term) => ({
                 $or: [{ name: { $containsi: term } }],
               })),
@@ -78,13 +78,13 @@ export default function TransferDetailPage({ params }) {
         selectedOptionLabel: document?.destinationWarehouse?.name || "",
         render: (warehouse) => `${warehouse?.name}`,
         filters: (search) => {
-          const base = { $and: [{ type: { $eq: "stock" } }] };
+          const base = { type: { $notIn: ["transit", "production"] } };
           if (!search) return base;
           const terms = search.split(/\s+/).filter(Boolean);
           if (terms.length === 0) return base;
           return {
             $and: [
-              { type: { $eq: "stock" } },
+              base,
               ...terms.map((term) => ({
                 $or: [{ name: { $containsi: term } }],
               })),

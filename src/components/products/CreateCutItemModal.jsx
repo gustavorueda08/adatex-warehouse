@@ -26,6 +26,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
     parentProduct: "",
     unit: "unit",
     cutTransformationFactor: "",
+    cutWarehouseType: "smartCut",
   });
 
   const { createProduct } = useProducts({}, { enabled: false });
@@ -111,6 +112,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
         parentProduct: formData.parentProduct,
         canCut: false,
         isActive: true,
+        cutWarehouseType: formData.cutWarehouseType,
         transformationFactors: [
           {
             name: `Factor ${formData.name}`,
@@ -143,6 +145,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
         parentProduct: "",
         unit: "unit",
         cutTransformationFactor: "",
+        cutWarehouseType: "smartCut",
       });
       setInputValue("");
       onClose();
@@ -197,6 +200,26 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
                 </AutocompleteItem>
               )}
             </Autocomplete>
+
+            <Select
+              label="Tipo de Proceso"
+              selectedKeys={[formData.cutWarehouseType]}
+              onSelectionChange={(keys) =>
+                setFormData({
+                  ...formData,
+                  cutWarehouseType: Array.from(keys)[0],
+                })
+              }
+              isRequired
+              description="Seleccione de qué bodega se descontará el stock (Corte para crudos/lisos, Sublimado para impresos)."
+            >
+              <SelectItem key="smartCut" value="smartCut">
+                Corte Estándar (SmartCut)
+              </SelectItem>
+              <SelectItem key="printlab" value="printlab">
+                Impresión / Sublimado (PrintLab)
+              </SelectItem>
+            </Select>
 
             <div className="grid grid-cols-2 gap-4">
               <Select
