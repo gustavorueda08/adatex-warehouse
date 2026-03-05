@@ -128,6 +128,7 @@ export default function ProductDetailPage({ params }) {
         },
         { key: "fixedQuantityPerItem", label: "Cantidad Fija por Empaque" },
         { key: "cutItem", label: "Producto para Corte" },
+        { key: "service", label: "Servicio (Sin Inventario)" },
       ],
       value: product?.type || "variableQuantityPerItem",
       onChange: (type) => setProduct({ ...product, type }),
@@ -152,9 +153,10 @@ export default function ProductDetailPage({ params }) {
           },
         ]
       : []),
-    ...(product?.type === "variableQuantityPerItem" ||
-    product?.type === "fixedQuantityPerItem" ||
-    !product?.type
+    ...((product?.type === "variableQuantityPerItem" ||
+      product?.type === "fixedQuantityPerItem" ||
+      !product?.type) &&
+    product?.type !== "service"
       ? [
           {
             key: "unitsPerPackage",
@@ -175,7 +177,7 @@ export default function ProductDetailPage({ params }) {
           },
         ]
       : []),
-    ...(product?.canCut
+    ...(product?.canCut && product?.type !== "service"
       ? [
           {
             key: "cutUnit",
@@ -418,56 +420,60 @@ export default function ProductDetailPage({ params }) {
         </Section>
       )}
 
-      <Section
-        title="Items"
-        description={"Items del producto en diferentes bodegas"}
-      >
-        <EntityFilters
-          filters={filters}
-          showCreate={false}
-          className="px-3 pt-2 pb-0"
-          search={search}
-          setSearch={setSearch}
-        />
-        <Entities
-          entityName="items"
-          entities={items}
-          columns={itemColumns}
-          pagination={itemsPagination}
-          setPagination={setItemsPagination}
-          pageCount={pageCount}
-          loading={itemsLoading}
-          screenSize={screenSize}
-          selectedKeys={selectedKeys}
-          setSelectedKeys={setSelectedKeys}
-          className="p-3"
-          emptyContent="No se encontraron Items asociados a este producto"
-        />
-        <div className="flex justify-end gap-2 p-3">
-          <Button
-            color="success"
-            className="text-white w-full md:w-auto"
-            onPress={handleExport}
-            startContent={<ArrowDownTrayIcon className="w-4 h-4 text-white" />}
-            size={screenSize === "lg" ? "md" : "sm"}
-          >
-            Exportar Excel
-          </Button>
-          {(selectedKeys === "all" || selectedKeys.size > 0) && (
+      {product?.type !== "service" && (
+        <Section
+          title="Items"
+          description={"Items del producto en diferentes bodegas"}
+        >
+          <EntityFilters
+            filters={filters}
+            showCreate={false}
+            className="px-3 pt-2 pb-0"
+            search={search}
+            setSearch={setSearch}
+          />
+          <Entities
+            entityName="items"
+            entities={items}
+            columns={itemColumns}
+            pagination={itemsPagination}
+            setPagination={setItemsPagination}
+            pageCount={pageCount}
+            loading={itemsLoading}
+            screenSize={screenSize}
+            selectedKeys={selectedKeys}
+            setSelectedKeys={setSelectedKeys}
+            className="p-3"
+            emptyContent="No se encontraron Items asociados a este producto"
+          />
+          <div className="flex justify-end gap-2 p-3">
             <Button
-              color="danger"
-              variant="flat"
-              className="w-full md:w-auto"
-              onPress={onOpen}
-              startContent={<TrashIcon className="w-4 h-4" />}
+              color="success"
+              className="text-white w-full md:w-auto"
+              onPress={handleExport}
+              startContent={
+                <ArrowDownTrayIcon className="w-4 h-4 text-white" />
+              }
               size={screenSize === "lg" ? "md" : "sm"}
-              isLoading={creatingOrder}
             >
-              Eliminar Items
+              Exportar Excel
             </Button>
-          )}
-        </div>
-      </Section>
+            {(selectedKeys === "all" || selectedKeys.size > 0) && (
+              <Button
+                color="danger"
+                variant="flat"
+                className="w-full md:w-auto"
+                onPress={onOpen}
+                startContent={<TrashIcon className="w-4 h-4" />}
+                size={screenSize === "lg" ? "md" : "sm"}
+                isLoading={creatingOrder}
+              >
+                Eliminar Items
+              </Button>
+            )}
+          </div>
+        </Section>
+      )}
       <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
         <ModalContent>
           {(onClose) => (

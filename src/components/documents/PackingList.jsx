@@ -62,6 +62,7 @@ function PackingListProductHeader({
   if (type === "fixedQuantityPerItem")
     placeholderText = "Ingresar cantidad en bulto a reservar";
   if (type === "cutItem") placeholderText = "Ingresar metros/cantidad a cortar";
+  if (type === "service") placeholderText = "Ingresar cantidad";
 
   const submitItem = async (value, forceNegativeStock = false) => {
     let result;
@@ -96,6 +97,20 @@ function PackingListProductHeader({
           requestedPackages: 1,
           confirmNegativeStock: forceNegativeStock,
         },
+      });
+    } else if (type === "service") {
+      const quantity = Number(value);
+      if (!quantity || quantity <= 0) {
+        addToast({
+          title: "Error",
+          description: "Ingrese una cantidad válida",
+          color: "danger",
+        });
+        return;
+      }
+      result = await onHeaderScan(document.id, {
+        product: product.product.id,
+        item: { quantity },
       });
     } else {
       const { barcode, quantity } = parseItemData(value);
@@ -684,7 +699,12 @@ function PackingListProduct({
           }
           textValue={product.name}
         >
-          {type === "fixedQuantityPerItem" && !isItemEditable ? (
+          {type === "service" ? (
+            <div className="p-4 text-sm text-center text-zinc-500">
+              Este producto no requiere escaneo ni gestión física de inventario.
+              Ingrese y confime su cantidad en el cajón superior.
+            </div>
+          ) : type === "fixedQuantityPerItem" && !isItemEditable ? (
             <div className="p-4 text-sm text-center text-zinc-500">
               Cantidad en Bulto Automática. Actualice la cantidad escaneando en
               la cabecera, o en la orden.

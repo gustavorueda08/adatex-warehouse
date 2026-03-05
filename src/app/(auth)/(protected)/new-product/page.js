@@ -93,13 +93,15 @@ function NewProductPageInner() {
           },
           { key: "fixedQuantityPerItem", label: "Cantidad Fija por Empaque" },
           { key: "cutItem", label: "Producto para Corte" },
+          { key: "service", label: "Servicio (Sin Inventario)" },
         ],
         value: product.type,
         onChange: (type) => setProduct({ ...product, type }),
         required: true,
         fullWidth: product?.type === "fixedQuantityPerItem" ? true : false,
       },
-      ...(product?.type === "variableQuantityPerItem"
+      ...(product?.type === "variableQuantityPerItem" &&
+      product?.type !== "service"
         ? [
             {
               key: "unitsPerPackage",
@@ -112,8 +114,9 @@ function NewProductPageInner() {
             },
           ]
         : []),
-      ...(product?.type === "variableQuantityPerItem" ||
-      product?.type === "fixedQuantityPerItem"
+      ...((product?.type === "variableQuantityPerItem" ||
+        product?.type === "fixedQuantityPerItem") &&
+      product?.type !== "service"
         ? [
             {
               key: "canCut",
@@ -125,7 +128,7 @@ function NewProductPageInner() {
             },
           ]
         : []),
-      ...(product?.canCut
+      ...(product?.canCut && product?.type !== "service"
         ? [
             {
               key: "cutUnit",
