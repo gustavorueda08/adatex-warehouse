@@ -175,7 +175,7 @@ export default function TransformationFactorsManager({
         {currentFactor?.id && (
           <p className="mt-2 text-sm text-success-500">
             ✓ Factor existente enlazado: {currentFactor.factor}{" "}
-            {currentFactor.sourceUnit} = 1 {currentFactor.destinationUnit}
+            {currentFactor.destinationUnit} = 1 {currentFactor.sourceUnit}
           </p>
         )}
       </div>
