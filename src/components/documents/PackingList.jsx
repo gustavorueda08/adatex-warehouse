@@ -58,6 +58,16 @@ function PackingListProductHeader({
 
   const type = product.product?.type || "variableQuantityPerItem";
 
+  // Override input disabled state specifically for fixedQuantityPerItem on purchases/inflows
+  let finalIsInputEnabled = isInputEnabled;
+  if (
+    type === "fixedQuantityPerItem" &&
+    document &&
+    (document.type === "purchase" || document.type === "in")
+  ) {
+    finalIsInputEnabled = true;
+  }
+
   let placeholderText = "Escanear código de barras o cantidad";
   if (type === "fixedQuantityPerItem")
     placeholderText = "Ingresar cantidad en bulto a reservar";
@@ -76,10 +86,33 @@ function PackingListProductHeader({
         });
         return;
       }
-      result = await onHeaderScan(document.id, {
-        product: product.product.id,
-        item: { count },
-      });
+      if (onHeaderScan) {
+        // En ventas y salidas, mandamos count y el backend los busca y reserva.
+        result = await onHeaderScan(document.id, {
+          product: product.product.id,
+          item: { count },
+        });
+      } else {
+        // Compras e ingresos generan localmente
+        let nextItemNumber = "1";
+        let defaultLotNumber = "1";
+
+        const generatedItems = [];
+        let currentItemNumber = parseInt(nextItemNumber, 10);
+        for (let i = 0; i < count; i++) {
+          generatedItems.push({
+            id: uuidv4(),
+            currentQuantity: "1",
+            lotNumber: defaultLotNumber,
+            itemNumber: String(currentItemNumber + i),
+          });
+        }
+        
+        result = {
+          success: true,
+          data: generatedItems,
+        };
+      }
     } else if (type === "cutItem") {
       const quantity = Number(value);
       if (!quantity || quantity <= 0) {
@@ -136,7 +169,8 @@ function PackingListProductHeader({
 
         let newItems = [...(currentProduct.items || [])];
         if (type === "fixedQuantityPerItem" && Array.isArray(newItem)) {
-          newItems = [...newItems, ...newItem];
+          // User requested that entering a new number REPLACES the generated list, rather than appending
+          newItems = [...newItem];
         } else {
           if (newItem.quantity && !newItem.currentQuantity) {
             newItem.currentQuantity = newItem.quantity;
@@ -163,9 +197,14 @@ function PackingListProductHeader({
           confirmedQuantity: newConfirmedQuantity,
         };
 
+        let newState = prev.state;
+        if (type !== "fixedQuantityPerItem") {
+          newState = "confirmed";
+        }
+
         return {
           ...prev,
-          state: "confirmed",
+          state: newState,
           orderProducts: newOrderProducts,
         };
       });
@@ -188,7 +227,10 @@ function PackingListProductHeader({
   };
 
   const handleKeyDown = async (e) => {
-    if (e.key !== "Enter" || !onHeaderScan) return;
+    // If it's not Enter, return.
+    // If onHeaderScan is missing AND it's not the specific case we handle locally (fixedQuantityPerItem), return.
+    if (e.key !== "Enter") return;
+    if (!onHeaderScan && type !== "fixedQuantityPerItem") return;
 
     // Guardamos el valor antes de limpiar el input para poder reintentar si falla
     const scannedValue = inputValue;
@@ -228,7 +270,7 @@ function PackingListProductHeader({
           </Chip>
         </div>
         <Input
-          placeholder={isInputEnabled ? placeholderText : ""}
+          placeholder={finalIsInputEnabled ? placeholderText : ""}
           type={
             type === "fixedQuantityPerItem" || type === "cutItem"
               ? "number"
@@ -240,7 +282,7 @@ function PackingListProductHeader({
           onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
           className="hidden md:flex lg:max-w-md max-w-[200px]"
-          disabled={!isInputEnabled}
+          disabled={!finalIsInputEnabled}
         />
       </div>
       <div className="flex flex-col md:flex-row gap-2">
@@ -253,7 +295,7 @@ function PackingListProductHeader({
         </span>
       </div>
       <Input
-        placeholder={isInputEnabled ? placeholderText : ""}
+        placeholder={finalIsInputEnabled ? placeholderText : ""}
         type={
           type === "fixedQuantityPerItem" || type === "cutItem"
             ? "number"
@@ -265,7 +307,7 @@ function PackingListProductHeader({
         onKeyDown={handleKeyDown}
         onClick={(e) => e.stopPropagation()}
         className="md:hidden"
-        disabled={!isInputEnabled}
+        disabled={!finalIsInputEnabled}
       />
       <Progress
         className="hidden md:flex"
@@ -491,7 +533,7 @@ function PackingListProduct({
 
         let newItems;
         if (itemIndex === -1) {
-          // New item (ghost row) - Use the targetItem (ghost) as base to preserve defaults!
+          // New item (ghost row)
           const newItem = {
             ...targetItem,
             [field]: value,
@@ -703,11 +745,6 @@ function PackingListProduct({
             <div className="p-4 text-sm text-center text-zinc-500">
               Este producto no requiere escaneo ni gestión física de inventario.
               Ingrese y confime su cantidad en el cajón superior.
-            </div>
-          ) : type === "fixedQuantityPerItem" && !isItemEditable ? (
-            <div className="p-4 text-sm text-center text-zinc-500">
-              Cantidad en Bulto Automática. Actualice la cantidad escaneando en
-              la cabecera, o en la orden.
             </div>
           ) : (
             <Table shadow="none" classNames={{ wrapper: "p-0" }}>
