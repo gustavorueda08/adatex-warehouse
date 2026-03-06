@@ -26,7 +26,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
     parentProduct: "",
     unit: "unit",
     cutTransformationFactor: "",
-    cutWarehouseType: "smartCut",
+    cutWarehouseType: "printlab",
   });
 
   const { createProduct } = useProducts({}, { enabled: false });
@@ -115,10 +115,10 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
         cutWarehouseType: formData.cutWarehouseType,
         transformationFactors: [
           {
-            name: `Factor ${formData.name}`,
+            name: `De ${parentNode?.unit || "m"} a ${formData.unit} (x${formData.cutTransformationFactor})`,
             factor: Number(formData.cutTransformationFactor),
-            sourceUnit: formData.unit,
-            destinationUnit: parentNode?.unit || "m",
+            sourceUnit: parentNode?.unit || "m",
+            destinationUnit: formData.unit,
           },
         ],
       };
@@ -145,7 +145,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
         parentProduct: "",
         unit: "unit",
         cutTransformationFactor: "",
-        cutWarehouseType: "smartCut",
+        cutWarehouseType: "printlab",
       });
       setInputValue("");
       onClose();
