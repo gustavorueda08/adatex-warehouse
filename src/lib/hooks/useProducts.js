@@ -87,10 +87,39 @@ export function useProducts(queryParams = {}, options = {}) {
     }
   };
 
+  const deleteAllCutItems = async () => {
+    try {
+      setSyncing(true);
+      const response = await fetch(`/api/strapi/products/cut-items`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error?.message ||
+            result.message ||
+            `Error ${response.status}: ${response.statusText}`,
+        );
+      }
+      
+      await strapiResult.refetch();
+      return { success: true, data: result.data };
+    } catch (err) {
+      console.error("Error deleting cut items:", err);
+      return { success: false, error: err };
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return {
     ...strapiResult,
     syncAllProductsFromSiigo,
     bulkUpsertProducts,
+    deleteAllCutItems,
     syncing,
   };
 }

@@ -11,7 +11,18 @@ import Entities from "@/components/entities/Entities";
 import Link from "next/link";
 import format from "@/lib/utils/format";
 import EntityFilters from "@/components/entities/EntityFilters";
-import { addToast, Button, Checkbox, Select, SelectItem } from "@heroui/react";
+import {
+  addToast,
+  Button,
+  Checkbox,
+  Select,
+  SelectItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/react";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import InventoryMode from "@/components/entities/InventoryMode";
 import { useEntityList } from "@/lib/hooks/useEntityList";
@@ -53,6 +64,9 @@ export default function ProductsPage() {
   const screenSize = useScreenSize();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportingInventory, setExportingInventory] = useState(false);
+  const [isDeleteCutItemsModalOpen, setIsDeleteCutItemsModalOpen] =
+    useState(false);
+  const [isDeletingCutItems, setIsDeletingCutItems] = useState(false);
 
   const hasBreakdown = useCallback(
     (product, category) =>
@@ -125,6 +139,7 @@ export default function ProductsPage() {
     loading,
     isFetching,
     bulkUpsertProducts,
+    deleteAllCutItems,
     syncing,
   } = useProducts(
     {
@@ -174,6 +189,28 @@ export default function ProductsPage() {
       console.error(error);
     } finally {
       setExportingInventory(false);
+    }
+  };
+
+  const handleDeleteCutItems = async () => {
+    setIsDeletingCutItems(true);
+    try {
+      const result = await deleteAllCutItems();
+      if (result.success) {
+        toast.success(
+          `Eliminados: ${result.data?.deleted || 0}, Fallidos: ${
+            result.data?.failed || 0
+          } de ${result.data?.total || 0} productos tipo cutItem`,
+        );
+        setIsDeleteCutItemsModalOpen(false);
+      } else {
+        toast.error("Error al eliminar los productos cutItem");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Ocurrió un error inesperado al eliminar.");
+    } finally {
+      setIsDeletingCutItems(false);
     }
   };
 
@@ -462,7 +499,17 @@ export default function ProductsPage() {
         loading={loading}
         isFetching={isFetching}
       />
-      <div className="flex lg:justify-end justify-center">
+      <div className="flex lg:justify-end justify-center gap-2">
+        {user?.type === "admin" && (
+          <Button
+            color="danger"
+            variant="flat"
+            className="w-full lg:w-auto"
+            onPress={() => setIsDeleteCutItemsModalOpen(true)}
+          >
+            Borrar Metreados
+          </Button>
+        )}
         <Button
           color="secondary"
           className="w-full lg:w-auto"
@@ -504,6 +551,48 @@ export default function ProductsPage() {
         onConfirm={handleExportInventory}
         loading={exportingInventory}
       />
+
+      <Modal
+        isOpen={isDeleteCutItemsModalOpen}
+        onOpenChange={(open) =>
+          !isDeletingCutItems && setIsDeleteCutItemsModalOpen(open)
+        }
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Eliminar Productos Cut Item</ModalHeader>
+              <ModalBody>
+                <p>
+                  ¿Estás seguro de que deseas eliminar TODOS los productos de
+                  tipo <strong>cutItem</strong>?
+                </p>
+                <p className="text-sm text-gray-500">
+                  Esta acción no se puede deshacer. Los productos que tengan
+                  órdenes asociadas no serán eliminados para preservar la
+                  integridad de los datos.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  variant="light"
+                  onPress={onClose}
+                  isDisabled={isDeletingCutItems}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  color="danger"
+                  onPress={handleDeleteCutItems}
+                  isLoading={isDeletingCutItems}
+                >
+                  Eliminar
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
