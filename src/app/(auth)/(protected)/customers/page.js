@@ -5,13 +5,14 @@ import Entities from "@/components/entities/Entities";
 import EntityFilters from "@/components/entities/EntityFilters";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import moment from "moment-timezone";
 import { useUser } from "@/lib/hooks/useUser";
 import RoleGuard from "@/components/auth/RoleGuard";
 import { Button } from "@heroui/react";
 import { exportCustomersToExcel } from "@/lib/utils/exportCustomersToExcel";
+import { buildStrapiQuery } from "@/lib/api/strapiQueryBuilder";
 import ExportCustomersModal from "@/components/customers/ExportCustomersModal";
 import toast from "react-hot-toast";
 
@@ -113,30 +114,74 @@ function CustomersPageInner() {
     populate: ["territory"],
   });
 
-  // ------ Dashboard summary (sums from visible page) ------
-  const dashboardSummary = useMemo(() => {
-    if (!customers || customers.length === 0) {
-      return {
-        totalCurrentMonth: 0,
-        totalProjected: 0,
-        totalAvg3M: 0,
-        activeCount: 0,
-      };
-    }
-    let totalCurrentMonth = 0;
-    let totalProjected = 0;
-    let totalAvg3M = 0;
-    let activeCount = 0;
+  // ------ Dashboard summary (ALL customers matching filters, not just current page) ------
+  const [dashboardSummary, setDashboardSummary] = useState({
+    totalCurrentMonth: 0,
+    totalProjected: 0,
+    totalAvg3M: 0,
+    activeCount: 0,
+    totalCustomers: 0,
+    loading: true,
+  });
 
-    for (const c of customers) {
-      totalCurrentMonth += Number(c.currentMonthVolume) || 0;
-      totalProjected += Number(c.projectedVolume) || 0;
-      totalAvg3M += Number(c.threeMonthAverage) || 0;
-      if (c.status === "active" || c.status === "at_risk") activeCount++;
-    }
+  const fetchDashboardSummary = useCallback(async () => {
+    setDashboardSummary((prev) => ({ ...prev, loading: true }));
+    try {
+      let allCustomers = [];
+      let page = 1;
+      let pageCount = 1;
+      const pageSize = 100;
 
-    return { totalCurrentMonth, totalProjected, totalAvg3M, activeCount };
-  }, [customers]);
+      do {
+        const queryOptions = {
+          pagination: { page, pageSize },
+          filters,
+          fields: [
+            "currentMonthVolume",
+            "projectedVolume",
+            "threeMonthAverage",
+            "status",
+          ],
+        };
+        const queryStr = buildStrapiQuery(queryOptions);
+        const res = await fetch(`/api/strapi/customers?${queryStr}`);
+        if (!res.ok) break;
+        const data = await res.json();
+        allCustomers.push(...(data.data || []));
+        pageCount = data.meta?.pagination?.pageCount || 1;
+        page++;
+      } while (page <= pageCount);
+
+      let totalCurrentMonth = 0;
+      let totalProjected = 0;
+      let totalAvg3M = 0;
+      let activeCount = 0;
+
+      for (const c of allCustomers) {
+        totalCurrentMonth += Number(c.currentMonthVolume) || 0;
+        totalProjected += Number(c.projectedVolume) || 0;
+        totalAvg3M += Number(c.threeMonthAverage) || 0;
+        if (c.status === "active" || c.status === "at_risk") activeCount++;
+      }
+
+      setDashboardSummary({
+        totalCurrentMonth,
+        totalProjected,
+        totalAvg3M,
+        activeCount,
+        totalCustomers: allCustomers.length,
+        loading: false,
+      });
+    } catch (err) {
+      console.error("Error fetching dashboard summary:", err);
+      setDashboardSummary((prev) => ({ ...prev, loading: false }));
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    fetchDashboardSummary();
+  }, [fetchDashboardSummary]);
+
 
   const columns = [
     {
@@ -345,7 +390,7 @@ function CustomersPageInner() {
         <DashboardCard
           label={`Ventas ${currentMonthName}`}
           value={COP(dashboardSummary.totalCurrentMonth)}
-          subtitle={`${dashboardSummary.activeCount} clientes activos`}
+          subtitle={`${dashboardSummary.activeCount} clientes activos de ${dashboardSummary.totalCustomers}`}
           color="primary"
         />
         <DashboardCard
