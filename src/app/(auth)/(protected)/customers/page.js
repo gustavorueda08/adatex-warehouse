@@ -12,6 +12,8 @@ import { useUser } from "@/lib/hooks/useUser";
 import RoleGuard from "@/components/auth/RoleGuard";
 import { Button } from "@heroui/react";
 import { exportCustomersToExcel } from "@/lib/utils/exportCustomersToExcel";
+import ExportCustomersModal from "@/components/customers/ExportCustomersModal";
+import toast from "react-hot-toast";
 
 function CustomersPageInner() {
   const { user } = useUser();
@@ -19,8 +21,11 @@ function CustomersPageInner() {
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 10,
+    pageSize: 15,
   });
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportingCustomers, setExportingCustomers] = useState(false);
+  
   const screenSize = useScreenSize();
   const filters = useMemo(() => {
     const f = {
@@ -31,15 +36,36 @@ function CustomersPageInner() {
         .split(" ")
         .filter((term) => term.trim() !== "");
       if (searchTerms.length > 0) {
-        f.$and = searchTerms.map((term) => ({
-          $or: [
+        const termToStatus = (term) => {
+          const t = term.toLowerCase();
+          const matches = [];
+          if ("activo".includes(t)) matches.push("active");
+          if ("riesgo".includes(t)) matches.push("at_risk");
+          if ("inactivo".includes(t)) matches.push("churned");
+          if ("prospecto".includes(t)) matches.push("prospect");
+          // Include actual values just in case
+          if (["active", "at_risk", "churned", "prospect"].includes(t)) {
+            if (!matches.includes(t)) matches.push(t);
+          }
+          return matches;
+        };
+
+        f.$and = searchTerms.map((term) => {
+          const validStatuses = termToStatus(term);
+          const orConditions = [
             { identification: { $containsi: term } },
             { name: { $containsi: term } },
             { lastName: { $containsi: term } },
             { territory: { city: { $containsi: term } } },
-            { status: { $eqi: term } }, // filter by status string "churned", "active", "at_risk", "prospect"
-          ],
-        }));
+          ];
+
+          // Only add status to the OR if the term matches a valid enum value
+          if (validStatuses.length > 0) {
+            orConditions.push({ status: { $in: validStatuses } });
+          }
+
+          return { $or: orConditions };
+        });
       }
     }
     return f;
@@ -118,7 +144,9 @@ function CustomersPageInner() {
         };
         const status = customer.status || "active";
         return (
-          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${bgColors[status] || bgColors.active}`}>
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-semibold ${bgColors[status] || bgColors.active}`}
+          >
             {labels[status] || labels.active}
           </span>
         );
@@ -144,7 +172,9 @@ function CustomersPageInner() {
       render: (customer) => {
         return (
           <span className="text-default-900">
-            {customer.lastPurchaseDate ? moment(customer.lastPurchaseDate).format("DD/MM/YYYY") : "N/A"}
+            {customer.lastPurchaseDate
+              ? moment(customer.lastPurchaseDate).format("DD/MM/YYYY")
+              : "N/A"}
           </span>
         );
       },
@@ -153,12 +183,17 @@ function CustomersPageInner() {
       key: "topProducts",
       label: "Productos Principales",
       render: (customer) => {
-        if (!customer.topProducts || customer.topProducts.length === 0) return "-";
-        
+        if (!customer.topProducts || customer.topProducts.length === 0)
+          return "-";
+
         return (
           <div className="flex flex-col gap-1 max-w-[200px]">
             {customer.topProducts.slice(0, 3).map((p, idx) => (
-              <span key={idx} className="text-xs text-default-600 truncate" title={`${p.name} (${p.quantity} ${p.unit})`}>
+              <span
+                key={idx}
+                className="text-xs text-default-600 truncate"
+                title={`${p.name} (${p.quantity} ${p.unit})`}
+              >
                 • {p.name} ({p.quantity} {p.unit})
               </span>
             ))}
@@ -215,18 +250,32 @@ function CustomersPageInner() {
     }
   };
 
+  const handleExportCustomers = async (exportType) => {
+    setExportingCustomers(true);
+    try {
+      await exportCustomersToExcel({
+        localCustomers: customers,
+        filters,
+        exportType,
+        toast: {
+          loading: (msg) => toast.loading(msg),
+          success: (msg) => toast.success(msg),
+          error: (msg) => toast.error(msg),
+          dismiss: (id) => toast.dismiss(id),
+        },
+      });
+      setIsExportModalOpen(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setExportingCustomers(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="font-bold text-xl lg:text-3xl">Clientes</h1>
-        <Button 
-          color="success" 
-          variant="flat" 
-          onPress={() => exportCustomersToExcel(customers)}
-          isDisabled={!customers || customers.length === 0}
-        >
-          Exportar a Excel
-        </Button>
       </div>
       <EntityFilters
         pathname={"/new-customer"}
@@ -253,8 +302,24 @@ function CustomersPageInner() {
             loading={loading || isFetching}
           />
         )}
-      
+
       {/* Export Button below bulk actions or as a floating/bottom action if desired. Adding to Top next to Title works better usually. Let's add it near the title */}
+      <div className="flex md:justify-end">
+        <Button
+          color="success"
+          onPress={() => setIsExportModalOpen(true)}
+          isDisabled={loading}
+        >
+          Exportar a Excel
+        </Button>
+      </div>
+
+      <ExportCustomersModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onConfirm={handleExportCustomers}
+        loading={exportingCustomers}
+      />
     </div>
   );
 }
