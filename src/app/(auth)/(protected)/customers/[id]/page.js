@@ -216,6 +216,40 @@ export default function CustomerDetailPage() {
         },
         disabled: user?.type === "seller",
       },
+      {
+        label: "Estado Comercial",
+        type: "select",
+        fullWidth: true,
+        options: [
+          { key: "active", label: "Activo" },
+          { key: "at_risk", label: "En Riesgo" },
+          { key: "churned", label: "Inactivo" },
+          { key: "prospect", label: "Prospecto" },
+        ],
+        value: customer?.status || "active",
+        onChange: (status) => {
+          setCustomer({ ...customer, status });
+        },
+        disabled: user?.type === "seller",
+      },
+      {
+        label: "Motivo de Inactividad",
+        type: "textarea",
+        value: customer?.inactivityReason,
+        fullWidth: true,
+        onChange: (inactivityReason) => {
+          setCustomer({ ...customer, inactivityReason });
+        },
+      },
+      {
+        label: "Notas de Prospecto (Visitas/Feedback)",
+        type: "textarea",
+        value: customer?.prospectNotes,
+        fullWidth: true,
+        onChange: (prospectNotes) => {
+          setCustomer({ ...customer, prospectNotes });
+        },
+      },
     ];
   }, [customer]);
 
@@ -320,6 +354,42 @@ export default function CustomerDetailPage() {
           setEntity={setCustomer}
           disabled={user?.type === "seller"}
         />
+      </Section>
+      <Section
+        title="Productos Principales (Últimos 90 días)"
+        description="Volumen y cantidad de los productos más comprados por el cliente."
+      >
+        <div className="p-4">
+          {!customer?.topProducts || customer.topProducts.length === 0 ? (
+            <p className="text-default-500 text-sm">
+              No hay datos suficientes de productos para este cliente.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {customer.topProducts.map((p, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-center p-3 border rounded-lg bg-default-50 border-default-200"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-semibold">
+                      {p.name} {p.code ? `(${p.code})` : ""}
+                    </span>
+                    <span className="text-sm text-default-500">
+                      Cantidad: {p.quantity} {p.unit}
+                    </span>
+                  </div>
+                  <div className="font-semibold text-success-600">
+                    {new Intl.NumberFormat("es-CO", {
+                      style: "currency",
+                      currency: "COP",
+                    }).format(p.volume || 0)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </Section>
       <Section title="Ordenes" description={"Ordenes del Cliente"}>
         <div className="p-4">
