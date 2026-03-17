@@ -15,6 +15,37 @@ import { exportCustomersToExcel } from "@/lib/utils/exportCustomersToExcel";
 import ExportCustomersModal from "@/components/customers/ExportCustomersModal";
 import toast from "react-hot-toast";
 
+const COP = (value) =>
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+
+function DashboardCard({ label, value, subtitle, color = "default" }) {
+  const colorClasses = {
+    default: "bg-default-50 border-default-200",
+    success: "bg-success-50 border-success-200",
+    warning: "bg-warning-50 border-warning-200",
+    primary: "bg-primary-50 border-primary-200",
+  };
+  return (
+    <div
+      className={`flex flex-col gap-1 p-4 rounded-xl border ${colorClasses[color] || colorClasses.default}`}
+    >
+      <span className="text-xs font-medium text-default-500 uppercase tracking-wider">
+        {label}
+      </span>
+      <span className="text-xl lg:text-2xl font-bold text-default-900">
+        {value}
+      </span>
+      {subtitle && (
+        <span className="text-xs text-default-400">{subtitle}</span>
+      )}
+    </div>
+  );
+}
+
 function CustomersPageInner() {
   const { user } = useUser();
   const [selectedKeys, setSelectedKeys] = useState(new Set());
@@ -25,7 +56,7 @@ function CustomersPageInner() {
   });
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportingCustomers, setExportingCustomers] = useState(false);
-  
+
   const screenSize = useScreenSize();
   const filters = useMemo(() => {
     const f = {
@@ -43,7 +74,6 @@ function CustomersPageInner() {
           if ("riesgo".includes(t)) matches.push("at_risk");
           if ("inactivo".includes(t)) matches.push("churned");
           if ("prospecto".includes(t)) matches.push("prospect");
-          // Include actual values just in case
           if (["active", "at_risk", "churned", "prospect"].includes(t)) {
             if (!matches.includes(t)) matches.push(t);
           }
@@ -59,7 +89,6 @@ function CustomersPageInner() {
             { territory: { city: { $containsi: term } } },
           ];
 
-          // Only add status to the OR if the term matches a valid enum value
           if (validStatuses.length > 0) {
             orConditions.push({ status: { $in: validStatuses } });
           }
@@ -70,6 +99,7 @@ function CustomersPageInner() {
     }
     return f;
   }, [search]);
+
   const {
     loading,
     isFetching,
@@ -82,49 +112,65 @@ function CustomersPageInner() {
     filters,
     populate: ["territory"],
   });
+
+  // ------ Dashboard summary (sums from visible page) ------
+  const dashboardSummary = useMemo(() => {
+    if (!customers || customers.length === 0) {
+      return {
+        totalCurrentMonth: 0,
+        totalProjected: 0,
+        totalAvg3M: 0,
+        activeCount: 0,
+      };
+    }
+    let totalCurrentMonth = 0;
+    let totalProjected = 0;
+    let totalAvg3M = 0;
+    let activeCount = 0;
+
+    for (const c of customers) {
+      totalCurrentMonth += Number(c.currentMonthVolume) || 0;
+      totalProjected += Number(c.projectedVolume) || 0;
+      totalAvg3M += Number(c.threeMonthAverage) || 0;
+      if (c.status === "active" || c.status === "at_risk") activeCount++;
+    }
+
+    return { totalCurrentMonth, totalProjected, totalAvg3M, activeCount };
+  }, [customers]);
+
   const columns = [
     {
       key: "identification",
       label: "Identificación",
-      render: (customer) => {
-        return (
-          <Link href={`/customers/${customer.id}`}>
-            <span className="text-default-900 font-medium hover:underline cursor-pointer">
-              {customer.identification}
-            </span>
-          </Link>
-        );
-      },
+      render: (customer) => (
+        <Link href={`/customers/${customer.id}`}>
+          <span className="text-default-900 font-medium hover:underline cursor-pointer">
+            {customer.identification}
+          </span>
+        </Link>
+      ),
     },
     {
       key: "name",
       label: "Nombre",
-      render: (customer) => {
-        return (
-          <Link href={`/customers/${customer.id}`}>
-            <span className="text-default-900 font-medium hover:underline cursor-pointer">
-              {`${customer.name} ${customer.lastName || ""}`}
-            </span>
-          </Link>
-        );
-      },
+      render: (customer) => (
+        <Link href={`/customers/${customer.id}`}>
+          <span className="text-default-900 font-medium hover:underline cursor-pointer">
+            {`${customer.name} ${customer.lastName || ""}`}
+          </span>
+        </Link>
+      ),
     },
     {
       key: "city",
       label: "Ciudad",
-      render: (customer) => {
-        return (
-          <Link href={`/customers/${customer.id}`}>
-            <span className="text-default-900 font-medium hover:underline cursor-pointer">
-              {customer?.territory?.city || "-"}
-            </span>
-          </Link>
-        );
-      },
-    },
-    {
-      key: "address",
-      label: "Dirección",
+      render: (customer) => (
+        <Link href={`/customers/${customer.id}`}>
+          <span className="text-default-900 font-medium hover:underline cursor-pointer">
+            {customer?.territory?.city || "-"}
+          </span>
+        </Link>
+      ),
     },
     {
       key: "status",
@@ -153,31 +199,53 @@ function CustomersPageInner() {
       },
     },
     {
-      key: "monthlyVolume",
-      label: "Volumen (30 días)",
+      key: "currentMonthVolume",
+      label: "Ventas Mes",
+      render: (customer) => (
+        <span className="text-default-900 font-medium">
+          {COP(customer.currentMonthVolume)}
+        </span>
+      ),
+    },
+    {
+      key: "projectedVolume",
+      label: "Proyección",
       render: (customer) => {
+        const projected = customer.projectedVolume || 0;
+        const avg = customer.threeMonthAverage || 0;
+        const isAboveAvg = projected >= avg;
         return (
-          <span className="text-default-900">
-            {new Intl.NumberFormat("es-CO", {
-              style: "currency",
-              currency: "COP",
-            }).format(customer.monthlyVolume || 0)}
+          <span
+            className={`font-semibold ${
+              projected === 0
+                ? "text-default-400"
+                : isAboveAvg
+                  ? "text-success-600"
+                  : "text-warning-600"
+            }`}
+          >
+            {COP(projected)}
           </span>
         );
       },
     },
     {
+      key: "monthlyVolume",
+      label: "Volumen (30d)",
+      render: (customer) => (
+        <span className="text-default-900">{COP(customer.monthlyVolume)}</span>
+      ),
+    },
+    {
       key: "lastPurchaseDate",
       label: "Última Compra",
-      render: (customer) => {
-        return (
-          <span className="text-default-900">
-            {customer.lastPurchaseDate
-              ? moment(customer.lastPurchaseDate).format("DD/MM/YYYY")
-              : "N/A"}
-          </span>
-        );
-      },
+      render: (customer) => (
+        <span className="text-default-900">
+          {customer.lastPurchaseDate
+            ? moment(customer.lastPurchaseDate).format("DD/MM/YYYY")
+            : "N/A"}
+        </span>
+      ),
     },
     {
       key: "topProducts",
@@ -201,19 +269,6 @@ function CustomersPageInner() {
         );
       },
     },
-    {
-      key: "updatedAt",
-      label: "Última actualización",
-      render: (customer) => {
-        return (
-          <Link href={`/customers/${customer.id}`}>
-            <span className="text-default-900 font-medium hover:underline cursor-pointer">
-              {moment(customer.updatedAt).format("DD/MM/YYYY")}
-            </span>
-          </Link>
-        );
-      },
-    },
   ];
 
   const handleDelete = async () => {
@@ -222,14 +277,11 @@ function CustomersPageInner() {
     try {
       let idsToDelete = [];
       if (selectedKeys === "all") {
-        // If all selected, use current page items (or fetch all if needed, but for now current view)
         idsToDelete = customers.map((c) => c.id);
       } else {
         idsToDelete = Array.from(selectedKeys);
       }
 
-      // Execute deletions
-      // We could use Promise.all but might want to be careful with rate limits if many
       await Promise.all(idsToDelete.map((id) => deleteCustomer(id)));
 
       addToast({
@@ -272,11 +324,69 @@ function CustomersPageInner() {
     }
   };
 
+  const currentMonthName = moment().format("MMMM YYYY");
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="font-bold text-xl lg:text-3xl">Clientes</h1>
+        <Button
+          color="success"
+          variant="flat"
+          onPress={() => setIsExportModalOpen(true)}
+          isDisabled={loading}
+        >
+          Exportar a Excel
+        </Button>
       </div>
+
+      {/* Dashboard Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <DashboardCard
+          label={`Ventas ${currentMonthName}`}
+          value={COP(dashboardSummary.totalCurrentMonth)}
+          subtitle={`${dashboardSummary.activeCount} clientes activos`}
+          color="primary"
+        />
+        <DashboardCard
+          label="Proyección Fin de Mes"
+          value={COP(dashboardSummary.totalProjected)}
+          subtitle="Modelo estacional + tendencia"
+          color={
+            dashboardSummary.totalProjected >= dashboardSummary.totalAvg3M
+              ? "success"
+              : "warning"
+          }
+        />
+        <DashboardCard
+          label="Promedio Mensual (3M)"
+          value={COP(dashboardSummary.totalAvg3M)}
+          subtitle="Últimos 90 días ÷ 3"
+          color="default"
+        />
+        <DashboardCard
+          label="Cumplimiento vs Promedio"
+          value={
+            dashboardSummary.totalAvg3M > 0
+              ? `${Math.round(
+                  (dashboardSummary.totalCurrentMonth /
+                    dashboardSummary.totalAvg3M) *
+                    100
+                )}%`
+              : "N/A"
+          }
+          subtitle={`Día ${moment().date()} de ${moment().daysInMonth()}`}
+          color={
+            dashboardSummary.totalAvg3M > 0 &&
+            dashboardSummary.totalCurrentMonth /
+              dashboardSummary.totalAvg3M >=
+              0.8
+              ? "success"
+              : "warning"
+          }
+        />
+      </div>
+
       <EntityFilters
         pathname={"/new-customer"}
         search={search}
@@ -302,17 +412,6 @@ function CustomersPageInner() {
             loading={loading || isFetching}
           />
         )}
-
-      {/* Export Button below bulk actions or as a floating/bottom action if desired. Adding to Top next to Title works better usually. Let's add it near the title */}
-      <div className="flex md:justify-end">
-        <Button
-          color="success"
-          onPress={() => setIsExportModalOpen(true)}
-          isDisabled={loading}
-        >
-          Exportar a Excel
-        </Button>
-      </div>
 
       <ExportCustomersModal
         isOpen={isExportModalOpen}

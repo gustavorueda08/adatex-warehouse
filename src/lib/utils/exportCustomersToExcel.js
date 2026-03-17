@@ -75,17 +75,21 @@ export const exportCustomersToExcel = async ({
         "Apellido": customer.lastName || "",
         "Ciudad": customer?.territory?.city || "-",
         "Estado": labels[customer.status || "active"] || "Activo",
+        "Ventas Mes Actual": customer.currentMonthVolume || 0,
+        "Proyección Fin de Mes": customer.projectedVolume || 0,
         "Volumen (30 días)": customer.monthlyVolume || 0,
         "Promedio (3 meses)": customer.threeMonthAverage || 0,
-        "Última Compra": customer.lastPurchaseDate ? moment(customer.lastPurchaseDate).format("DD/MM/YYYY") : "N/A",
+        "Última Compra": customer.lastPurchaseDate
+          ? moment(customer.lastPurchaseDate).format("DD/MM/YYYY")
+          : "N/A",
         "Motivo de Inactividad": customer.inactivityReason || "",
         "Notas de Prospecto": customer.prospectNotes || "",
-        "Productos Principales": topProductsStr
+        "Productos Principales": topProductsStr,
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(data);
-    
+
     // Auto-size columns slightly
     worksheet["!cols"] = Object.keys(data[0] || {}).map((header) => ({
       wch: Math.max(header.length + 2, 20),

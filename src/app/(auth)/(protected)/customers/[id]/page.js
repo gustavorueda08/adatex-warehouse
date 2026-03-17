@@ -356,6 +356,61 @@ export default function CustomerDetailPage() {
         />
       </Section>
       <Section
+        title="Proyección de Ventas"
+        description="Ventas del mes actual y proyección estacional."
+      >
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-1 p-4 rounded-xl border bg-primary-50 border-primary-200">
+              <span className="text-xs font-medium text-default-500 uppercase tracking-wider">
+                Ventas Mes Actual
+              </span>
+              <span className="text-xl font-bold text-default-900">
+                {new Intl.NumberFormat("es-CO", {
+                  style: "currency",
+                  currency: "COP",
+                  maximumFractionDigits: 0,
+                }).format(customer?.currentMonthVolume || 0)}
+              </span>
+            </div>
+            <div
+              className={`flex flex-col gap-1 p-4 rounded-xl border ${
+                (customer?.projectedVolume || 0) >=
+                (customer?.threeMonthAverage || 0)
+                  ? "bg-success-50 border-success-200"
+                  : "bg-warning-50 border-warning-200"
+              }`}
+            >
+              <span className="text-xs font-medium text-default-500 uppercase tracking-wider">
+                Proyección Fin de Mes
+              </span>
+              <span className="text-xl font-bold text-default-900">
+                {new Intl.NumberFormat("es-CO", {
+                  style: "currency",
+                  currency: "COP",
+                  maximumFractionDigits: 0,
+                }).format(customer?.projectedVolume || 0)}
+              </span>
+              <span className="text-xs text-default-400">
+                Modelo estacional + tendencia
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 p-4 rounded-xl border bg-default-50 border-default-200">
+              <span className="text-xs font-medium text-default-500 uppercase tracking-wider">
+                Promedio Mensual (3M)
+              </span>
+              <span className="text-xl font-bold text-default-900">
+                {new Intl.NumberFormat("es-CO", {
+                  style: "currency",
+                  currency: "COP",
+                  maximumFractionDigits: 0,
+                }).format(customer?.threeMonthAverage || 0)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Section>
+      <Section
         title="Productos Principales (Últimos 90 días)"
         description="Volumen y cantidad de los productos más comprados por el cliente."
       >
