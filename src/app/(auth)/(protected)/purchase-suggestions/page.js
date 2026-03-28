@@ -1,70 +1,201 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Button, Spinner, Input, Select, SelectItem, Tooltip } from "@heroui/react";
+import {
+  Button,
+  Spinner,
+  Input,
+  Select,
+  SelectItem,
+  Card,
+  CardBody,
+  Chip,
+  Progress,
+  Tooltip,
+  Divider,
+} from "@heroui/react";
 import RoleGuard from "@/components/auth/RoleGuard";
 import moment from "moment-timezone";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const NUM = (v) =>
   new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(v || 0);
 
-const statusConfig = {
-  deficit: { label: "Déficit", bg: "bg-danger-100 text-danger-700", dot: "🔴" },
-  order_soon: { label: "Pedir Pronto", bg: "bg-warning-100 text-warning-700", dot: "🟡" },
-  sufficient: { label: "Suficiente", bg: "bg-success-100 text-success-700", dot: "🟢" },
+// ── Configuración de UI ───────────────────────────────────────────────────────
+
+const STATUS_CONFIG = {
+  deficit:    { label: "Déficit",      color: "danger",  description: "No hay suficiente stock para cubrir la demanda. Comprar de inmediato." },
+  order_soon: { label: "Pedir Pronto", color: "warning", description: "El stock está cerca del punto de reorden. Planificar compra esta semana." },
+  sufficient: { label: "Suficiente",   color: "success", description: "Stock cubre la demanda predicha con margen de seguridad." },
 };
 
-const abcColors = { A: "bg-danger-100 text-danger-700", B: "bg-warning-100 text-warning-700", C: "bg-default-100 text-default-600" };
-const xyzColors = { X: "bg-success-100 text-success-700", Y: "bg-warning-100 text-warning-700", Z: "bg-danger-100 text-danger-700" };
-const methodLabels = { prophet: "Prophet", exponential_smoothing: "Suavizado", no_data: "Sin datos" };
-const methodColors = { prophet: "text-primary-600", exponential_smoothing: "text-default-500", no_data: "text-danger-400" };
-const confidenceColors = { high: "text-success-600", medium: "text-warning-600", low: "text-danger-600" };
-const confidenceLabels = { high: "Alta", medium: "Media", low: "Baja" };
+const ABC_COLORS = { A: "danger", B: "warning", C: "default" };
+const XYZ_COLORS = { X: "success", Y: "warning", Z: "danger" };
 
-function StatCard({ label, value, subtitle, color = "default" }) {
-  const bg = {
-    default: "bg-default-50 border-default-200",
-    success: "bg-success-50 border-success-200",
-    warning: "bg-warning-50 border-warning-200",
-    danger: "bg-danger-50 border-danger-200",
-    primary: "bg-primary-50 border-primary-200",
-  };
+const METHOD_LABELS = {
+  prophet:               "Prophet ML",
+  exponential_smoothing: "Suavizado Exp.",
+  holt_smoothing:        "Holt",
+  no_data:               "Sin datos",
+};
+const METHOD_COLORS = {
+  prophet:               "secondary",
+  exponential_smoothing: "default",
+  holt_smoothing:        "primary",
+  no_data:               "danger",
+};
+
+const CONFIDENCE_LABELS = { high: "Alta", medium: "Media", low: "Baja" };
+const CONFIDENCE_COLORS = { high: "success", medium: "warning", low: "danger" };
+const CONFIDENCE_TEXT   = { high: "text-success-600", medium: "text-warning-600", low: "text-danger-600" };
+
+// ── Mini chart de predicción ──────────────────────────────────────────────────
+
+function ForecastChart({ product }) {
+  const data = (product.forecast_periods || []).map((w) => ({
+    sem:         moment(w.week_start).format("DD/MM"),
+    "Predicción": parseFloat(w.forecast_qty?.toFixed(1) ?? 0),
+    "IC inf.":    parseFloat(w.lower_95?.toFixed(1)     ?? 0),
+    "IC sup.":    parseFloat(w.upper_95?.toFixed(1)     ?? 0),
+  }));
+
+  if (!data.length)
+    return <p className="text-xs text-default-400 text-center py-3">Sin datos de predicción disponibles</p>;
+
+  const gradId = `grad-ps-${product.product_id}`;
   return (
-    <div className={`flex flex-col gap-1 p-4 rounded-xl border ${bg[color]}`}>
-      <span className="text-xs font-medium text-default-500 uppercase tracking-wider">{label}</span>
-      <span className="text-xl lg:text-2xl font-bold text-default-900">{value}</span>
-      {subtitle && <span className="text-xs text-default-400">{subtitle}</span>}
+    <div className="h-44">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor="#7828C8" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="#7828C8" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+          <XAxis dataKey="sem" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+          <YAxis tick={{ fontSize: 10 }} width={36} />
+          <RechartsTooltip formatter={(v, name) => [NUM(v), name]} />
+          <Area dataKey="IC sup."    stroke="none"    fill={`url(#${gradId})`} fillOpacity={1} legendType="none" />
+          <Area dataKey="IC inf."    stroke="none"    fill="white"              fillOpacity={1} legendType="none" />
+          <Area dataKey="Predicción" stroke="#7828C8" strokeWidth={2}           fill="none"    dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
 
+// ── KpiCard ───────────────────────────────────────────────────────────────────
+
+function KpiCard({ label, action, value, subtitle, accentColor }) {
+  return (
+    <Card shadow="none" className={`border border-default-200 border-l-4 ${accentColor}`}>
+      <CardBody className="py-3 px-4">
+        <span className="text-xs font-medium text-default-500 uppercase tracking-wider">{label}</span>
+        {action && <span className="text-xs text-default-400 block">{action}</span>}
+        <span className="text-2xl font-bold text-default-900 block mt-1">{value}</span>
+        {subtitle && <span className="text-xs text-default-400 mt-0.5 block">{subtitle}</span>}
+      </CardBody>
+    </Card>
+  );
+}
+
+// ── Fila expandida ────────────────────────────────────────────────────────────
+
+function ExpandedRow({ p }) {
+  const ss = p.safety_stock_info || {};
+  const cv = ss.coefficient_of_variation || 0;
+  const cvColor = cv < 0.5 ? "text-success-600" : cv < 1 ? "text-warning-600" : "text-danger-600";
+
+  return (
+    <div className="px-5 py-5 flex flex-col gap-5 bg-default-50/60 border-b border-default-200">
+      {/* Estrategia + badge */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        {p.abc_xyz && (
+          <div className="flex items-center gap-1.5">
+            <Chip size="sm" color={ABC_COLORS[p.abc_xyz.abc]} variant="flat">{p.abc_xyz.abc}</Chip>
+            <Chip size="sm" color={XYZ_COLORS[p.abc_xyz.xyz]} variant="flat">{p.abc_xyz.xyz}</Chip>
+            <span className="text-xs text-default-400">— {p.abc_xyz.category}</span>
+          </div>
+        )}
+        {p.abc_xyz?.strategy && (
+          <p className="text-sm text-default-700">
+            <span className="font-semibold">Estrategia: </span>{p.abc_xyz.strategy}
+          </p>
+        )}
+      </div>
+
+      <Divider />
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: "Stock Actual",       value: `${NUM(p.current_stock)} ${p.product_unit}`,              cls: "text-default-900",
+            tip: "Cantidad disponible en inventario actualmente" },
+          { label: "Stock de Seguridad", value: `${NUM(ss.safety_stock)} ${p.product_unit}`,               cls: "text-warning-700",
+            tip: "Buffer mínimo para absorber variaciones en la demanda o el tiempo de entrega" },
+          { label: "Punto de Reorden",   value: `${NUM(ss.reorder_point)} ${p.product_unit}`,              cls: "text-default-900",
+            tip: "Cuando el stock baja a este nivel, hay que hacer el pedido para no quedarse sin producto" },
+          { label: "Demanda / semana",   value: `${NUM(ss.avg_demand_per_period)} ${p.product_unit}`,      cls: "text-default-900",
+            tip: "Promedio de unidades vendidas por semana según el historial" },
+          { label: "Desv. estándar",     value: `${NUM(ss.demand_std)} ${p.product_unit}`,                 cls: "text-default-900",
+            tip: "Variabilidad de la demanda semana a semana. Más alto = más impredecible" },
+          { label: "Coef. variación",    value: `${(cv * 100).toFixed(1)}%`,                               cls: cvColor,
+            tip: "Relación entre desviación y media. < 50% = estable, 50–100% = variable, > 100% = errática" },
+        ].map(({ label, value, cls, tip }) => (
+          <Tooltip key={label} content={tip} placement="top">
+            <div className="flex flex-col gap-0.5 p-3 rounded-xl border border-default-200 bg-white cursor-help">
+              <span className="text-[10px] text-default-400 uppercase tracking-wide">{label}</span>
+              <span className={`font-bold text-sm ${cls}`}>{value}</span>
+            </div>
+          </Tooltip>
+        ))}
+      </div>
+
+      {/* Chart */}
+      <div>
+        <p className="text-xs font-semibold text-default-500 uppercase tracking-wide mb-2">
+          Predicción semanal · {p.forecast_periods?.length || 0} semanas · IC 95%
+        </p>
+        <ForecastChart product={p} />
+      </div>
+    </div>
+  );
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+
 function PurchaseSuggestionsInner() {
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
+  const [suggestions,  setSuggestions]  = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [unavailable,  setUnavailable]  = useState(false);
+  const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [abcFilter, setAbcFilter] = useState("all");
-  const [expandedRow, setExpandedRow] = useState(null);
+  const [abcFilter,    setAbcFilter]    = useState("all");
+  const [expandedRow,  setExpandedRow]  = useState(null);
 
   const fetchSuggestions = async () => {
     setLoading(true);
+    setUnavailable(false);
     try {
       const res = await fetch("/api/forecast/purchase-suggestions");
-      if (!res.ok) {
-        // Forecast API not available — fall back to Strapi basic endpoint
-        if (res.status === 503) {
-          toast.error("El servicio de predicción avanzada no está disponible. Verifica que adatex-forecast-api esté corriendo.");
-          return;
-        }
-        throw new Error("Error fetching");
-      }
+      if (res.status === 503) { setUnavailable(true); return; }
+      if (!res.ok) throw new Error("Error fetching");
       const data = await res.json();
       setSuggestions(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Error cargando sugerencias de compra");
     } finally {
       setLoading(false);
@@ -100,245 +231,316 @@ function PurchaseSuggestionsInner() {
       );
     }
     if (statusFilter !== "all") r = r.filter((p) => p.status === statusFilter);
-    if (abcFilter !== "all") r = r.filter((p) => p.abc_xyz?.abc === abcFilter);
+    if (abcFilter    !== "all") r = r.filter((p) => p.abc_xyz?.abc === abcFilter);
     return r;
   }, [suggestions, search, statusFilter, abcFilter]);
 
-  const summary = useMemo(() => {
-    let deficitCount = 0, orderSoonCount = 0, prophetCount = 0;
-    for (const s of filtered) {
-      if (s.status === "deficit") deficitCount++;
-      if (s.status === "order_soon") orderSoonCount++;
+  const kpi = useMemo(() => {
+    let deficit = 0, orderSoon = 0, sufficient = 0, prophetCount = 0;
+    for (const s of suggestions) {
+      if (s.status === "deficit")    deficit++;
+      if (s.status === "order_soon") orderSoon++;
+      if (s.status === "sufficient") sufficient++;
       if (s.forecast_method === "prophet") prophetCount++;
     }
-    return { deficitCount, orderSoonCount, prophetCount, total: filtered.length };
-  }, [filtered]);
+    return { deficit, orderSoon, sufficient, prophetCount, total: suggestions.length };
+  }, [suggestions]);
+
+  const stockCoverage = (p) => {
+    const rp = p.safety_stock_info?.reorder_point || 0;
+    if (!rp) return 100;
+    return Math.min(Math.round((p.current_stock / rp) * 100), 200);
+  };
 
   const exportToExcel = () => {
-    const data = filtered.map((p) => ({
-      Producto: p.product_name || "",
-      Código: p.product_code || "",
-      Unidad: p.product_unit || "",
-      Categoría: p.product_category || "",
-      "ABC-XYZ": p.abc_xyz?.category || "",
-      Estrategia: p.abc_xyz?.strategy || "",
-      "Demanda Predicha (90d)": p.total_forecast_qty || 0,
-      "Stock Actual": p.current_stock || 0,
-      Déficit: p.deficit || 0,
-      "Stock Seguridad": p.safety_stock_info?.safety_stock || 0,
-      "Punto de Reorden": p.safety_stock_info?.reorder_point || 0,
-      "CV Demanda": p.safety_stock_info?.coefficient_of_variation || 0,
-      "# Clientes": p.customer_count || 0,
-      Estado: statusConfig[p.status]?.label || p.status,
-      Modelo: methodLabels[p.forecast_method] || p.forecast_method,
-      Confianza: confidenceLabels[p.forecast_confidence] || "",
+    const rows = filtered.map((p) => ({
+      Estado:               STATUS_CONFIG[p.status]?.label || p.status,
+      Producto:             p.product_name  || "",
+      Código:               p.product_code  || "",
+      Unidad:               p.product_unit  || "",
+      Categoría:            p.product_category || "",
+      "ABC-XYZ":            p.abc_xyz?.category || "",
+      Estrategia:           p.abc_xyz?.strategy || "",
+      "Demanda predicha":   p.total_forecast_qty || 0,
+      "Stock actual":       p.current_stock || 0,
+      "Stock de seguridad": p.safety_stock_info?.safety_stock || 0,
+      "Punto de reorden":   p.safety_stock_info?.reorder_point || 0,
+      "Déficit / a comprar": p.deficit || 0,
+      "# Clientes":         p.customer_count || 0,
+      Método:               METHOD_LABELS[p.forecast_method] || "",
+      Confianza:            CONFIDENCE_LABELS[p.forecast_confidence] || "",
     }));
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    ws["!cols"] = Object.keys(data[0] || {}).map((h) => ({ wch: Math.max(h.length + 2, 16) }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = Object.keys(rows[0] || {}).map((h) => ({ wch: Math.max(h.length + 2, 16) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Compras Sugeridas");
     XLSX.writeFile(wb, `Compras-Sugeridas-${moment().format("YYYY-MM-DD")}.xlsx`);
     toast.success("Excel exportado");
   };
 
+  if (unavailable) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="font-bold text-xl lg:text-3xl">Compras Sugeridas</h1>
+        <Card className="border border-warning-200 bg-warning-50" shadow="none">
+          <CardBody className="p-6 flex flex-col gap-3">
+            <p className="text-warning-800 font-semibold">Servicio de predicción no disponible</p>
+            <p className="text-warning-700 text-sm">
+              El servicio <code className="bg-warning-100 px-1 rounded">adatex-forecast-api</code> no está corriendo.
+              Las sugerencias de compra se calculan con Prophet ML y requieren este servicio.
+            </p>
+            <div>
+              <Button size="sm" color="warning" variant="flat" onPress={fetchSuggestions}>
+                Reintentar conexión
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="font-bold text-xl lg:text-3xl">Compras Sugeridas</h1>
-          <p className="text-sm text-default-500 mt-1">Powered by Prophet ML — intervalos de confianza 95%, stock de seguridad estadístico y clasificación ABC-XYZ</p>
+          <p className="text-sm text-default-500 mt-0.5">
+            ¿Qué necesito comprar? · Basado en predicciones Prophet ML + stock de seguridad estadístico
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button color="primary" variant="flat" onPress={refreshCache} isDisabled={refreshing || loading}>
+          <Button color="secondary" variant="flat" size="sm" onPress={refreshCache} isDisabled={refreshing || loading}>
             {refreshing ? "Recalculando..." : "Recalcular"}
           </Button>
-          <Button color="success" variant="flat" onPress={exportToExcel} isDisabled={loading || filtered.length === 0}>
+          <Button color="success" variant="flat" size="sm" onPress={exportToExcel} isDisabled={loading || filtered.length === 0}>
             Exportar Excel
           </Button>
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Productos en Déficit" value={summary.deficitCount} subtitle="Requieren reposición urgente" color="danger" />
-        <StatCard label="Pedir Pronto" value={summary.orderSoonCount} subtitle="Stock < 150% de la demanda" color="warning" />
-        <StatCard label="Predichos con Prophet" value={summary.prophetCount} subtitle={`de ${summary.total} productos`} color="primary" />
-        <StatCard label="Total Productos" value={summary.total} subtitle="Con historial de ventas" color="default" />
+        {loading ? (
+          [...Array(4)].map((_, i) => (
+            <Card key={i} shadow="none" className="border border-default-200">
+              <CardBody className="py-3 px-4 gap-2">
+                <div className="h-3 w-24 bg-default-200 rounded animate-pulse" />
+                <div className="h-7 w-10 bg-default-300 rounded animate-pulse" />
+                <div className="h-2.5 w-28 bg-default-100 rounded animate-pulse" />
+              </CardBody>
+            </Card>
+          ))
+        ) : (
+          <>
+            <KpiCard
+              label="Comprar Hoy"
+              action="Stock insuficiente"
+              value={kpi.deficit}
+              subtitle={`producto${kpi.deficit !== 1 ? "s" : ""} en déficit`}
+              accentColor="border-l-danger-500"
+            />
+            <KpiCard
+              label="Planificar Esta Semana"
+              action="Stock bajo el punto de reorden"
+              value={kpi.orderSoon}
+              subtitle={`producto${kpi.orderSoon !== 1 ? "s" : ""} próximos a agotarse`}
+              accentColor="border-l-warning-400"
+            />
+            <KpiCard
+              label="Stock Suficiente"
+              action="Sin acción inmediata"
+              value={kpi.sufficient}
+              subtitle={`de ${kpi.total} productos analizados`}
+              accentColor="border-l-success-400"
+            />
+            <KpiCard
+              label="Precisión del Modelo"
+              action={`${kpi.prophetCount} con Prophet ML`}
+              value={`${kpi.total ? Math.round((kpi.prophetCount / kpi.total) * 100) : 0}%`}
+              subtitle="de predicciones usan Prophet"
+              accentColor="border-l-secondary-400"
+            />
+          </>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3">
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <Input
-          placeholder="Buscar producto o categoría..."
+          placeholder="Buscar producto, código o categoría..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setExpandedRow(null); }}
           className="max-w-sm"
+          size="sm"
         />
         <Select
-          label="Estado"
+          label="Estado de stock"
           selectedKeys={[statusFilter]}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="max-w-[160px]"
+          className="max-w-[180px]"
+          size="sm"
         >
-          <SelectItem key="all">Todos</SelectItem>
-          <SelectItem key="deficit">Déficit</SelectItem>
-          <SelectItem key="order_soon">Pedir Pronto</SelectItem>
-          <SelectItem key="sufficient">Suficiente</SelectItem>
+          <SelectItem key="all">Todos los estados</SelectItem>
+          <SelectItem key="deficit">🔴 Déficit — Comprar hoy</SelectItem>
+          <SelectItem key="order_soon">🟡 Pedir pronto</SelectItem>
+          <SelectItem key="sufficient">🟢 Suficiente</SelectItem>
         </Select>
         <Select
-          label="Clasificación ABC"
+          label="Prioridad ABC"
           selectedKeys={[abcFilter]}
           onChange={(e) => setAbcFilter(e.target.value)}
-          className="max-w-[160px]"
+          className="max-w-[180px]"
+          size="sm"
         >
-          <SelectItem key="all">Todas</SelectItem>
-          <SelectItem key="A">A — Alto valor</SelectItem>
+          <SelectItem key="all">Todas las prioridades</SelectItem>
+          <SelectItem key="A">A — Alto valor (70–80% ingresos)</SelectItem>
           <SelectItem key="B">B — Valor medio</SelectItem>
           <SelectItem key="C">C — Bajo valor</SelectItem>
         </Select>
       </div>
 
-      {/* Table */}
+      {/* Tabla */}
       {loading ? (
-        <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+        <div className="flex justify-center py-16">
+          <Spinner size="lg" label="Calculando qué comprar..." />
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-default-200">
-          <table className="w-full text-sm">
-            <thead className="bg-default-100">
-              <tr>
-                <th className="px-3 py-3 text-center font-semibold text-default-700 w-28">Estado</th>
-                <th className="px-3 py-3 text-left font-semibold text-default-700">Producto</th>
-                <th className="px-3 py-3 text-center font-semibold text-default-700">ABC-XYZ</th>
-                <th className="px-3 py-3 text-right font-semibold text-default-700">Demanda 90d</th>
-                <th className="px-3 py-3 text-right font-semibold text-default-700">Stock Actual</th>
-                <th className="px-3 py-3 text-right font-semibold text-default-700">Stock Seguridad</th>
-                <th className="px-3 py-3 text-right font-semibold text-default-700">Pto. Reorden</th>
-                <th className="px-3 py-3 text-right font-semibold text-default-700">Déficit</th>
-                <th className="px-3 py-3 text-center font-semibold text-default-700">Modelo</th>
-                <th className="px-3 py-3 text-center font-semibold text-default-700">Confianza</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-default-100">
-              {filtered.map((p, idx) => {
-                const sc = statusConfig[p.status] || statusConfig.sufficient;
-                const isExpanded = expandedRow === idx;
-                return [
-                  <tr
-                    key={`row-${idx}`}
-                    className="hover:bg-default-50 transition-colors cursor-pointer"
-                    onClick={() => setExpandedRow(isExpanded ? null : idx)}
-                  >
-                    <td className="px-3 py-3 text-center">
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${sc.bg}`}>
-                        {sc.dot} {sc.label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-default-900">{p.product_name || "-"}</span>
-                        <span className="text-xs text-default-400">{p.product_code} · {p.product_category} · {p.customer_count} cliente(s)</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {p.abc_xyz?.category ? (
-                        <Tooltip content={p.abc_xyz.strategy} placement="top">
-                          <span className="inline-flex gap-1 cursor-help">
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${abcColors[p.abc_xyz.abc]}`}>{p.abc_xyz.abc}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${xyzColors[p.abc_xyz.xyz]}`}>{p.abc_xyz.xyz}</span>
+        <Card shadow="none" className="border border-default-200 overflow-hidden">
+          <CardBody className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-default-50 border-b border-default-200">
+                <tr>
+                  <th className="px-3 py-3 text-center font-semibold text-default-600 text-xs uppercase tracking-wide w-32">Estado</th>
+                  <th className="px-3 py-3 text-left font-semibold text-default-600 text-xs uppercase tracking-wide">Producto</th>
+                  <th className="px-3 py-3 text-center font-semibold text-default-600 text-xs uppercase tracking-wide w-20">
+                    <Tooltip content="ABC = prioridad por valor de ingresos. XYZ = variabilidad de la demanda.">
+                      <span className="cursor-help underline decoration-dotted">ABC-XYZ</span>
+                    </Tooltip>
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-default-600 text-xs uppercase tracking-wide min-w-[170px]">
+                    <Tooltip content="Stock actual como % del punto de reorden. Por debajo de 100% = hay que pedir.">
+                      <span className="cursor-help underline decoration-dotted">Cobertura</span>
+                    </Tooltip>
+                  </th>
+                  <th className="px-3 py-3 text-right font-semibold text-default-600 text-xs uppercase tracking-wide">
+                    <Tooltip content="Cuánto comprar: diferencia entre stock actual + stock de seguridad y la demanda predicha.">
+                      <span className="cursor-help underline decoration-dotted">A Comprar</span>
+                    </Tooltip>
+                  </th>
+                  <th className="px-3 py-3 text-right font-semibold text-default-600 text-xs uppercase tracking-wide">
+                    <Tooltip content="Total de unidades que se prevé vender en el horizonte configurado (90 días por defecto).">
+                      <span className="cursor-help underline decoration-dotted">Demanda Predicha</span>
+                    </Tooltip>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold text-default-600 text-xs uppercase tracking-wide w-28">
+                    <Tooltip content="Modelo estadístico usado para la predicción y su nivel de confianza.">
+                      <span className="cursor-help underline decoration-dotted">Modelo</span>
+                    </Tooltip>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-default-100">
+                {filtered.map((p, idx) => {
+                  const sc       = STATUS_CONFIG[p.status] || STATUS_CONFIG.sufficient;
+                  const coverage = stockCoverage(p);
+                  const isExp    = expandedRow === idx;
+                  const toBuy    = p.deficit > 0 ? p.deficit : 0;
+
+                  return [
+                    <tr
+                      key={`r-${idx}`}
+                      className="hover:bg-default-50/80 transition-colors cursor-pointer"
+                      onClick={() => setExpandedRow(isExp ? null : idx)}
+                    >
+                      <td className="px-3 py-3 text-center">
+                        <Tooltip content={sc.description}>
+                          <span className="cursor-help">
+                            <Chip size="sm" color={sc.color} variant="flat">{sc.label}</Chip>
                           </span>
                         </Tooltip>
-                      ) : "—"}
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold text-default-900">
-                      {NUM(p.total_forecast_qty)} {p.product_unit}
-                    </td>
-                    <td className="px-3 py-3 text-right text-default-700">
-                      {NUM(p.current_stock)} {p.product_unit}
-                    </td>
-                    <td className="px-3 py-3 text-right text-default-700">
-                      {NUM(p.safety_stock_info?.safety_stock)} {p.product_unit}
-                    </td>
-                    <td className="px-3 py-3 text-right font-medium text-default-800">
-                      {NUM(p.safety_stock_info?.reorder_point)} {p.product_unit}
-                    </td>
-                    <td className={`px-3 py-3 text-right font-semibold ${p.deficit > 0 ? "text-danger-600" : "text-success-600"}`}>
-                      {p.deficit > 0 ? `−${NUM(p.deficit)}` : NUM(p.deficit)} {p.product_unit}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <span className={`text-xs font-medium ${methodColors[p.forecast_method]}`}>
-                        {methodLabels[p.forecast_method]}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <span className={`text-xs font-semibold ${confidenceColors[p.forecast_confidence]}`}>
-                        {confidenceLabels[p.forecast_confidence]}
-                      </span>
-                    </td>
-                  </tr>,
-                  isExpanded && (
-                    <tr key={`expanded-${idx}`} className="bg-default-50">
-                      <td colSpan={10} className="px-6 py-4">
-                        <div className="flex flex-col gap-3">
-                          {/* Strategy */}
-                          {p.abc_xyz?.strategy && (
-                            <div className="text-sm text-default-700">
-                              <span className="font-semibold">Estrategia recomendada:</span> {p.abc_xyz.strategy}
-                            </div>
-                          )}
-                          {/* Stats row */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                            <div className="flex flex-col gap-0.5 p-3 rounded-lg border border-default-200 bg-white">
-                              <span className="text-default-500 uppercase tracking-wide">Demanda prom / semana</span>
-                              <span className="font-bold text-default-900">{NUM(p.safety_stock_info?.avg_demand_per_period)} {p.product_unit}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 p-3 rounded-lg border border-default-200 bg-white">
-                              <span className="text-default-500 uppercase tracking-wide">Desv. estándar demanda</span>
-                              <span className="font-bold text-default-900">{NUM(p.safety_stock_info?.demand_std)} {p.product_unit}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 p-3 rounded-lg border border-default-200 bg-white">
-                              <span className="text-default-500 uppercase tracking-wide">Coef. variación (CV)</span>
-                              <span className={`font-bold ${(p.safety_stock_info?.coefficient_of_variation || 0) < 0.5 ? "text-success-600" : (p.safety_stock_info?.coefficient_of_variation || 0) < 1 ? "text-warning-600" : "text-danger-600"}`}>
-                                {((p.safety_stock_info?.coefficient_of_variation || 0) * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 p-3 rounded-lg border border-default-200 bg-white">
-                              <span className="text-default-500 uppercase tracking-wide">Nivel de servicio</span>
-                              <span className="font-bold text-default-900">{((p.safety_stock_info?.service_level || 0) * 100).toFixed(0)}%</span>
-                            </div>
-                          </div>
-                          {/* Forecast weeks preview */}
-                          {p.forecast_periods?.length > 0 && (
-                            <div>
-                              <p className="text-xs font-semibold text-default-600 mb-2 uppercase tracking-wide">Próximas semanas (Qty con IC 95%)</p>
-                              <div className="flex flex-wrap gap-2">
-                                {p.forecast_periods.slice(0, 12).map((w, wi) => (
-                                  <div key={wi} className="flex flex-col items-center p-2 rounded-lg border border-default-200 bg-white min-w-[80px]">
-                                    <span className="text-xs text-default-400">{moment(w.week_start).format("DD/MM")}</span>
-                                    <span className="font-bold text-sm text-default-900">{NUM(w.forecast_qty)}</span>
-                                    <span className="text-xs text-default-400">{NUM(w.lower_95)}–{NUM(w.upper_95)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-default-900">{p.product_name}</span>
+                          <span className="text-xs text-default-400">
+                            {p.product_code} · {p.product_category} · {p.customer_count} cliente{p.customer_count !== 1 ? "s" : ""}
+                          </span>
                         </div>
                       </td>
-                    </tr>
-                  ),
-                ];
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="text-center py-8 text-default-400">
-                    No hay sugerencias. Asegúrate de que <code>adatex-forecast-api</code> esté corriendo.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <td className="px-3 py-3 text-center">
+                        {p.abc_xyz?.category ? (
+                          <Tooltip content={`${p.abc_xyz.category}: ${p.abc_xyz.strategy}`}>
+                            <span className="inline-flex gap-1 cursor-help">
+                              <Chip size="sm" color={ABC_COLORS[p.abc_xyz.abc]} variant="flat">{p.abc_xyz.abc}</Chip>
+                              <Chip size="sm" color={XYZ_COLORS[p.abc_xyz.xyz]} variant="flat">{p.abc_xyz.xyz}</Chip>
+                            </span>
+                          </Tooltip>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-3 min-w-[170px]">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-xs text-default-500">
+                            <span>Stock: {NUM(p.current_stock)}</span>
+                            <span>Reorden: {NUM(p.safety_stock_info?.reorder_point)} {p.product_unit}</span>
+                          </div>
+                          <Progress
+                            size="sm"
+                            value={coverage}
+                            maxValue={200}
+                            color={coverage < 100 ? "danger" : coverage < 150 ? "warning" : "success"}
+                          />
+                          <span className="text-xs font-medium text-default-600">{coverage}% del punto de reorden</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {toBuy > 0 ? (
+                          <div className="flex flex-col items-end">
+                            <span className="font-bold text-danger-600 text-base">{NUM(toBuy)}</span>
+                            <span className="text-xs text-default-400">{p.product_unit}</span>
+                          </div>
+                        ) : (
+                          <span className="text-success-600 font-medium text-sm">— Sin déficit</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <span className="font-semibold text-default-900">{NUM(p.total_forecast_qty)}</span>
+                        <span className="text-xs text-default-400 ml-1">{p.product_unit}</span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Chip size="sm" color={METHOD_COLORS[p.forecast_method]} variant="flat">
+                            {METHOD_LABELS[p.forecast_method]}
+                          </Chip>
+                          <span className={`text-xs ${CONFIDENCE_TEXT[p.forecast_confidence] || "text-default-400"}`}>
+                            Confianza {CONFIDENCE_LABELS[p.forecast_confidence] || "—"}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>,
+                    isExp && (
+                      <tr key={`exp-${idx}`}>
+                        <td colSpan={7} className="p-0">
+                          <ExpandedRow p={p} />
+                        </td>
+                      </tr>
+                    ),
+                  ];
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-default-400">
+                      {suggestions.length === 0
+                        ? "No hay sugerencias. Verifica que adatex-forecast-api esté corriendo."
+                        : "Ningún producto coincide con los filtros seleccionados."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </CardBody>
+        </Card>
       )}
     </div>
   );
