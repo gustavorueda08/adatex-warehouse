@@ -18,8 +18,6 @@ export async function GET(request) {
       strapiUrl.searchParams.append(key, value);
     });
 
-    console.log(strapiUrl.toString());
-
     // Configurar headers para la petición a Strapi
     const headers = {
       "Content-Type": "application/json",

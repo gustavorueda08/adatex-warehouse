@@ -2,12 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import { useOrders } from "@/lib/hooks/useOrders";
-import { useSupplierSelector } from "@/lib/hooks/useSupplierSelector";
-import { useWarehouses } from "@/lib/hooks/useWarehouses";
-import { useProductSelector } from "@/lib/hooks/useProductSelector";
 import { useProducts } from "@/lib/hooks/useProducts";
-import DocumentDetail from "@/components/documents/DocumentDetail";
-import { createPurchaseDetailConfig } from "@/lib/config/purchaseDocumentConfigs";
 import Document from "@/components/documents/Document";
 import Section from "@/components/ui/Section";
 import Actions from "@/components/documents/Actions";
@@ -15,29 +10,42 @@ import Products from "@/components/documents/Products";
 import PInvoice from "@/components/documents/PInvoice";
 import Comments from "@/components/documents/Comments";
 import PackingList from "@/components/documents/PackingList";
+import NationalizationPanel from "@/components/documents/NationalizationPanel";
 import {
   ClipboardDocumentListIcon,
   DocumentArrowUpIcon,
   DocumentChartBarIcon,
+  GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import { parseDate } from "@internationalized/date";
 import moment from "moment-timezone";
 import { addToast } from "@heroui/react";
+import toast from "react-hot-toast";
 import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
 import { mapBulkItems } from "@/lib/utils/mapBulkItems";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import RoleGuard from "@/components/auth/RoleGuard";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
+import { useRouter } from "next/navigation";
 
 export default function PurchaseDetailPage({ params }) {
   const { id } = use(params);
+  const router = useRouter();
 
   // Solo fetch del documento con todas sus relaciones
-  const { orders, updateOrder, deleteOrder, refetch } = useOrders({
+  const {
+    orders,
+    updateOrder,
+    deleteOrder,
+    createNationalization,
+    getNationalizableItems,
+  } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
       "orderProducts.product",
       "orderProducts.items",
+      "orderProducts.items.warehouse",
       "supplier",
       "supplier.prices",
       "destinationWarehouse",
@@ -45,9 +53,6 @@ export default function PurchaseDetailPage({ params }) {
   });
 
   const [document, setDocument] = useState(orders[0] || null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-  });
 
   // Hook para obtener productos para mapBulkItems
   const { products } = useProducts({});
@@ -79,11 +84,8 @@ export default function PurchaseDetailPage({ params }) {
         type: "async-select",
         placeholder: "Selecciona un proveedor",
         selectedOption: document?.supplier,
-        selectedOptionLabel: document?.supplier
-          ? `${document?.supplier?.name} ${document?.supplier?.lastName ? document?.supplier?.lastName : ""}`
-          : "",
-        render: (supplier) =>
-          `${supplier.name} ${supplier.lastName ? supplier.lastName : ""}`,
+        selectedOptionLabel: getPartyLabel(document?.supplier),
+        render: (supplier) => getPartyLabel(supplier),
         filters: (search) => {
           if (!search) return {};
           const terms = search.split(/\s+/).filter(Boolean);
@@ -138,9 +140,9 @@ export default function PurchaseDetailPage({ params }) {
         ],
         disabled: false,
         value: document?.state,
-        onChange: async (state) => {
+        onChange: (state) => {
           const newDocument = { ...document, state };
-          await handleUpdate(newDocument);
+          handleUpdate(newDocument);
           setDocument(newDocument);
         },
         disabled: document?.state === ORDER_STATES.COMPLETED,
@@ -221,140 +223,128 @@ export default function PurchaseDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = async () => {
-    try {
-      await deleteOrder(document.id);
-      addToast({
-        title: "Orden Eliminada",
-        description: "La orden ha sido eliminada correctamente",
-        type: "success",
-      });
-      router.push("/purchases");
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al eliminar",
-        description: "Ocurrió un error al eliminar la orden",
-        type: "error",
-      });
-    }
-  };
-  const handleUpdate = async (newState = null) => {
-    try {
-      setLoadings({
-        isUpdating: true,
-      });
-      const products = document?.orderProducts || [];
-      const confirmed = products
-        .filter((p) => p.product)
-        .every((product) => {
-          const validItems = (product.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
-            );
-          });
-          // Product must have at least one valid item with quantity, lot, and itemNumber
-          return (
-            validItems.length > 0 &&
-            validItems.every((item) => {
-              const qty = Number(item.currentQuantity);
-              return (
-                qty > 0 &&
-                item.lotNumber !== "" &&
-                item.lotNumber !== null &&
-                item.lotNumber !== undefined &&
-                item.itemNumber !== "" &&
-                item.itemNumber !== null &&
-                item.itemNumber !== undefined
-              );
-            })
-          );
-        });
-      const formattedProducts = products
-        .filter((p) => p.product)
-        .map((p) => {
-          const validItems = (p.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
-            );
-          });
-          // Calculate confirmedQuantity sum
-          const confirmedQuantity = validItems.reduce(
-            (sum, item) => sum + (Number(item.currentQuantity) || 0),
-            0,
-          );
-          const items = validItems.map((item) => ({
-            id: item.id,
-            quantity: Number(item.currentQuantity),
-            lot: Number(item.lotNumber) || null,
-            itemNumber: Number(item.itemNumber) || null,
-          }));
+  const handleDelete = () => {
+    router.push("/purchases");
 
-          return {
-            product: p.product.id || p.product,
-            items: items,
-            confirmedQuantity,
-            requestedQuantity: p.requestedQuantity
-              ? Number(p.requestedQuantity)
-              : 0,
-            price: p.price ? Number(p.price) : 0,
-            ivaIncluded: p.ivaIncluded || false,
-            invoicePercentage: p.invoicePercentage
-              ? Number(p.invoicePercentage)
-              : 100,
-          };
+    const deletePromise = deleteOrder(document.id, { background: true }).then(
+      (result) => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
+      },
+    );
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
+  };
+  const handleUpdate = (newState = null) => {
+    const products = document?.orderProducts || [];
+    const confirmed = products
+      .filter((p) => p.product)
+      .every((product) => {
+        const validItems = (product.items || []).filter((i) => {
+          const qty = Number(i.currentQuantity);
+          return (
+            i.currentQuantity !== "" &&
+            i.currentQuantity !== null &&
+            i.currentQuantity !== undefined &&
+            !isNaN(qty) &&
+            qty !== 0
+          );
         });
-      const data = {
-        products: formattedProducts,
-        supplier: document?.supplier?.id || document?.supplier,
-        destinationWarehouse:
-          document?.destinationWarehouse?.id || document?.destinationWarehouse,
-        createdDate: document?.createdDate,
-        confirmedDate: document?.confirmedDate,
-        completedDate:
-          newState === "completed"
-            ? moment.tz("America/Bogota").toDate()
-            : document?.completedDate,
-        estimatedTransitDate: document?.estimatedTransitDate,
-        transitDate: document?.transitDate,
-        estimatedCompletedDate: document?.estimatedCompletedDate,
-        state: newState
-          ? newState
-          : confirmed && document?.state === "draft"
-            ? "confirmed"
-            : document?.state,
-      };
-      if (confirmed && document?.state === "draft") {
-        data.confirmedDate = moment.tz("America/Bogota").toDate();
-      }
-      await updateOrder(document?.id, data);
-      addToast({
-        title: "Orden de Venta Actualizada",
-        description: "La orden de venta ha sido actualizada correctamente",
-        type: "success",
+        // Product must have at least one valid item with quantity, lot, and itemNumber
+        return (
+          validItems.length > 0 &&
+          validItems.every((item) => {
+            const qty = Number(item.currentQuantity);
+            return (
+              qty > 0 &&
+              item.lotNumber !== "" &&
+              item.lotNumber !== null &&
+              item.lotNumber !== undefined &&
+              item.itemNumber !== "" &&
+              item.itemNumber !== null &&
+              item.itemNumber !== undefined
+            );
+          })
+        );
       });
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la orden de venta",
-        type: "error",
+    const formattedProducts = products
+      .filter((p) => p.product)
+      .map((p) => {
+        const validItems = (p.items || []).filter((i) => {
+          const qty = Number(i.currentQuantity);
+          return (
+            i.currentQuantity !== "" &&
+            i.currentQuantity !== null &&
+            i.currentQuantity !== undefined &&
+            !isNaN(qty) &&
+            qty !== 0
+          );
+        });
+        // Calculate confirmedQuantity sum
+        const confirmedQuantity = validItems.reduce(
+          (sum, item) => sum + (Number(item.currentQuantity) || 0),
+          0,
+        );
+        const items = validItems.map((item) => ({
+          id: item.id,
+          quantity: Number(item.currentQuantity),
+          lot: Number(item.lotNumber) || null,
+          itemNumber: Number(item.itemNumber) || null,
+        }));
+
+        return {
+          product: p.product.id || p.product,
+          items: items,
+          confirmedQuantity,
+          requestedQuantity: p.requestedQuantity
+            ? Number(p.requestedQuantity)
+            : 0,
+          price: p.price ? Number(p.price) : 0,
+          ivaIncluded: p.ivaIncluded || false,
+          invoicePercentage: p.invoicePercentage
+            ? Number(p.invoicePercentage)
+            : 100,
+        };
       });
-    } finally {
-      setLoadings({
-        isUpdating: false,
-      });
+    const data = {
+      products: formattedProducts,
+      supplier: document?.supplier?.id || document?.supplier,
+      destinationWarehouse:
+        document?.destinationWarehouse?.id || document?.destinationWarehouse,
+      createdDate: document?.createdDate,
+      confirmedDate: document?.confirmedDate,
+      completedDate:
+        newState === "completed"
+          ? moment.tz("America/Bogota").toDate()
+          : document?.completedDate,
+      estimatedTransitDate: document?.estimatedTransitDate,
+      transitDate: document?.transitDate,
+      estimatedCompletedDate: document?.estimatedCompletedDate,
+      state: newState
+        ? newState
+        : confirmed && document?.state === "draft"
+          ? "confirmed"
+          : document?.state,
+    };
+    if (confirmed && document?.state === "draft") {
+      data.confirmedDate = moment.tz("America/Bogota").toDate();
     }
+
+    const promise = updateOrder(document?.id, data, { background: true }).then(
+      (result) => {
+        if (!result.success)
+          throw new Error(result.error?.message || "Error al actualizar");
+        return result;
+      },
+    );
+    toast.promise(promise, {
+      loading: "Actualizando...",
+      success: "Orden actualizada exitosamente",
+      error: (err) => err.message || "Error al actualizar",
+    });
   };
 
   const handleBulkUpload = async (data) => {
@@ -424,16 +414,19 @@ export default function PurchaseDetailPage({ params }) {
             isItemEditable={document?.state !== ORDER_STATES.COMPLETED}
           />
         </Section>
-        <Section
-          title="Carga Masiva de Lista de Empaque"
-          description="Carga masiva de lista de empaque de la orden de venta"
-          icon={<DocumentArrowUpIcon className="w-6 h-6" />}
-        >
-          <BulkPackingListUploader
-            onFileLoaded={handleBulkUpload}
-            isReadOnly={document?.state === ORDER_STATES.COMPLETED}
-          />
-        </Section>
+        {document?.state !== ORDER_STATES.COMPLETED && (
+          <Section
+            title="Carga Masiva de Lista de Empaque"
+            description="Carga masiva de lista de empaque de la orden de venta"
+            icon={<DocumentArrowUpIcon className="w-6 h-6" />}
+          >
+            <BulkPackingListUploader
+              onFileLoaded={handleBulkUpload}
+              isReadOnly={document?.state === ORDER_STATES.COMPLETED}
+            />
+          </Section>
+        )}
+
         <Section
           title="Comentarios"
           description="Comentarios de la orden de venta"
@@ -456,6 +449,24 @@ export default function PurchaseDetailPage({ params }) {
             taxes={document?.supplier?.taxes || []}
           />
         </Section>
+        {/* Nationalización: solo visible cuando la orden está completada en zona franca */}
+        {document?.state === ORDER_STATES.COMPLETED &&
+          document?.destinationWarehouse?.type === "freeTradeZone" && (
+            <Section
+              title="Nacionalización Parcial"
+              description="Mueve mercancía de esta zona franca a una bodega stock"
+              icon={<GlobeAltIcon className="w-6 h-6" />}
+            >
+              <NationalizationPanel
+                document={document}
+                createNationalization={createNationalization}
+                getNationalizableItems={getNationalizableItems}
+                onSuccess={(order) => {
+                  router.push(`/nationalizations/${order.id}`);
+                }}
+              />
+            </Section>
+          )}
         <Section
           title="Acciones"
           description="Acciones de la orden de compra"
@@ -466,7 +477,6 @@ export default function PurchaseDetailPage({ params }) {
             onUpdate={handleUpdate}
             onDelete={handleDelete}
             onComplete={handleUpdate}
-            loadings={loadings}
           />
         </Section>
       </Document>

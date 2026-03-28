@@ -15,6 +15,7 @@ import { useWarehouses } from "@/lib/hooks/useWarehouses";
 import { buildInvoiceLabel } from "@/lib/utils/invoiceLabel";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import RoleGuard from "@/components/auth/RoleGuard";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 function NewReturnPageInner() {
   const router = useRouter();
@@ -23,7 +24,6 @@ function NewReturnPageInner() {
     {
       enabled: false,
       onCreate: (createdOrder) => {
-        console.log("Devolución creada exitosamente:", createdOrder);
         router.push(`/returns/${createdOrder.id}`);
       },
     },
@@ -54,9 +54,7 @@ function NewReturnPageInner() {
           ? buildInvoiceLabel(document.parentOrder)
           : "",
         render: (order) => {
-          const customerName = order?.customer
-            ? `${order.customer.name} ${order.customer.lastName || ""}`
-            : "Sin cliente";
+          const customerName = order?.customer ? getPartyLabel(order.customer) : "Sin cliente";
           return `${buildInvoiceLabel(order)} - ${customerName}`;
         },
         filters: (search) => {
@@ -113,9 +111,7 @@ function NewReturnPageInner() {
         label: "Cliente",
         type: "input",
         disabled: true,
-        value: document.customer
-          ? `${document.customer.name} ${document.customer.lastName || ""}`
-          : "",
+        value: getPartyLabel(document.customer),
         placeholder: "Seleccione una orden",
         onChange: () => {},
       },

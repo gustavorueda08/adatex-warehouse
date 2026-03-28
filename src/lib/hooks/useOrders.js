@@ -1,3 +1,11 @@
+/**
+ * @fileoverview Order-specific CRUD hook.
+ *
+ * Wraps `useStrapi("orders")` and adds custom async methods —
+ * `addItem`, `removeItem`, `getInvoices`, `getNationalizableItems`,
+ * and `createNationalization` — that call the order custom routes
+ * on the Strapi backend.
+ */
 // src/lib/hooks/useOrdersCRUD.js
 "use client";
 
@@ -5,6 +13,20 @@ import { normalizeFilters } from "@/lib/api/strapiQueryBuilder";
 import { useStrapi } from "./useStrapi";
 import { useCallback, useState } from "react";
 
+/**
+ * Hook for fetching and mutating orders, extending `useStrapi("orders")`.
+ *
+ * Adds three custom methods on top of the standard CRUD operations:
+ * - `addItem` — adds a physical item to an existing order
+ * - `removeItem` — removes a physical item from an order
+ * - `getInvoices` — fetches or downloads invoice files for a completed order
+ *
+ * @param {Object} [queryParams={}] - Strapi query params forwarded to the GET request.
+ * @param {Object} [options={}] - Options forwarded to `useStrapi`.
+ * @returns {Object} All fields from `useStrapi` plus `addItem`, `removeItem`,
+ *   `getInvoices`, `getNationalizableItems`, `createNationalization`,
+ *   `addingItem`, `removingItem`.
+ */
 export function useOrders(queryParams = {}, options = {}) {
   const strapiResult = useStrapi(
     "orders",
@@ -24,6 +46,15 @@ export function useOrders(queryParams = {}, options = {}) {
   const [addingItem, setAddingItem] = useState(false);
   const [removingItem, setRemovingItem] = useState(false);
 
+  /**
+   * Adds a physical item to an order via the `/add` custom route.
+   * On success the backend emits an `order:item-added` socket event.
+   *
+   * @param {string|number} orderId - ID of the target order.
+   * @param {Object} itemData - `{ product, item: { barcode?, quantity?, warehouse } }`.
+   * @param {boolean} [refetch=false] - Re-fetch the orders list after adding.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
   const addItem = useCallback(
     async (orderId, itemData, refetch = false) => {
       if (!orderId || !itemData) {
@@ -51,7 +82,6 @@ export function useOrders(queryParams = {}, options = {}) {
         }
         return { success: true, data: result.data };
       } catch (err) {
-        console.error("Error adding item:", err);
         return { success: false, error: err };
       } finally {
         setAddingItem(false);
@@ -60,6 +90,15 @@ export function useOrders(queryParams = {}, options = {}) {
     [strapiResult.refetch],
   );
 
+  /**
+   * Removes a physical item from an order via the `/remove` custom route.
+   * On success the backend emits an `order:item-removed` socket event.
+   *
+   * @param {string|number} orderId - ID of the target order.
+   * @param {string|number} itemId - ID of the item to remove.
+   * @param {boolean} [refetch=false] - Re-fetch the orders list after removing.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
   const removeItem = useCallback(
     async (orderId, itemId, refetch = false) => {
       if (!orderId || !itemId) {
@@ -78,7 +117,6 @@ export function useOrders(queryParams = {}, options = {}) {
           }),
         });
         const result = await response.json();
-        console.log(result, "RESULTADO");
         if (!response.ok) {
           throw new Error(
             result.error?.message ||
@@ -94,7 +132,6 @@ export function useOrders(queryParams = {}, options = {}) {
 
         return { success: true, data: result.data };
       } catch (err) {
-        console.error("Error removing item:", err);
         return { success: false, error: err };
       } finally {
         setRemovingItem(false);
@@ -103,6 +140,17 @@ export function useOrders(queryParams = {}, options = {}) {
     [strapiResult.refetch],
   );
 
+  /**
+   * Fetches invoices for a completed order.
+   *
+   * - If the server responds with JSON, returns `{ success: true, data }`.
+   * - If the server responds with a binary file (PDF or ZIP), triggers a
+   *   browser download and returns `{ success: true }`.
+   *
+   * @param {string|number} orderId - ID of the order.
+   * @param {boolean} [refetch=false] - Re-fetch the orders list after downloading.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
   const getInvoices = useCallback(
     async (orderId, refetch = false) => {
       if (!orderId) {
@@ -171,12 +219,93 @@ export function useOrders(queryParams = {}, options = {}) {
           return { success: true };
         }
       } catch (err) {
-        console.error("Error getting invoices:", err);
         return { success: false, error: err };
       }
     },
     [strapiResult.refetch],
   );
+  /**
+   * Fetches items available for nationalization from a completed purchase order
+   * in a zona franca (free-trade-zone) warehouse.
+   *
+   * @param {string|number} purchaseOrderId - ID of the completed purchase order.
+   * @returns {Promise<{success: boolean, data?: Array, error?: Error}>}
+   */
+  const getNationalizableItems = useCallback(async (purchaseOrderId) => {
+    if (!purchaseOrderId) {
+      return { success: false, error: new Error("Purchase order ID es requerido") };
+    }
+    try {
+      const response = await fetch(
+        `/api/strapi/orders/${purchaseOrderId}/nationalizable-items`,
+        { method: "GET" },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.error?.message ||
+            result.message ||
+            `Error ${response.status}: ${response.statusText}`,
+        );
+      }
+      return { success: true, data: result.data };
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  }, []);
+
+  /**
+   * Creates a nationalization order that moves items from a zona franca
+   * warehouse to a regular stock warehouse.
+   *
+   * The backend selects items FIFO per product up to the requested quantities.
+   * The created order starts in CONFIRMED state, ready to be processed and
+   * completed.
+   *
+   * @param {string|number} purchaseOrderId - ID of the completed purchase order in zona franca.
+   * @param {Object} payload
+   * @param {number} payload.destinationWarehouseId - ID of the target stock warehouse.
+   * @param {Array<{product: number, quantity: number}>} payload.products - Products and quantities to nationalize.
+   * @param {string} [payload.notes] - Optional notes.
+   * @param {boolean} [refetch=false] - Re-fetch the orders list after creation.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
+  const createNationalization = useCallback(
+    async (purchaseOrderId, payload, refetch = false) => {
+      if (!purchaseOrderId || !payload) {
+        return {
+          success: false,
+          error: new Error("Purchase order ID y payload son requeridos"),
+        };
+      }
+      try {
+        const response = await fetch(
+          `/api/strapi/orders/${purchaseOrderId}/nationalize`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            result.error?.message ||
+              result.message ||
+              `Error ${response.status}: ${response.statusText}`,
+          );
+        }
+        if (refetch) {
+          await strapiResult.refetch();
+        }
+        return { success: true, data: result.data };
+      } catch (err) {
+        return { success: false, error: err };
+      }
+    },
+    [strapiResult.refetch],
+  );
+
   return {
     ...strapiResult,
     addItem,
@@ -184,5 +313,7 @@ export function useOrders(queryParams = {}, options = {}) {
     addingItem,
     removingItem,
     getInvoices,
+    getNationalizableItems,
+    createNationalization,
   };
 }

@@ -189,13 +189,6 @@ function EntityListPage({
     label: entity[filterConfig.labelField],
   }));
 
-  if (filterConfig) {
-    console.log("🔍 Filter Config:", filterConfig);
-    console.log("🔍 Filter Options:", filterOptions);
-    console.log("🔍 Selected Options:", selectedFilterOptions);
-    console.log("🔍 Filter Condition:", selectedFilterOptions.length > 0);
-  }
-
   const filters = {
     ...(debouncedSearch
       ? {
@@ -215,8 +208,6 @@ function EntityListPage({
         }
       : {}),
   };
-
-  console.log("🔍 Active Filters:", JSON.stringify(filters, null, 2));
 
   const {
     entities,
@@ -241,7 +232,6 @@ function EntityListPage({
   };
 
   const handleEntityEdit = (entity) => {
-    console.log(`Editar ${entityName}:`, entity);
   };
 
   const handleDeleteEntity = async (entityId) => {
@@ -269,13 +259,9 @@ function EntityListPage({
 
     const loadingToast = toast.loading(`Eliminando ${entityName}...`);
     try {
-      console.log(`🗑️ Deleting entity ${entityId}...`);
       const result = await deleteEntity(entityId);
-      console.log(`📋 Delete result:`, result);
 
       if (result.success) {
-        // Refetch para asegurar que los datos estén sincronizados
-        console.log(`🔄 Refetching entities after successful delete...`);
         await refetch();
         toast.dismiss(loadingToast);
         toast.success(`${entity.name} eliminado exitosamente`);

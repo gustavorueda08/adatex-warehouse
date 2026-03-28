@@ -20,7 +20,6 @@ function NewPartialInvoicePageInner() {
     {
       enabled: false,
       onCreate: (createdOrder) => {
-        console.log("Orden creada exitosamente:", createdOrder);
         router.push(`/partial-invoices/${createdOrder.id}`);
       },
     },

@@ -34,8 +34,6 @@ export async function POST(request) {
       );
     }
 
-    console.log("Creating partial invoice with FIFO:", body);
-
     // Construir la URL de Strapi
     const strapiUrl = new URL(
       "/api/orders/create-partial-invoice",

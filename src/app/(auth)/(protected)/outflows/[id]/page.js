@@ -15,6 +15,7 @@ import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
 import Products from "@/components/documents/Products";
 import { addToast } from "@heroui/react";
+import toast from "react-hot-toast";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import { useRouter } from "next/navigation";
@@ -22,7 +23,7 @@ import { useRouter } from "next/navigation";
 export default function OutflowDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
-  const { orders, updateOrder, deleteOrder, refetch, addItem, removeItem } =
+  const { orders, updateOrder, deleteOrder, addItem, removeItem } =
     useOrders({
       filters: { id: [id] },
       populate: [
@@ -34,10 +35,6 @@ export default function OutflowDetailPage({ params }) {
       ],
     });
   const [document, setDocument] = useState(orders[0] || null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-    isDeleting: false,
-  });
   const headerFields = useMemo(() => {
     return [
       {
@@ -90,176 +87,129 @@ export default function OutflowDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = async () => {
-    try {
-      setLoadings({
-        ...loadings,
-        isDeleting: true,
+  const handleDelete = () => {
+    router.push("/outflows");
+
+    const deletePromise = deleteOrder(document.id, { background: true })
+      .then((result) => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
       });
-      await deleteOrder(document.id);
-      addToast({
-        title: "Salida Eliminada",
-        description: "La orden de salida ha sido eliminada correctamente",
-        type: "success",
-      });
-      router.push("/outflows");
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al eliminar",
-        description: "Ocurrió un error al eliminar la orden de salida",
-        type: "error",
-      });
-    } finally {
-      setLoadings({
-        ...loadings,
-        isDeleting: false,
-      });
-    }
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
   };
-  const handleUpdate = async (newState = null) => {
-    try {
-      setLoadings({
-        isUpdating: true,
-      });
-      const products = document?.orderProducts || [];
+  const handleUpdate = (newState = null) => {
+    const products = document?.orderProducts || [];
 
-      // Determine if the order is confirmed (has valid items)
-      const confirmed = products
-        .filter((p) => p.product)
-        .every((product) => {
-          const validItems = (product.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
-            );
-          });
-          // Product must have at least one valid item
-          return validItems.length > 0;
-        });
-
-      const formattedProducts = products
-        .filter((p) => p.product)
-        .map((p) => {
-          const validItems = (p.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
-            );
-          });
-
-          // Calculate quantities
-          const confirmedQuantity = validItems.reduce(
-            (sum, item) => sum + (Number(item.currentQuantity) || 0),
-            0,
+    // Determine if the order is confirmed (has valid items)
+    const confirmed = products
+      .filter((p) => p.product)
+      .every((product) => {
+        const validItems = (product.items || []).filter((i) => {
+          const qty = Number(i.currentQuantity);
+          return (
+            i.currentQuantity !== "" &&
+            i.currentQuantity !== null &&
+            i.currentQuantity !== undefined &&
+            !isNaN(qty) &&
+            qty !== 0
           );
-
-          const items = validItems.map((item) => ({
-            id: item.id, // Keep existing ID if present
-            quantity: Number(item.currentQuantity),
-            requestedPackages: item.requestedPackages
-              ? Number(item.requestedPackages)
-              : 1,
-            // Outflows might not always need lot/itemNumber strictness like Sales depending on specific business logic,
-            // but usually yes for traceability. Keeping it flexible or strict based on requirement?
-            // Sales logic requires them. For "Out", we will pass what we have.
-            lot: Number(item.lotNumber) || null,
-            itemNumber: Number(item.itemNumber) || null,
-            warehouse: item.warehouse || document.sourceWarehouse?.id, // Ensure warehouse is set if it's a new item
-          }));
-
-          return {
-            product: p.product.id || p.product,
-            items: items,
-            requestedQuantity: p.requestedQuantity
-              ? Number(p.requestedQuantity)
-              : 0, // Keep requested as is, or update? usually requested is what was planned.
-            requestedPackages: p.requestedPackages
-              ? Number(p.requestedPackages)
-              : 1,
-            confirmedQuantity: confirmedQuantity,
-          };
         });
-
-      const data = {
-        products: formattedProducts,
-        sourceWarehouse:
-          document.sourceWarehouse?.id || document.sourceWarehouse,
-        createdDate: document.createdDate,
-        // Logic for dates updates
-        completedDate:
-          newState === "completed"
-            ? moment.tz("America/Bogota").toDate()
-            : document.completedDate,
-
-        state: newState
-          ? newState
-          : confirmed && document.state === "draft"
-            ? "confirmed"
-            : document.state,
-        notes: document.notes || "", // Handle notes if any
-      };
-
-      if (confirmed && document.state === "draft") {
-        data.confirmedDate = moment.tz("America/Bogota").toDate();
-      }
-
-      const result = await updateOrder(document.id, data);
-      if (!result.success) {
-        throw result.error;
-      }
-
-      addToast({
-        title: "Orden de Salida Actualizada",
-        description: "La orden de salida ha sido actualizada correctamente",
-        type: "success",
+        // Product must have at least one valid item
+        return validItems.length > 0;
       });
 
-      await refetch(); // Refresh data to get latest state from backend/DB triggers
-    } catch (error) {
-      console.error(error);
-      let isNegativeStock = false;
-      let negativeStockMessage = "";
-
-      try {
-        const errObj = JSON.parse(error.message);
-        if (errObj.code === "NEGATIVE_STOCK") {
-          isNegativeStock = true;
-          negativeStockMessage = errObj.message;
-        }
-      } catch (e) {
-        // Not a JSON error
-      }
-
-      if (isNegativeStock) {
-        // It's fine to just toast it here if there's no modal, but wait, OutflowDetailPage has a modal?
-        // Actually SaleDetailPage uses setNegativeStockError state. OutflowDetailPage doesn't have it.
-        // We will just toast the specific message.
-        addToast({
-          title: "Error de Inventario",
-          description: negativeStockMessage,
-          color: "danger",
+    const formattedProducts = products
+      .filter((p) => p.product)
+      .map((p) => {
+        const validItems = (p.items || []).filter((i) => {
+          const qty = Number(i.currentQuantity);
+          return (
+            i.currentQuantity !== "" &&
+            i.currentQuantity !== null &&
+            i.currentQuantity !== undefined &&
+            !isNaN(qty) &&
+            qty !== 0
+          );
         });
-      } else {
-        addToast({
-          title: "Error al actualizar",
-          description: "Ocurrió un error al actualizar la orden de salida",
-          type: "error",
-        });
-      }
-    } finally {
-      setLoadings({
-        isUpdating: false,
+
+        // Calculate quantities
+        const confirmedQuantity = validItems.reduce(
+          (sum, item) => sum + (Number(item.currentQuantity) || 0),
+          0,
+        );
+
+        const items = validItems.map((item) => ({
+          id: item.id, // Keep existing ID if present
+          quantity: Number(item.currentQuantity),
+          requestedPackages: item.requestedPackages
+            ? Number(item.requestedPackages)
+            : 1,
+          // Outflows might not always need lot/itemNumber strictness like Sales depending on specific business logic,
+          // but usually yes for traceability. Keeping it flexible or strict based on requirement?
+          // Sales logic requires them. For "Out", we will pass what we have.
+          lot: Number(item.lotNumber) || null,
+          itemNumber: Number(item.itemNumber) || null,
+          warehouse: item.warehouse || document.sourceWarehouse?.id, // Ensure warehouse is set if it's a new item
+        }));
+
+        return {
+          product: p.product.id || p.product,
+          items: items,
+          requestedQuantity: p.requestedQuantity
+            ? Number(p.requestedQuantity)
+            : 0, // Keep requested as is, or update? usually requested is what was planned.
+          requestedPackages: p.requestedPackages
+            ? Number(p.requestedPackages)
+            : 1,
+          confirmedQuantity: confirmedQuantity,
+        };
       });
+
+    const data = {
+      products: formattedProducts,
+      sourceWarehouse:
+        document.sourceWarehouse?.id || document.sourceWarehouse,
+      createdDate: document.createdDate,
+      // Logic for dates updates
+      completedDate:
+        newState === "completed"
+          ? moment.tz("America/Bogota").toDate()
+          : document.completedDate,
+
+      state: newState
+        ? newState
+        : confirmed && document.state === "draft"
+          ? "confirmed"
+          : document.state,
+      notes: document.notes || "", // Handle notes if any
+    };
+
+    if (confirmed && document.state === "draft") {
+      data.confirmedDate = moment.tz("America/Bogota").toDate();
     }
+
+    const promise = updateOrder(document.id, data, { background: true })
+      .then((result) => {
+        if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+        return result;
+      });
+    toast.promise(promise, {
+      loading: "Actualizando...",
+      success: "Orden actualizada exitosamente",
+      error: (err) => {
+        try {
+          const errObj = JSON.parse(err.message);
+          if (errObj.code === "NEGATIVE_STOCK") return errObj.message;
+        } catch (e) {
+          // Not a JSON error
+        }
+        return err.message || "Error al actualizar";
+      },
+    });
   };
   useEffect(() => {
     if (orders.length > 0) {
@@ -331,7 +281,6 @@ export default function OutflowDetailPage({ params }) {
           onUpdate={handleUpdate}
           onComplete={() => handleUpdate("completed")}
           onDelete={handleDelete}
-          loadings={loadings}
           showAdminActions={true}
         />
       </Section>

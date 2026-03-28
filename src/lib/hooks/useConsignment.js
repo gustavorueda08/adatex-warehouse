@@ -137,68 +137,33 @@ export function useInvoiceableItems(orderId, options = {}) {
 
   const fetchItems = async () => {
     if (!orderId || !enabled) {
-      console.log(
-        "⚠️ useInvoiceableItems: No se puede fetch - orderId:",
-        orderId,
-        "enabled:",
-        enabled,
-      );
       setLoading(false);
       return;
     }
 
-    console.log(
-      "🔄 useInvoiceableItems: Iniciando fetch para orderId:",
-      orderId,
-    );
     setLoading(true);
     setError(null);
 
     try {
       const url = `/api/strapi/orders/${orderId}/invoiceable-items`;
-      console.log("📡 useInvoiceableItems: Fetching:", url);
-
       const response = await fetch(url);
-
-      console.log(
-        "📬 useInvoiceableItems: Response status:",
-        response.status,
-        response.ok,
-      );
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log("✅ useInvoiceableItems: Resultado completo:", result);
-      console.log("📦 useInvoiceableItems: result.data:", result.data);
-      console.log(
-        "📦 useInvoiceableItems: result.data.products:",
-        result.data?.products,
-      );
 
-      // Validar estructura de datos
       if (!result || typeof result !== "object") {
         throw new Error("Respuesta inválida del servidor");
       }
 
-      if (!result.data) {
-        console.warn("⚠️ useInvoiceableItems: result.data es undefined/null");
-        setItems(null);
-        return;
-      }
-
-      setItems(result.data);
+      setItems(result.data ?? null);
     } catch (err) {
-      console.error(
-        "❌ useInvoiceableItems: Error fetching invoiceable items:",
-        err,
-      );
+      console.error("Error fetching invoiceable items:", err);
       setError(err.message);
     } finally {
       setLoading(false);
-      console.log("🏁 useInvoiceableItems: Fetch completado");
     }
   };
 
@@ -232,8 +197,6 @@ export function useCreatePartialInvoice() {
     setError(null);
 
     try {
-      console.log("DATOS DE INVOICE", data);
-
       const response = await fetch("/api/strapi/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

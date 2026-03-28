@@ -30,8 +30,6 @@ export function useDashboard(queryParams = {}, options = {}) {
     finalParams.sellerId = actualSellerId;
   }
 
-  console.log("DEBUG: useDashboard - finalParams:", finalParams);
-
   return useStrapi("dashboard", finalParams, {
     ...options,
     singularName: "dashboard",

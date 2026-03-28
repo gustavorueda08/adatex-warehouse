@@ -325,7 +325,8 @@ export default function Actions({
           onPress={() => openConfirmModal("complete")}
           isDisabled={
             document?.type === ORDER_TYPES.PURCHASE &&
-            document?.destinationWarehouse?.type !== "stock"
+            document?.destinationWarehouse?.type !== "stock" &&
+            document?.destinationWarehouse?.type !== "freeTradeZone"
           }
         >
           {document.type === ORDER_TYPES.SALE

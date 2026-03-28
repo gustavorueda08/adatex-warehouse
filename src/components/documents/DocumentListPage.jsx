@@ -22,6 +22,7 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 
 import { buildInvoiceLabel } from "@/lib/utils/invoiceLabel";
 import { useUser } from "@/lib/hooks/useUser";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 /**
  * Componente reutilizable para listado de documentos (sales, purchases, returns, etc.)
@@ -69,7 +70,6 @@ function DocumentListPage({
   const [selectedStates, setSelectedStates] = useState(
     new Set(states.map((s) => s.key))
   );
-  const [bulkLoading, setBulkLoading] = useState(false);
   const { user } = useUser();
 
   // Filtros adicionales basados en el rol del usuario
@@ -307,10 +307,7 @@ function DocumentListPage({
             label: relationLabel || "Relacionado",
             render: (relation) =>
               relation
-                ? `${
-                    `${relation.name} ${relation.lastName || ""}` ||
-                    buildInvoiceLabel(relation)
-                  }`
+                ? getPartyLabel(relation) || buildInvoiceLabel(relation)
                 : "-",
           },
         ]
@@ -350,7 +347,6 @@ function DocumentListPage({
   };
 
   const handleOrderEdit = (order) => {
-    console.log("Editar orden:", order);
   };
 
   const getProductQuantity = (product, orderState) => {
@@ -380,8 +376,6 @@ function DocumentListPage({
   };
 
   const renderOrderExpandedContent = (order, rowIndex) => {
-    console.log(order);
-
     // Si hay contenido personalizado, usarlo
     if (customExpandedContent) {
       return customExpandedContent(order, rowIndex, {
@@ -591,48 +585,33 @@ function DocumentListPage({
     });
     if (!result.isConfirmed) return;
 
-    const loadingToast = toast.loading("Confirmando órdenes...");
-    setBulkLoading(true);
-    try {
-      const promises = selectedOrders.map((orderId) => {
-        const order = orders.find((o) => o.id === orderId);
-        if (!order) return Promise.resolve({ success: false }); // Should not happen
+    const promises = selectedOrders.map((orderId) => {
+      const order = orders.find((o) => o.id === orderId);
+      if (!order) return Promise.resolve({ success: false });
 
-        const payload = prepareUpdatePayload(order, {
-          state: "confirmed",
-          confirmedDate: moment.tz("America/Bogota").toDate(),
-        });
-
-        return updateOrder(orderId, payload);
+      const payload = prepareUpdatePayload(order, {
+        state: "confirmed",
+        confirmedDate: moment.tz("America/Bogota").toDate(),
       });
 
-      const results = await Promise.all(promises);
-      const allSuccess = results.every((r) => r.success);
+      return updateOrder(orderId, payload, { background: true });
+    });
+
+    const allPromise = Promise.all(promises).then((results) => {
       const failedCount = results.filter((r) => !r.success).length;
-
-      toast.dismiss(loadingToast);
-
-      if (allSuccess) {
-        toast.success(
-          `${selectedOrders.length} órdenes confirmadas exitosamente`
-        );
-        setSelectedOrders([]);
-      } else {
-        toast.error(
-          `${
-            results.length - failedCount
-          } confirmadas, ${failedCount} fallaron`,
-          { duration: 5000 }
-        );
+      if (failedCount > 0) {
+        throw new Error(`${results.length - failedCount} actualizadas, ${failedCount} fallaron`);
       }
-      await refetch();
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Error al confirmar órdenes");
-      console.error("Error:", error);
-    } finally {
-      setBulkLoading(false);
-    }
+      setSelectedOrders([]);
+      refetch();
+      return results;
+    });
+
+    toast.promise(allPromise, {
+      loading: `Procesando ${selectedOrders.length} orden(es)...`,
+      success: `${selectedOrders.length} orden(es) actualizadas exitosamente`,
+      error: (err) => err.message || "Error al procesar órdenes",
+    });
   };
 
   const handleCompleteSelectedOrders = async () => {
@@ -655,49 +634,34 @@ function DocumentListPage({
     });
     if (!result.isConfirmed) return;
 
-    const loadingToast = toast.loading("Completando órdenes...");
-    setBulkLoading(true);
-    try {
-      const promises = selectedOrders.map((orderId) => {
-        const order = orders.find((o) => o.id === orderId);
-        if (!order) return Promise.resolve({ success: false });
+    const promises = selectedOrders.map((orderId) => {
+      const order = orders.find((o) => o.id === orderId);
+      if (!order) return Promise.resolve({ success: false });
 
-        const payload = prepareUpdatePayload(order, {
-          state: "completed",
-          completedDate: moment.tz("America/Bogota").toDate(),
-          actualDispatchDate: moment.tz("America/Bogota").toDate(),
-        });
-
-        return updateOrder(orderId, payload);
+      const payload = prepareUpdatePayload(order, {
+        state: "completed",
+        completedDate: moment.tz("America/Bogota").toDate(),
+        actualDispatchDate: moment.tz("America/Bogota").toDate(),
       });
 
-      const results = await Promise.all(promises);
-      const allSuccess = results.every((r) => r.success);
+      return updateOrder(orderId, payload, { background: true });
+    });
+
+    const allPromise = Promise.all(promises).then((results) => {
       const failedCount = results.filter((r) => !r.success).length;
-
-      toast.dismiss(loadingToast);
-
-      if (allSuccess) {
-        toast.success(
-          `${selectedOrders.length} órdenes completadas exitosamente`
-        );
-        setSelectedOrders([]);
-      } else {
-        toast.error(
-          `${
-            results.length - failedCount
-          } completadas, ${failedCount} fallaron`,
-          { duration: 5000 }
-        );
+      if (failedCount > 0) {
+        throw new Error(`${results.length - failedCount} actualizadas, ${failedCount} fallaron`);
       }
-      await refetch();
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Error al completar órdenes");
-      console.error("Error:", error);
-    } finally {
-      setBulkLoading(false);
-    }
+      setSelectedOrders([]);
+      refetch();
+      return results;
+    });
+
+    toast.promise(allPromise, {
+      loading: `Procesando ${selectedOrders.length} orden(es)...`,
+      success: `${selectedOrders.length} orden(es) actualizadas exitosamente`,
+      error: (err) => err.message || "Error al procesar órdenes",
+    });
   };
 
   const handleDeleteOrder = async (orderId) => {
@@ -723,27 +687,18 @@ function DocumentListPage({
     });
     if (!result.isConfirmed) return;
 
-    const loadingToast = toast.loading("Eliminando orden...");
-    try {
-      const result = await deleteOrder(order.id);
-      toast.dismiss(loadingToast);
-      if (result.success) {
-        toast.success(
-          `Orden ${order.containerCode || order.code} eliminada exitosamente`
-        );
-        setSelectedOrders([]);
-      } else {
-        toast.error(
-          `Error al eliminar la orden ${order.containerCode || order.code}`,
-          { duration: 5000 }
-        );
-      }
-      await refetch();
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Error al eliminar orden");
-      console.error("Error:", error);
-    }
+    const deletePromise = deleteOrder(order.id, { background: true }).then((res) => {
+      if (!res.success) throw new Error(`Error al eliminar ${order.containerCode || order.code}`);
+      setSelectedOrders([]);
+      refetch();
+      return res;
+    });
+
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: `Orden ${order.containerCode || order.code} eliminada exitosamente`,
+      error: (err) => err.message || "Error al eliminar la orden",
+    });
   };
 
   const handleDeleteSelectedOrders = async () => {
@@ -766,35 +721,25 @@ function DocumentListPage({
     });
     if (!result.isConfirmed) return;
 
-    const loadingToast = toast.loading("Eliminando órdenes...");
-    setBulkLoading(true);
-    try {
-      const promises = selectedOrders.map((orderId) => deleteOrder(orderId));
-      const results = await Promise.all(promises);
-      const allSuccess = results.every((r) => r.success);
+    const promises = selectedOrders.map((orderId) =>
+      deleteOrder(orderId, { background: true })
+    );
+
+    const allPromise = Promise.all(promises).then((results) => {
       const failedCount = results.filter((r) => !r.success).length;
-
-      toast.dismiss(loadingToast);
-
-      if (allSuccess) {
-        toast.success(
-          `${selectedOrders.length} órdenes eliminadas exitosamente`
-        );
-        setSelectedOrders([]);
-      } else {
-        toast.error(
-          `${results.length - failedCount} eliminadas, ${failedCount} fallaron`,
-          { duration: 5000 }
-        );
+      if (failedCount > 0) {
+        throw new Error(`${results.length - failedCount} eliminadas, ${failedCount} fallaron`);
       }
-      await refetch();
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Error al eliminar órdenes");
-      console.error("Error:", error);
-    } finally {
-      setBulkLoading(false);
-    }
+      setSelectedOrders([]);
+      refetch();
+      return results;
+    });
+
+    toast.promise(allPromise, {
+      loading: `Procesando ${selectedOrders.length} orden(es)...`,
+      success: `${selectedOrders.length} orden(es) eliminadas exitosamente`,
+      error: (err) => err.message || "Error al eliminar órdenes",
+    });
   };
 
   return (
@@ -905,10 +850,9 @@ function DocumentListPage({
                 {bulkActions.includes("confirm") && (
                   <Button
                     variant="zinc"
-                    disabled={selectedOrders.length === 0 || bulkLoading}
+                    disabled={selectedOrders.length === 0}
                     onClick={handleConfirmSelectedOrders}
                     className="w-full md:w-auto"
-                    loading={bulkLoading}
                   >
                     Confirmar Ordenes
                   </Button>
@@ -916,10 +860,9 @@ function DocumentListPage({
                 {bulkActions.includes("complete") && (
                   <Button
                     variant="emerald"
-                    disabled={selectedOrders.length === 0 || bulkLoading}
+                    disabled={selectedOrders.length === 0}
                     onClick={handleCompleteSelectedOrders}
                     className="w-full md:w-auto"
-                    loading={bulkLoading}
                   >
                     Completar Ordenes
                   </Button>
@@ -927,10 +870,9 @@ function DocumentListPage({
                 {bulkActions.includes("delete") && (
                   <Button
                     variant="red"
-                    disabled={selectedOrders.length === 0 || bulkLoading}
+                    disabled={selectedOrders.length === 0}
                     onClick={handleDeleteSelectedOrders}
                     className="w-full md:w-auto"
-                    loading={bulkLoading}
                   >
                     Eliminar Ordenes
                   </Button>

@@ -15,24 +15,19 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  console.log("🔐 Middleware ejecutándose:", { pathname, hasToken: !!token });
-
   // Rutas públicas que no requieren autenticación
   const isPublicPath = pathname.startsWith("/login");
 
-  // Si no hay token y está intentando acceder a rutas protegidas
+  // Sin token → redirigir a login
   if (!token && !isPublicPath) {
-    console.log("⛔ Sin token, redirigiendo a /login");
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Si hay token y está intentando acceder al login, redirigir al dashboard
+  // Con token → redirigir al dashboard si intenta acceder al login
   if (token && isPublicPath) {
-    console.log("✅ Con token en login, redirigiendo a /");
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  console.log("✅ Permitiendo acceso a:", pathname);
   return NextResponse.next();
 }
 

@@ -12,6 +12,7 @@ import { DocumentChartBarIcon } from "@heroicons/react/24/outline";
 import { Button } from "@heroui/react";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseDate } from "@internationalized/date";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 export default function NewPurchasePage() {
   const router = useRouter();
@@ -20,11 +21,9 @@ export default function NewPurchasePage() {
     {
       enabled: false,
       onCreate: (createdOrder) => {
-        console.log("Orden creada exitosamente:", createdOrder);
         router.push(`/purchases/${createdOrder.id}`);
       },
       onError: (error) => {
-        console.log(error);
         toast.error(
           "Error: La orden no pudo ser creada, verifique que el código de la órden sea unico",
         );
@@ -53,10 +52,8 @@ export default function NewPurchasePage() {
         type: "async-select",
         placeholder: "Selecciona un proveedor",
         selectedOption: document?.supplier,
-        selectedOptionLabel: document?.supplier
-          ? `${document?.supplier?.name} ${document?.supplier?.lastName || ""}`
-          : "",
-        render: (supplier) => `${supplier.name} ${supplier.lastName || ""}`,
+        selectedOptionLabel: getPartyLabel(document?.supplier),
+        render: (supplier) => getPartyLabel(supplier),
         filters: (search) => {
           if (!search) return {};
           const terms = search.split(/\s+/).filter(Boolean);

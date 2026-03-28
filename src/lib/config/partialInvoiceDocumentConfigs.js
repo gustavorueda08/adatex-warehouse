@@ -1,4 +1,5 @@
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 import Input from "@/components/ui/Input";
 import Checkbox from "@/components/ui/Checkbox";
 import format from "@/lib/utils/format";
@@ -42,7 +43,7 @@ export function createPartialInvoiceFormConfig({
           type: "select",
           searchable: true,
           options: customers.map((c) => ({
-            label: `${c.name} ${c.lastName || ""}`,
+            label: getPartyLabel(c),
             value: c,
           })),
           placeholder: "Selecciona un cliente",
@@ -250,7 +251,6 @@ export function createPartialInvoiceFormConfig({
         products: productsPayload,
         generatedBy: user.id,
       };
-      console.log(data);
       return data;
     },
   };
@@ -298,7 +298,6 @@ export function createPartialInvoiceDetailConfig({
       }
 
       // --- MERGE LOGIC START ---
-      console.log("getInitialState: invoiceableItems", invoiceableItems);
       // 1. Map invoiceable items to our Product Group structure (initially unselected)
       const availableGroups = invoiceableItems.map((group) => ({
         id: group.product.id,
@@ -325,12 +324,6 @@ export function createPartialInvoiceDetailConfig({
       // We start with availableGroups to get the "full picture"
       const mergedProducts = [...availableGroups];
 
-      console.log(
-        "getInitialState: availableGroups before merge",
-        availableGroups,
-      );
-      console.log("getInitialState: savedGroups", savedGroups);
-
       savedGroups.forEach((savedGroup) => {
         const savedProductId =
           savedGroup.product?.data?.id || savedGroup.product?.id;
@@ -339,10 +332,6 @@ export function createPartialInvoiceDetailConfig({
           const pId = p.product?.data?.id || p.product?.id;
           return String(pId) === String(savedProductId);
         });
-
-        console.log(
-          `Merging Group Product ${savedProductId}: Found index ${existingIndex}`,
-        );
 
         if (existingIndex !== -1) {
           // Group exists in available, merge items
@@ -407,11 +396,6 @@ export function createPartialInvoiceDetailConfig({
             }
           });
 
-          console.log(
-            `Merged Items for Group ${savedGroup.product?.id}:`,
-            mergedItems,
-          );
-
           mergedProducts[existingIndex] = {
             ...existingGroup,
             items: mergedItems,
@@ -460,8 +444,6 @@ export function createPartialInvoiceDetailConfig({
         };
       });
 
-      console.log("Final Merged Products:", finalProducts);
-
       return {
         selectedCustomer: customer.id,
         selectedCustomerForInvoice: customerForInvoice?.id,
@@ -480,7 +462,7 @@ export function createPartialInvoiceDetailConfig({
         type: "select",
         key: "selectedCustomer",
         options: customers.map((c) => ({
-          label: `${c.name} ${c.lastName || ""}`,
+          label: getPartyLabel(c),
           value: c.id,
         })),
         searchable: true,
@@ -493,7 +475,7 @@ export function createPartialInvoiceDetailConfig({
         options: (state) => {
           if (!state.parties) return [];
           return state.parties.map((p) => ({
-            label: `${p.name} ${p.lastName || ""}`,
+            label: getPartyLabel(p),
             value: p.id,
           }));
         },

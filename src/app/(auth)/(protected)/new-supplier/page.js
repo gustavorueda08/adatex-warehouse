@@ -138,8 +138,6 @@ function NewSupplierPageInner() {
         city: supplier.city,
         address: supplier.address,
       };
-      console.log(data, "DATOS");
-
       await createSupplier(data);
     } catch (error) {
       addToast({

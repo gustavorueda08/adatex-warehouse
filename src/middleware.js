@@ -6,8 +6,6 @@ export function middleware(request) {
   const token = request.cookies.get(NAME)?.value;
   const { pathname } = request.nextUrl;
 
-  console.log(token, "TOKEN");
-
   // Rutas públicas que no requieren autenticación
   const isPublicPath = pathname.startsWith("/login");
 

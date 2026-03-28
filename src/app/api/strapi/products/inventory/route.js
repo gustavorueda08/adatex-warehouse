@@ -18,10 +18,6 @@ export async function GET(request) {
       strapiUrl.searchParams.append(key, value);
     });
 
-    console.log("🔍 Incoming Request URL:", request.url);
-    console.log("🔍 Search Params keys:", Array.from(searchParams.keys()));
-    console.log("🔗 Constructed Strapi URL:", strapiUrl.toString());
-
     // Configurar headers para la petición a Strapi
     const headers = {
       "Content-Type": "application/json",

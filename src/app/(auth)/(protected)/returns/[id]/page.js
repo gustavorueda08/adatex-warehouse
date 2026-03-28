@@ -14,14 +14,16 @@ import ReturnProducts from "@/components/documents/ReturnProducts";
 import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
 import { addToast } from "@heroui/react";
+import toast from "react-hot-toast";
 import { buildInvoiceLabel } from "@/lib/utils/invoiceLabel";
 import { useRouter } from "next/navigation";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 export default function ReturnDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
-  const { orders, updateOrder, refetch, deleteOrder } = useOrders({
+  const { orders, updateOrder, deleteOrder } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
@@ -55,9 +57,6 @@ export default function ReturnDetailPage({ params }) {
   });
 
   const [document, setDocument] = useState(null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-  });
 
   useEffect(() => {
     if (returnOrder && parentOrders.length > 0) {
@@ -122,9 +121,7 @@ export default function ReturnDetailPage({ params }) {
           ? buildInvoiceLabel(document.parentOrder)
           : "",
         render: (order) => {
-          const customerName = order.customer
-            ? `${order.customer.name} ${order.customer.lastName || ""}`
-            : "Sin cliente";
+          const customerName = order.customer ? getPartyLabel(order.customer) : "Sin cliente";
           return `${buildInvoiceLabel(order)} - ${customerName}`;
         },
         filters: (search) => {
@@ -148,9 +145,7 @@ export default function ReturnDetailPage({ params }) {
         label: "Cliente",
         type: "input",
         disabled: true,
-        value: document?.parentOrder?.customer
-          ? `${document.parentOrder.customer.name} ${document.parentOrder.customer.lastName || ""}`
-          : "",
+        value: getPartyLabel(document?.parentOrder?.customer),
         placeholder: "-",
         onChange: () => {},
       },
@@ -203,99 +198,74 @@ export default function ReturnDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = async () => {
-    try {
-      setLoadings({
-        ...loadings,
-        isDeleting: true,
+  const handleDelete = () => {
+    router.push("/returns");
+
+    const deletePromise = deleteOrder(document.id, { background: true })
+      .then((result) => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
       });
-      await deleteOrder(document.id);
-      addToast({
-        title: "Devolución Eliminada",
-        description: "La devolución ha sido eliminada correctamente",
-        type: "success",
-      });
-      router.push("/returns");
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al eliminar",
-        description: "Ocurrió un error al eliminar la devolución",
-        type: "error",
-      });
-    } finally {
-      setLoadings({
-        ...loadings,
-        isDeleting: false,
-      });
-    }
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
   };
-  const handleUpdate = async (newState = null) => {
-    try {
-      setLoadings({
-        isUpdating: true,
-      });
-      // Agrupar items seleccionados por producto
-      const productsMap = new Map();
-      document.orderProducts.forEach((op) => {
-        const productId = op.product?.id;
-        if (!productId) return;
+  const handleUpdate = (newState = null) => {
+    // Agrupar items seleccionados por producto
+    const productsMap = new Map();
+    document.orderProducts.forEach((op) => {
+      const productId = op.product?.id;
+      if (!productId) return;
 
-        (op.items || []).forEach((item) => {
-          if (!item.selected || Number(item.returnQuantity) <= 0) {
-            return;
-          }
+      (op.items || []).forEach((item) => {
+        if (!item.selected || Number(item.returnQuantity) <= 0) {
+          return;
+        }
 
-          if (!productsMap.has(productId)) {
-            productsMap.set(productId, {
-              product: productId,
-              requestedQuantity: 0,
-              items: [],
-            });
-          }
-
-          const entry = productsMap.get(productId);
-          entry.requestedQuantity += Number(
-            item.currentQuantity || item.quantity || 0,
-          );
-          entry.items.push({
-            id: item.id,
-            quantity: Number(item.returnQuantity),
+        if (!productsMap.has(productId)) {
+          productsMap.set(productId, {
+            product: productId,
+            requestedQuantity: 0,
+            items: [],
           });
+        }
+
+        const entry = productsMap.get(productId);
+        entry.requestedQuantity += Number(
+          item.currentQuantity || item.quantity || 0,
+        );
+        entry.items.push({
+          id: item.id,
+          quantity: Number(item.returnQuantity),
         });
       });
-      const data = {
-        products: Array.from(productsMap.values()),
-        destinationWarehouse:
-          document.destinationWarehouse?.id || document.destinationWarehouse,
-        parentOrder: document.parentOrder?.id || document.parentOrder,
-        notes: document.notes,
-        createdDate: document.createdDate,
-        completedDate:
-          newState === "completed"
-            ? moment.tz("America/Bogota").toDate()
-            : document.completedDate,
-        state: newState ? newState : document.state,
-      };
-      await updateOrder(document.id, data);
-      await refetch();
-      addToast({
-        title: "Devolución Actualizada",
-        description: "La devolución ha sido actualizada correctamente",
-        type: "success",
+    });
+    const data = {
+      products: Array.from(productsMap.values()),
+      destinationWarehouse:
+        document.destinationWarehouse?.id || document.destinationWarehouse,
+      parentOrder: document.parentOrder?.id || document.parentOrder,
+      notes: document.notes,
+      createdDate: document.createdDate,
+      completedDate:
+        newState === "completed"
+          ? moment.tz("America/Bogota").toDate()
+          : document.completedDate,
+      state: newState ? newState : document.state,
+    };
+
+    const promise = updateOrder(document.id, data, { background: true })
+      .then((result) => {
+        if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+        return result;
       });
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la devolución",
-        type: "error",
-      });
-    } finally {
-      setLoadings({
-        isUpdating: false,
-      });
-    }
+    toast.promise(promise, {
+      loading: "Actualizando...",
+      success: "Orden actualizada exitosamente",
+      error: (err) => err.message || "Error al actualizar",
+    });
   };
 
   if (!document) {
@@ -351,7 +321,6 @@ export default function ReturnDetailPage({ params }) {
           document={document}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          loadings={loadings}
           onComplete={handleUpdate}
         />
       </Section>

@@ -1,9 +1,63 @@
+/**
+ * @fileoverview Socket.io client hook with automatic JWT refresh.
+ *
+ * Fetches a fresh JWT from `/api/auth/token`, opens a Socket.io connection
+ * to the Strapi backend, and keeps the token alive by refreshing it whenever
+ * the server disconnects or returns an auth error.
+ *
+ * The hook handles the full lifecycle:
+ *  - Initialises the socket on mount and tears it down on unmount.
+ *  - Exposes typed event helpers (`on`, `once`, `off`, `emit`).
+ *  - Provides order-room helpers (`joinOrder`, `leaveOrder`).
+ *
+ * @example
+ * ```jsx
+ * const { isConnected, on, joinOrder, leaveOrder } = useSocket();
+ *
+ * useEffect(() => {
+ *   joinOrder(orderId);
+ *   const unsub = on("order:updated", handleUpdate);
+ *   return () => { leaveOrder(orderId); unsub?.(); };
+ * }, [orderId]);
+ * ```
+ */
 // src/lib/hooks/useSocket.js
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 
+/**
+ * @typedef {Object} UseSocketOptions
+ * @property {boolean} [autoConnect=true] - Connect immediately on hook mount.
+ * @property {boolean} [reconnection=true] - Enable Socket.io auto-reconnect.
+ * @property {number}  [reconnectionDelay=1000] - Ms between reconnect attempts.
+ * @property {number}  [reconnectionAttempts=5] - Max reconnect attempts before giving up.
+ * @property {Function} [onConnect] - Called when the socket connects successfully.
+ * @property {Function} [onDisconnect] - Called with the disconnect reason string.
+ * @property {Function} [onError] - Called with the Error object on connection error.
+ */
+
+/**
+ * @typedef {Object} UseSocketResult
+ * @property {import("socket.io-client").Socket|null} socket - The raw socket instance.
+ * @property {boolean} isConnected - Whether the socket is currently connected.
+ * @property {boolean} isAuthenticating - True while fetching the initial JWT.
+ * @property {Error|null} error - The last connection or auth error, if any.
+ * @property {function(string, *): void} emit - Emit an event (no-op if disconnected).
+ * @property {function(string, Function): Function|undefined} on - Subscribe to an event. Returns an unsubscribe function.
+ * @property {function(string, Function): void} once - Subscribe to an event once.
+ * @property {function(string, Function): void} off - Unsubscribe from an event.
+ * @property {function(number|string): void} joinOrder - Join `order:<id>` room.
+ * @property {function(number|string): void} leaveOrder - Leave `order:<id>` room.
+ */
+
+/**
+ * Opens an authenticated Socket.io connection to the Strapi backend.
+ *
+ * @param {UseSocketOptions} [options={}]
+ * @returns {UseSocketResult}
+ */
 export function useSocket(options = {}) {
   const {
     autoConnect = true,
@@ -19,29 +73,20 @@ export function useSocket(options = {}) {
   const [error, setError] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const socketRef = useRef(null);
-  const callbacksRef = useRef({ onConnect, onDisconnect, onError });
 
-  // Mantener callbacks actualizados sin causar re-renders
+  // Store callbacks in a ref so event handlers always see the latest version
+  // without needing to be recreated (and without triggering effect re-runs).
+  const callbacksRef = useRef({ onConnect, onDisconnect, onError });
   useEffect(() => {
     callbacksRef.current = { onConnect, onDisconnect, onError };
   }, [onConnect, onDisconnect, onError]);
 
-  // Función para obtener token fresco
+  /** Fetches a fresh JWT from the Next.js session endpoint. */
   const getToken = useCallback(async () => {
-    const response = await fetch("/api/auth/token", {
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      throw new Error("No authenticated");
-    }
-
+    const response = await fetch("/api/auth/token", { credentials: "include" });
+    if (!response.ok) throw new Error("No authenticated");
     const { token } = await response.json();
-
-    if (!token) {
-      throw new Error("No token received");
-    }
-
+    if (!token) throw new Error("No token received");
     return token;
   }, []);
 
@@ -54,10 +99,7 @@ export function useSocket(options = {}) {
     async function initializeSocket() {
       try {
         setIsAuthenticating(true);
-
         const token = await getToken();
-
-        if (cancelled) return;
 
         if (cancelled) return;
 
@@ -66,18 +108,13 @@ export function useSocket(options = {}) {
           process.env.STRAPI_URL ||
           "http://localhost:1337";
 
-        // Crear conexión con token
         const socket = io(socketUrl, {
           autoConnect,
           reconnection,
           reconnectionDelay,
           reconnectionAttempts,
-          auth: {
-            token,
-          },
-          extraHeaders: {
-            Authorization: `Bearer ${token}`,
-          },
+          auth: { token },
+          extraHeaders: { Authorization: `Bearer ${token}` },
         });
 
         if (cancelled) {
@@ -88,7 +125,6 @@ export function useSocket(options = {}) {
         socketRef.current = socket;
 
         socket.on("connect", () => {
-          console.log("Socket conectado:", socket.id);
           setIsConnected(true);
           setError(null);
           setIsAuthenticating(false);
@@ -96,26 +132,20 @@ export function useSocket(options = {}) {
         });
 
         socket.on("disconnect", (reason) => {
-          console.log("Socket desconectado:", reason);
           setIsConnected(false);
           callbacksRef.current.onDisconnect?.(reason);
 
-          // Si la desconexión es por el servidor, intentar reconectar con token fresco
-          if (
-            reason === "io server disconnect" ||
-            reason === "transport close"
-          ) {
+          // Server-initiated disconnects require a new token before reconnecting
+          if (reason === "io server disconnect" || reason === "transport close") {
             reconnectTimeout = setTimeout(async () => {
               if (!cancelled && socketRef.current) {
                 try {
                   const newToken = await getToken();
                   socket.auth = { token: newToken };
-                  socket.io.opts.extraHeaders = {
-                    Authorization: `Bearer ${newToken}`,
-                  };
+                  socket.io.opts.extraHeaders = { Authorization: `Bearer ${newToken}` };
                   socket.connect();
                 } catch (err) {
-                  console.error("Error al renovar token:", err);
+                  console.error("[useSocket] Token renewal failed:", err);
                   setError(err);
                   callbacksRef.current.onError?.(err);
                 }
@@ -125,23 +155,22 @@ export function useSocket(options = {}) {
         });
 
         socket.on("connect_error", async (err) => {
-          console.error("Error de conexión:", err.message);
           setIsConnected(false);
           setIsAuthenticating(false);
 
-          // Si es error de autenticación, intentar renovar token
-          if (
+          // Auth errors: try refreshing the token before the next reconnect attempt
+          const isAuthError =
             err.message.includes("auth") ||
             err.message.includes("token") ||
-            err.message.includes("jwt")
-          ) {
+            err.message.includes("jwt") ||
+            err.message === "Unauthorized";
+
+          if (isAuthError) {
             try {
               const newToken = await getToken();
               if (!cancelled && socketRef.current) {
                 socket.auth = { token: newToken };
-                socket.io.opts.extraHeaders = {
-                  Authorization: `Bearer ${newToken}`,
-                };
+                socket.io.opts.extraHeaders = { Authorization: `Bearer ${newToken}` };
               }
             } catch (tokenErr) {
               setError(tokenErr);
@@ -154,15 +183,14 @@ export function useSocket(options = {}) {
           callbacksRef.current.onError?.(err);
         });
 
-        // Manejar errores de autenticación del servidor
         socket.on("error", (err) => {
-          console.error("Socket error:", err);
+          console.error("[useSocket] Server error:", err);
           setError(err);
           callbacksRef.current.onError?.(err);
         });
       } catch (err) {
         if (!cancelled) {
-          console.error("Error al inicializar socket:", err.message);
+          console.error("[useSocket] Initialization error:", err.message);
           setError(err);
           setIsAuthenticating(false);
           callbacksRef.current.onError?.(err);
@@ -174,65 +202,47 @@ export function useSocket(options = {}) {
 
     return () => {
       cancelled = true;
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current.removeAllListeners();
         socketRef.current = null;
       }
     };
-  }, [
-    autoConnect,
-    reconnection,
-    reconnectionDelay,
-    reconnectionAttempts,
-    getToken,
-  ]);
+  }, [autoConnect, reconnection, reconnectionDelay, reconnectionAttempts, getToken]);
 
+  /** Emit an event. Silent no-op if the socket is not connected. */
   const emit = useCallback((event, data) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit(event, data);
     } else {
-      console.warn("Socket no conectado. No se puede emitir:", event);
+      console.warn(`[useSocket] Cannot emit "${event}" — not connected`);
     }
   }, []);
 
+  /** Subscribe to a socket event. Returns an unsubscribe function. */
   const on = useCallback((event, callback) => {
     if (socketRef.current) {
       socketRef.current.on(event, callback);
-      return () => {
-        socketRef.current?.off(event, callback);
-      };
+      return () => socketRef.current?.off(event, callback);
     }
   }, []);
 
+  /** Subscribe to a socket event exactly once. */
   const once = useCallback((event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.once(event, callback);
-    }
+    socketRef.current?.once(event, callback);
   }, []);
 
+  /** Unsubscribe a specific callback from a socket event. */
   const off = useCallback((event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.off(event, callback);
-    }
+    socketRef.current?.off(event, callback);
   }, []);
 
-  const joinOrder = useCallback(
-    (orderId) => {
-      emit("join:order", orderId);
-    },
-    [emit]
-  );
+  /** Join the `order:<id>` room to receive real-time order updates. */
+  const joinOrder = useCallback((orderId) => emit("join:order", orderId), [emit]);
 
-  const leaveOrder = useCallback(
-    (orderId) => {
-      emit("leave:order", orderId);
-    },
-    [emit]
-  );
+  /** Leave the `order:<id>` room. */
+  const leaveOrder = useCallback((orderId) => emit("leave:order", orderId), [emit]);
 
   return {
     socket: socketRef.current,

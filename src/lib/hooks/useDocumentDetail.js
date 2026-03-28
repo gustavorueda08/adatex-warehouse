@@ -33,6 +33,9 @@ export function useDocumentDetail(config) {
     prepareUpdateData,
     allowAutoCreateItems = true,
     disableDedupe = false,
+    // Called with the latest server payload whenever the backend pushes an
+    // order:updated socket event (e.g. after Siigo sync, inventory recalc).
+    onDocumentRefresh,
   } = config;
 
   const router = useRouter();
@@ -40,7 +43,9 @@ export function useDocumentDetail(config) {
   // Estados comunes
   const [products, setProducts] = useState([]);
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [loading, setLoading] = useState(false);
+  // loading kept in the return API for backwards compat with existing pages;
+  // update/delete are now background operations so it stays false
+  const loading = false;
   const [notes, setNotes] = useState("");
 
   const { isConnected, joinOrder, on, leaveOrder } = useSocket();
@@ -48,12 +53,10 @@ export function useDocumentDetail(config) {
   useEffect(() => {
     if (!isConnected || !document?.id) return;
 
-    console.log(`Uniéndose a orden de transformación: ${document.id}`);
     joinOrder(document.id);
 
     // Escuchar cuando se agrega un item
     const onItemAdded = on("order:item-added", (item) => {
-      console.log("Item agregado vía socket:", item);
       toast.success(
         `Item ${item.product.name} | ${format(item.currentQuantity, "")} ${
           item.product.unit
@@ -104,7 +107,6 @@ export function useDocumentDetail(config) {
 
     // Escuchar cuando se elimina un item
     const onItemRemoved = on("order:item-removed", (removedItem) => {
-      console.log("Item eliminado vía socket:", removedItem);
       toast.success(
         `Item ${removedItem.product.name} | ${format(
           removedItem.currentQuantity,
@@ -130,17 +132,14 @@ export function useDocumentDetail(config) {
       );
     });
 
-    // Escuchar actualizaciones de la orden
+    // Escuchar actualizaciones de la orden emitidas por el backend
+    // (después de procesos pesados: Siigo, inventario, etc.)
     const onDocumentUpdated = on("order:updated", (updatedDocument) => {
-      console.log(
-        "Orden de transformación actualizada vía socket:",
-        updatedDocument
-      );
+      onDocumentRefresh?.(updatedDocument);
     });
 
     // Cleanup
     return () => {
-      console.log(`Saliendo de orden de transformación: ${document.id}`);
       leaveOrder(document.id);
       onItemAdded?.();
       onItemRemoved?.();
@@ -355,19 +354,19 @@ export function useDocumentDetail(config) {
     [document?.id, addItem]
   );
 
-  // Actualizar documento
+  // Actualizar documento en segundo plano — el usuario no queda bloqueado.
+  // El progreso se muestra a través de toast.promise y el backend emite
+  // order:updated por socket cuando todos los procesos (Siigo, inventario, etc.)
+  // han terminado, lo que dispara onDocumentRefresh para refrescar el documento.
   const handleUpdateDocument = useCallback(
-    async (additionalData = {}, loading = true, stateOverride = null) => {
-      const loadingToast = toast.loading("Actualizando documento...");
-      setLoading(loading);
-      try {
-        // Obtener datos adicionales del callback si existe
-        const extraData =
-          prepareUpdateData?.(document, products, stateOverride) || {};
+    (additionalData = {}, _unused = true, stateOverride = null) => {
+      const extraData =
+        prepareUpdateData?.(document, products, stateOverride) || {};
+      const { destinationWarehouse } = extraData;
 
-        const { destinationWarehouse } = extraData;
-
-        const result = await updateDocument(document.id, {
+      const updatePromise = updateDocument(
+        document.id,
+        {
           products: products
             .filter((p) => p.product)
             .map((p) => ({
@@ -390,29 +389,33 @@ export function useDocumentDetail(config) {
           notes,
           ...extraData,
           ...additionalData,
-        });
-        toast.dismiss(loadingToast);
-        if (result.success) {
-          toast.success("Documento actualizado exitosamente");
-          onSuccess?.(result);
-        } else {
-          toast.error("Error al actualizar el documento");
+        },
+        { background: true },
+      ).then((result) => {
+        if (!result.success) {
+          throw new Error(
+            result.error?.message || "Error al actualizar el documento",
+          );
         }
-      } catch (error) {
-        toast.dismiss(loadingToast);
-        toast.error("Error al actualizar el documento");
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
+        onSuccess?.(result);
+        return result;
+      });
+
+      toast.promise(updatePromise, {
+        loading: "Actualizando documento...",
+        success: "Documento actualizado exitosamente",
+        error: (err) => err.message || "Error al actualizar el documento",
+      });
     },
-    [document, products, notes, updateDocument, onSuccess, prepareUpdateData]
+    [document, products, notes, updateDocument, onSuccess, prepareUpdateData],
   );
 
-  // Eliminar documento
+  // Eliminar documento en segundo plano — redirige inmediatamente tras confirmar
+  // para que el usuario no espere. El toast sigue mostrando el progreso globalmente
+  // incluso después de que el componente se desmonte.
   const handleDeleteDocument = useCallback(async () => {
     if (!document) return;
-    const result = await Swal.fire({
+    const confirmation = await Swal.fire({
       title: "Eliminar Documento",
       html: `Se eliminará el documento <strong>${document.code}</strong><br/> Esta acción no se puede deshacer.`,
       icon: "warning",
@@ -424,26 +427,26 @@ export function useDocumentDetail(config) {
       color: "#fff",
       confirmButtonColor: "red",
       cancelButtonColor: "#71717a",
-      cancelButtonColor: "#71717a",
     });
-    if (!result.isConfirmed) return;
-    const loadingToast = toast.loading("Eliminando Orden...");
-    try {
-      const result = await deleteDocument(document.id);
-      toast.dismiss(loadingToast);
-      if (result.success) {
-        toast.success("Documento eliminado exitosamente");
-        if (redirectPath) {
-          router.push(redirectPath);
-        }
-      } else {
-        toast.error("Error al eliminar el documento");
-      }
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Error al eliminar el documento");
-      console.error("Error:", error);
+    if (!confirmation.isConfirmed) return;
+
+    // Redirigir de inmediato — el usuario no debe esperar al backend
+    if (redirectPath) {
+      router.push(redirectPath);
     }
+
+    const deletePromise = deleteDocument(document.id, { background: true }).then(
+      (result) => {
+        if (!result.success) throw new Error("Error al eliminar el documento");
+        return result;
+      },
+    );
+
+    toast.promise(deletePromise, {
+      loading: "Eliminando documento...",
+      success: "Documento eliminado exitosamente",
+      error: "Error al eliminar el documento",
+    });
   }, [document, deleteDocument, router, redirectPath]);
 
   // Toggle expandir

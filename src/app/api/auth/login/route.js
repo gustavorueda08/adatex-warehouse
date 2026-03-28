@@ -17,7 +17,7 @@ export async function POST(request) {
 
     // Construir la URL de Strapi
     const strapiUrl = new URL("/api/auth/local", STRAPI_URL.toString());
-    console.log("PASO");
+
     // Configurar headers para la petición a Strapi
     const headers = {
       "Content-Type": "application/json",
@@ -50,7 +50,6 @@ export async function POST(request) {
     }
 
     const data = await response.json();
-    console.log(data);
 
     // Validar estructura de respuesta
     if (!data || typeof data !== "object") {

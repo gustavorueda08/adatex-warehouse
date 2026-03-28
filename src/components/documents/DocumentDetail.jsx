@@ -70,6 +70,17 @@ export default function DocumentDetail({ config, initialData }) {
     [documentState, updateState, config.stateHandlers],
   );
 
+  // Sincronizar campos del encabezado cuando el backend emite order:updated
+  // (post-processing: Siigo, inventario, cambio de estado, etc.)
+  const handleDocumentRefresh = useCallback(
+    (updatedDoc) => {
+      if (config.getInitialState) {
+        setDocumentState(config.getInitialState(updatedDoc));
+      }
+    },
+    [config],
+  );
+
   // Preparar datos para actualización
   const prepareUpdateData = useCallback(
     (document, products, stateOverride = null) => {
@@ -133,6 +144,7 @@ export default function DocumentDetail({ config, initialData }) {
     prepareUpdateData,
     allowAutoCreateItems: allowAddItems,
     disableDedupe: config.disableDedupe,
+    onDocumentRefresh: handleDocumentRefresh,
   });
 
   const resolveProductValue = useCallback(

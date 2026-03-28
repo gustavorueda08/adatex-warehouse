@@ -8,6 +8,7 @@ export const ORDER_TYPES = {
   TRANSFORM: "transform",
   TRANSFER: "transfer",
   PARTIAL_INVOICE: "partial-invoice",
+  NATIONALIZATION: "nationalization",
 };
 
 export const orderTypesArray = Object.values(ORDER_TYPES).map((type) => {

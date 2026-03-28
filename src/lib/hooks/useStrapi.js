@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Generic Strapi CRUD hook.
+ *
+ * `useStrapi` handles GET (with debounced search, abort-on-supersede, and
+ * optional window-focus refetch) as well as create / update / delete
+ * mutations against Next.js proxy routes (`/api/strapi/<endpoint>`).
+ *
+ * The hook dynamically adds named aliases derived from the endpoint so that
+ * callers can write `orders` instead of `entities`, and `createOrder` instead
+ * of `createEntity`.
+ */
 // src/lib/hooks/useCRUD.js
 "use client";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -8,10 +19,41 @@ import {
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 
 /**
- * Hook genérico para operaciones CRUD con Strapi
- * @param {string} endpoint - Endpoint de la API (ej: 'orders', 'products', 'customers')
- * @param {Object} queryParams - Parámetros para la consulta GET
- * @param {Object} options - Opciones del hook
+ * Generic hook for CRUD operations against a Strapi endpoint.
+ *
+ * @param {string} endpoint - Plural resource name used in the API URL (e.g. `"orders"`).
+ * @param {Object} [queryParams={}] - Strapi query parameters forwarded to the GET request.
+ * @param {string} [queryParams.q] - Full-text search string (debounced).
+ * @param {Object} [queryParams.filters] - Strapi filter object.
+ * @param {Object} [queryParams.pagination] - `{ page, pageSize }`.
+ * @param {Object} [queryParams.populate] - Strapi populate spec.
+ * @param {Object} [options={}] - Behaviour options.
+ * @param {boolean} [options.enabled=true] - Set to `false` to skip fetching entirely.
+ * @param {number}  [options.debounceDelay=300] - Search debounce in ms.
+ * @param {boolean} [options.refetchOnWindowFocus=false] - Re-fetch when the tab regains focus.
+ * @param {number}  [options.staleTime=0] - Milliseconds before data is considered stale (0 = always stale).
+ * @param {Function} [options.onSuccess] - Called after a successful GET with the raw response.
+ * @param {Function} [options.onError]   - Called on GET or mutation error.
+ * @param {Function} [options.onCreate]  - Called after a successful create mutation.
+ * @param {Function} [options.onUpdate]  - Called after a successful update mutation.
+ * @param {Function} [options.onDelete]  - Called after a successful delete mutation.
+ * @param {string}  [options.singularName] - Override the auto-derived singular entity name.
+ * @param {string}  [options.pluralName]   - Override the auto-derived plural entity name.
+ * @param {Function} [options.customNormalizer] - Custom filter normalizer replacing the default one.
+ *
+ * @returns {Object} Hook state and mutation functions. Key properties:
+ *   - `entities` {Array} - Current page of items.
+ *   - `meta` / `pagination` - Strapi meta and pagination objects.
+ *   - `loading` {boolean} - True during the initial fetch.
+ *   - `isFetching` {boolean} - True during background refetches.
+ *   - `error` {Error|null} - Last fetch error.
+ *   - `creating` / `updating` / `deleting` {boolean} - Mutation in-flight flags.
+ *   - `crudError` {Error|null} - Last mutation error.
+ *   - `createEntity(data)` / `updateEntity(id, data, opts?)` / `deleteEntity(id, opts?)` - Mutations.
+ *     Pass `{ background: true }` to skip the `updating`/`deleting` loading flag so the UI
+ *     stays interactive while the request runs in the background.
+ *   - `refetch()` / `invalidateAndRefetch()` - Manual refresh.
+ *   - Named aliases: `orders`, `createOrder`, `updateOrder`, `deleteOrder` (example).
  */
 export function useStrapi(endpoint, queryParams = {}, options = {}) {
   const {
@@ -89,20 +131,17 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
   const fetchEntities = useCallback(
     async (showLoading = true) => {
       if (!enabled) return;
-      console.log("🔄 fetchEntities iniciando para:", apiUrl);
 
       // Actualizar URL actual
       currentUrlRef.current = apiUrl;
 
       // Cancelar fetch anterior si existe
       if (abortControllerRef.current) {
-        console.log("⚠️ Abortando fetch anterior");
         abortControllerRef.current.abort();
       }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
-      console.log("🆕 Nuevo AbortController creado");
 
       try {
         if (showLoading) {
@@ -112,13 +151,11 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         }
 
         setError(null);
-        console.log("📡 Haciendo fetch a:", apiUrl);
         const response = await fetch(apiUrl, {
           signal: controller.signal,
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
-        console.log("📬 Response recibida:", response.status, response.ok);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -142,10 +179,9 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         if (onSuccess) onSuccess(result);
       } catch (err) {
         if (err.name === "AbortError") {
-          console.log("🛑 Petición abortada (esperado):", apiUrl);
-          // No hacer nada, es un comportamiento esperado
+          // Aborted by a newer request — expected, do nothing
         } else {
-          console.error(`❌ Error fetching ${entityPlural}:`, err);
+          console.error(`Error fetching ${entityPlural}:`, err);
           setError(err);
           if (onError) onError(err);
         }
@@ -215,7 +251,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
   // Función genérica para actualizar entidad
   const updateEntity = useCallback(
-    async (entityId, entityData) => {
+    async (entityId, entityData, { background = false } = {}) => {
       if (!entityId || !entityData) {
         const error = new Error(
           `ID y datos del ${entitySingular} son requeridos`,
@@ -225,7 +261,8 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         return { success: false, error };
       }
 
-      setUpdating(true);
+      // background=true: skip the blocking loading flag so the UI stays interactive
+      if (!background) setUpdating(true);
       setCrudError(null);
 
       try {
@@ -268,7 +305,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         if (onError) onError(err);
         return { success: false, error: err };
       } finally {
-        setUpdating(false);
+        if (!background) setUpdating(false);
       }
     },
     [data, onUpdate, onError, endpoint, entitySingular],
@@ -276,7 +313,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
 
   // Función genérica para eliminar entidad
   const deleteEntity = useCallback(
-    async (entityId) => {
+    async (entityId, { background = false } = {}) => {
       if (!entityId) {
         const error = new Error(`ID del ${entitySingular} es requerido`);
         setCrudError(error);
@@ -284,7 +321,8 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         return { success: false, error };
       }
 
-      setDeleting(true);
+      // background=true: skip the blocking loading flag so the UI stays interactive
+      if (!background) setDeleting(true);
       setCrudError(null);
 
       try {
@@ -330,7 +368,7 @@ export function useStrapi(endpoint, queryParams = {}, options = {}) {
         if (onError) onError(err);
         return { success: false, error: err };
       } finally {
-        setDeleting(false);
+        if (!background) setDeleting(false);
       }
     },
     [data, onDelete, onError, endpoint, entitySingular],

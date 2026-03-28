@@ -16,7 +16,6 @@ import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
 import Products from "@/components/documents/Products";
 import {
-  addToast,
   Modal,
   ModalContent,
   ModalHeader,
@@ -28,6 +27,8 @@ import {
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/hooks/useUser";
+import toast from "react-hot-toast";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 export default function SaleDetailPage({ params }) {
   const { id } = use(params);
@@ -37,7 +38,6 @@ export default function SaleDetailPage({ params }) {
     orders,
     updateOrder,
     deleteOrder,
-    refetch,
     addItem,
     removeItem,
     getInvoices,
@@ -62,13 +62,9 @@ export default function SaleDetailPage({ params }) {
         "sourceWarehouse",
       ],
     },
-    { onError: (error) => console.log(error) },
+    {},
   );
   const [document, setDocument] = useState(orders[0] || null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-    isDeleting: false,
-  });
   const {
     isOpen: isNegativeStockOpen,
     onOpen: onNegativeStockOpen,
@@ -90,11 +86,8 @@ export default function SaleDetailPage({ params }) {
         type: "async-select",
         placeholder: "Selecciona un cliente",
         selectedOption: document?.customer,
-        selectedOptionLabel: document?.customer
-          ? `${document?.customer?.name} ${document?.customer?.lastName ? document?.customer?.lastName : ""}`
-          : "",
-        render: (customer) =>
-          `${customer.name} ${customer.lastName ? customer.lastName : ""}`,
+        selectedOptionLabel: getPartyLabel(document?.customer),
+        render: (customer) => getPartyLabel(customer),
         filters: (search) => {
           if (!search) return {};
           const terms = search.split(/\s+/).filter(Boolean);
@@ -135,11 +128,8 @@ export default function SaleDetailPage({ params }) {
         type: "async-select",
         placeholder: "Selecciona un cliente para factura",
         selectedOption: document?.customerForInvoice,
-        selectedOptionLabel: document?.customerForInvoice
-          ? `${document?.customerForInvoice?.name} ${document?.customerForInvoice?.lastName ? document?.customerForInvoice?.lastName : ""}`
-          : "",
-        render: (customerForInvoice) =>
-          `${customerForInvoice.name} ${customerForInvoice.lastName ? customerForInvoice.lastName : ""}`,
+        selectedOptionLabel: getPartyLabel(document?.customerForInvoice),
+        render: (customerForInvoice) => getPartyLabel(customerForInvoice),
         filters: (search) => {
           if (!search) return {};
           const terms = search.split(/\s+/).filter(Boolean);
@@ -252,43 +242,26 @@ export default function SaleDetailPage({ params }) {
       },
     ];
   }, [orders, document, user]);
-  const handleDelete = async () => {
-    try {
-      setLoadings({
-        ...loadings,
-        isDeleting: true,
+  const handleDelete = () => {
+    router.push("/sales");
+
+    const deletePromise = deleteOrder(document.id, { background: true })
+      .then(result => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
       });
-      await deleteOrder(document.id);
-      addToast({
-        title: "Orden Eliminada",
-        description: "La orden ha sido eliminada correctamente",
-        type: "success",
-      });
-      router.push("/sales");
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al eliminar",
-        description: "Ocurrió un error al eliminar la orden",
-        type: "error",
-      });
-    } finally {
-      setLoadings({
-        ...loadings,
-        isDeleting: false,
-      });
-    }
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
   };
   const handleUpdate = async (
     newState = null,
     emitInvoice = false,
     forceNegativeStock = false,
   ) => {
-    try {
-      setLoadings({
-        isUpdating: true,
-      });
-      const products = document?.orderProducts || [];
+    const products = document?.orderProducts || [];
       const confirmed = products
         .filter((p) => p.product)
         .every((product) => {
@@ -436,24 +409,16 @@ export default function SaleDetailPage({ params }) {
       if (confirmed && document.state === "draft") {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
-      console.log(JSON.stringify(data));
-      const result = await updateOrder(document.id, data);
-      if (!result.success) {
-      }
-      await refetch();
-      addToast({
-        title: "Orden de Venta Actualizada",
-        description: "La orden de venta ha sido actualizada correctamente",
-        type: "success",
+      const promise = updateOrder(document.id, data, { background: true })
+        .then(result => {
+          if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+          return result;
+        });
+      toast.promise(promise, {
+        loading: "Actualizando...",
+        success: "Orden actualizada exitosamente",
+        error: (err) => err.message || "Error al actualizar",
       });
-    } catch (error) {
-      let isNegativeStock = false;
-      let negativeStockMessage = "";
-    } finally {
-      setLoadings({
-        isUpdating: false,
-      });
-    }
   };
   useEffect(() => {
     if (orders.length > 0) {
@@ -542,7 +507,6 @@ export default function SaleDetailPage({ params }) {
           onInvoice={handleUpdate}
           getInvoices={getInvoices}
           onDelete={handleDelete}
-          loadings={loadings}
           showAdminActions={
             user?.type === "admin" || user?.type === "warehouseKeeper"
           }

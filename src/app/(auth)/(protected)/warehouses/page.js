@@ -29,18 +29,6 @@ function WarehousesPageInner() {
     {},
   );
 
-  // Debug: Ver la estructura de datos
-  console.log("Warehouse Debug:", {
-    inventory,
-    entities,
-    loading,
-    error,
-    hasInventory: !!inventory,
-    inventoryLength: inventory?.length,
-    hasEntities: !!entities,
-    entitiesLength: entities?.length,
-  });
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
   const [selectedWarehouseType, setSelectedWarehouseType] = useState("all");

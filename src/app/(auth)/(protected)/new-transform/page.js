@@ -247,8 +247,6 @@ function NewTransformPageInner() {
       createdDate: document.createdDate,
     };
 
-    console.log(payload, JSON.stringify(payload));
-
     await createOrder(payload);
   };
 

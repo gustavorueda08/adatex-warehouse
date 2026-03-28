@@ -14,8 +14,9 @@ import {
   CurrencyDollarIcon,
   MapIcon,
   TagIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
-import { ArrowsRightLeftIcon, WrenchIcon } from "@heroicons/react/24/solid";
+import { ArrowsRightLeftIcon, WrenchIcon, GlobeAltIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -149,6 +150,11 @@ const DEFAULT_LINKS = [
     href: "/transfers",
   },
   {
+    label: "Nacionalizaciones",
+    icon: GlobeAltIcon,
+    href: "/nationalizations",
+  },
+  {
     label: "Transformaciones",
     icon: WrenchIcon,
     href: "/transformations",
@@ -171,6 +177,14 @@ const DEFAULT_LINKS = [
     label: "Colecciones",
     icon: TagIcon,
     href: "/collections",
+  },
+  {
+    label: "Proyecciones",
+    icon: ChartBarIcon,
+    links: [
+      { label: "Predicción Demanda", href: "/demand-forecast" },
+      { label: "Compras Sugeridas", href: "/purchase-suggestions" },
+    ],
   },
 ];
 

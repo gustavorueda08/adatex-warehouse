@@ -12,6 +12,7 @@ import { Button } from "@heroui/react";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseDate } from "@internationalized/date";
 import RoleGuard from "@/components/auth/RoleGuard";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 function NewSalePageInner() {
   const router = useRouter();
@@ -20,7 +21,6 @@ function NewSalePageInner() {
     {
       enabled: false,
       onCreate: (createdOrder) => {
-        console.log("Orden creada exitosamente:", createdOrder);
         router.push(`/sales/${createdOrder.id}`);
       },
     },
@@ -51,11 +51,8 @@ function NewSalePageInner() {
         type: "async-select",
         placeholder: "Selecciona un cliente",
         selectedOption: document?.customer,
-        selectedOptionLabel: document?.customer
-          ? `${document?.customer?.name} ${document?.customer?.lastName ? document?.customer?.lastName : ""}`
-          : "",
-        render: (customer) =>
-          `${customer.name} ${customer.lastName ? customer.lastName : ""}`,
+        selectedOptionLabel: getPartyLabel(document?.customer),
+        render: (customer) => getPartyLabel(customer),
         filters: (search) => {
           if (!search) return {};
           const terms = search.split(/\s+/).filter(Boolean);
@@ -93,11 +90,8 @@ function NewSalePageInner() {
         type: "async-select",
         placeholder: "Selecciona un cliente para factura",
         selectedOption: document?.customerForInvoice,
-        selectedOptionLabel: document?.customerForInvoice
-          ? `${document?.customerForInvoice?.name} ${document?.customerForInvoice?.lastName ? document?.customerForInvoice?.lastName : ""}`
-          : "",
-        render: (customerForInvoice) =>
-          `${customerForInvoice.name} ${customerForInvoice.lastName ? customerForInvoice.lastName : ""}`,
+        selectedOptionLabel: getPartyLabel(document?.customerForInvoice),
+        render: (customerForInvoice) => getPartyLabel(customerForInvoice),
         filters: (search) => {
           if (!search) return {};
           const terms = search.split(/\s+/).filter(Boolean);

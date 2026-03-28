@@ -13,14 +13,14 @@ import {
 import TransformProducts from "@/components/documents/TransformProducts";
 import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
-import { addToast } from "@heroui/react";
 import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function TransformationDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
-  const { orders, updateOrder, deleteOrder, refetch } = useOrders({
+  const { orders, updateOrder, deleteOrder } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
@@ -39,17 +39,12 @@ export default function TransformationDetailPage({ params }) {
   });
 
   const [document, setDocument] = useState(null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-    isDeleting: false,
-  });
 
   // Inicializar el estado del documento desde orders[0]
   // Mapear items del order → rows para TransformProducts
   useEffect(() => {
     if (orders.length > 0) {
       const order = orders[0];
-      console.log(order, JSON.stringify(order));
 
       // Extract generated items from orderProducts.items
       // Los items fuente están en order.sourceItems
@@ -321,32 +316,23 @@ export default function TransformationDetailPage({ params }) {
     ];
   }, [document, isReadOnly, transformType]);
 
-  const handleDelete = async () => {
-    try {
-      setLoadings((prev) => ({ ...prev, isDeleting: true }));
-      await deleteOrder(document.id);
-      addToast({
-        title: "Transformación Eliminada",
-        description: "La transformación ha sido eliminada correctamente",
-        type: "success",
+  const handleDelete = () => {
+    router.push("/transformations");
+
+    const deletePromise = deleteOrder(document.id, { background: true })
+      .then(result => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
       });
-      router.push("/transformations");
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al eliminar",
-        description: "Ocurrió un error al eliminar la transformación",
-        type: "error",
-      });
-    } finally {
-      setLoadings((prev) => ({ ...prev, isDeleting: false }));
-    }
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
   };
 
   const handleUpdate = async (newState = null) => {
-    try {
-      setLoadings({ isUpdating: true });
-      // Agrupar filas por producto destino
+    // Agrupar filas por producto destino
       const groupedProducts = {};
       (document.products || []).forEach((row) => {
         if (!row.sourceProduct || !row.sourceItem) return;
@@ -423,23 +409,16 @@ export default function TransformationDetailPage({ params }) {
         data.completedDate = moment.tz("America/Bogota").toDate();
       }
 
-      await updateOrder(document.id, data);
-      await refetch();
-      addToast({
-        title: "Transformación Actualizada",
-        description: "La transformación ha sido actualizada correctamente",
-        type: "success",
+      const promise = updateOrder(document.id, data, { background: true })
+        .then(result => {
+          if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+          return result;
+        });
+      toast.promise(promise, {
+        loading: "Actualizando...",
+        success: "Orden actualizada exitosamente",
+        error: (err) => err.message || "Error al actualizar",
       });
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al actualizar",
-        description: "Ocurrió un error al actualizar la transformación",
-        type: "error",
-      });
-    } finally {
-      setLoadings({ isUpdating: false });
-    }
   };
 
   if (!document) return null;
@@ -489,7 +468,6 @@ export default function TransformationDetailPage({ params }) {
           onUpdate={handleUpdate}
           onComplete={handleUpdate}
           onDelete={handleDelete}
-          loadings={loadings}
         />
       </Section>
     </Document>

@@ -431,7 +431,6 @@ export default function Products({
 
   const tableColumns = useMemo(() => {
     if (columns) return columns;
-    console.log(screenSize);
 
     if (screenSize !== "lg") {
       const cols = [

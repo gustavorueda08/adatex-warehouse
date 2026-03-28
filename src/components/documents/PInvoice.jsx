@@ -31,7 +31,6 @@ export default function PInvoice({ document, taxes = [] }) {
   }, [screenSize]);
 
   const checkThreshold = (value, threshold, condition) => {
-    console.log("VALUES", value, threshold, condition);
     switch (condition) {
       case "greaterThan":
         return value > threshold;

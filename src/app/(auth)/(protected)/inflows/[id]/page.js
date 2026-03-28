@@ -19,13 +19,16 @@ import {
 import { parseDate } from "@internationalized/date";
 import moment from "moment-timezone";
 import { addToast } from "@heroui/react";
+import toast from "react-hot-toast";
 import BulkPackingListUploader from "@/components/documents/BulkPackingListUploader";
 import { mapBulkItems } from "@/lib/utils/mapBulkItems";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
+import { useRouter } from "next/navigation";
 
 export default function InflowDetailPage({ params }) {
   const { id } = use(params);
-  const { orders, updateOrder, deleteOrder, refetch } = useOrders({
+  const router = useRouter();
+  const { orders, updateOrder, deleteOrder } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
@@ -35,9 +38,6 @@ export default function InflowDetailPage({ params }) {
     ],
   });
   const [document, setDocument] = useState(orders[0] || null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-  });
   const { products } = useProducts({});
   const headerFields = useMemo(() => {
     return [
@@ -72,9 +72,9 @@ export default function InflowDetailPage({ params }) {
         ],
         disabled: document?.state === ORDER_STATES.COMPLETED,
         value: document?.state,
-        onChange: async (state) => {
+        onChange: (state) => {
           const newDocument = { ...document, state };
-          await handleUpdate(newDocument);
+          handleUpdate(newDocument);
           setDocument(newDocument);
         },
       },
@@ -106,178 +106,142 @@ export default function InflowDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!document) return;
-    try {
-      setLoadings({
-        isDeleting: true,
+
+    router.push("/inflows");
+
+    const deletePromise = deleteOrder(document.id, { background: true })
+      .then((result) => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
       });
-      await deleteOrder(document.id);
-      addToast({
-        title: "Orden eliminada",
-        message: "La orden ha sido eliminada correctamente",
-        type: "success",
-      });
-      refetch();
-    } catch (error) {
-      addToast({
-        title: "Error al eliminar la orden",
-        message: "La orden no ha podido ser eliminada",
-        type: "error",
-      });
-    } finally {
-      setLoadings({
-        isDeleting: false,
-      });
-    }
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
   };
-  const handleUpdate = async (newState = null) => {
+  const handleUpdate = (newState = null) => {
     if (!document) return;
-    try {
-      setLoadings({
-        isUpdating: true,
-      });
-      const products = document?.orderProducts || [];
-      const confirmed = products
-        .filter((p) => p.product)
-        .every((product) => {
-          const validItems = (product.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
-            return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
-            );
-          });
 
-          // Product must have at least one valid item with quantity, lot, and itemNumber
+    const products = document?.orderProducts || [];
+    const confirmed = products
+      .filter((p) => p.product)
+      .every((product) => {
+        const validItems = (product.items || []).filter((i) => {
+          const qty = Number(i.currentQuantity);
           return (
-            validItems.length > 0 &&
-            validItems.every((item) => {
-              const qty = Number(item.currentQuantity);
-              return (
-                qty > 0 &&
-                item.lotNumber !== "" &&
-                item.lotNumber !== null &&
-                item.lotNumber !== undefined &&
-                item.itemNumber !== "" &&
-                item.itemNumber !== null &&
-                item.itemNumber !== undefined
-              );
-            })
+            i.currentQuantity !== "" &&
+            i.currentQuantity !== null &&
+            i.currentQuantity !== undefined &&
+            !isNaN(qty) &&
+            qty !== 0
           );
         });
 
-      const formattedProducts = products
-        .filter((p) => p.product)
-        .map((p) => {
-          const validItems = (p.items || []).filter((i) => {
-            const qty = Number(i.currentQuantity);
+        // Product must have at least one valid item with quantity, lot, and itemNumber
+        return (
+          validItems.length > 0 &&
+          validItems.every((item) => {
+            const qty = Number(item.currentQuantity);
             return (
-              i.currentQuantity !== "" &&
-              i.currentQuantity !== null &&
-              i.currentQuantity !== undefined &&
-              !isNaN(qty) &&
-              qty !== 0
+              qty > 0 &&
+              item.lotNumber !== "" &&
+              item.lotNumber !== null &&
+              item.lotNumber !== undefined &&
+              item.itemNumber !== "" &&
+              item.itemNumber !== null &&
+              item.itemNumber !== undefined
             );
-          });
-          // Calculate confirmedQuantity sum
-          const confirmedQuantity = validItems.reduce(
-            (sum, item) => sum + (Number(item.currentQuantity) || 0),
-            0,
+          })
+        );
+      });
+
+    const formattedProducts = products
+      .filter((p) => p.product)
+      .map((p) => {
+        const validItems = (p.items || []).filter((i) => {
+          const qty = Number(i.currentQuantity);
+          return (
+            i.currentQuantity !== "" &&
+            i.currentQuantity !== null &&
+            i.currentQuantity !== undefined &&
+            !isNaN(qty) &&
+            qty !== 0
           );
-          const items = validItems.map((item) => ({
-            id: item.id,
-            quantity: Number(item.currentQuantity),
-            requestedPackages: item.requestedPackages
-              ? Number(item.requestedPackages)
-              : 1,
-            lot: Number(item.lotNumber) || null,
-            itemNumber: Number(item.itemNumber) || null,
-          }));
-
-          return {
-            product: p.product.id || p.product,
-            items: items,
-            confirmedQuantity,
-            requestedQuantity: p.requestedQuantity
-              ? Number(p.requestedQuantity)
-              : 0,
-            requestedPackages: p.requestedPackages
-              ? Number(p.requestedPackages)
-              : 1,
-            price: p.price ? Number(p.price) : 0,
-            ivaIncluded: p.ivaIncluded || false,
-            invoicePercentage: p.invoicePercentage
-              ? Number(p.invoicePercentage)
-              : 100,
-          };
         });
-      const data = {
-        products: formattedProducts,
-        destinationWarehouse:
-          document.destinationWarehouse?.id || document.destinationWarehouse,
-        createdDate: document.createdDate,
-        confirmedDate: document.confirmedDate,
-        completedDate:
-          newState === "completed"
-            ? moment.tz("America/Bogota").toDate()
-            : document.completedDate,
-        actualDispatchDate: document.actualDispatchDate,
-        state: newState
-          ? newState
-          : confirmed && document.state === "draft"
-            ? "confirmed"
-            : document.state,
-      };
-      if (confirmed && document.state === "draft") {
-        data.confirmedDate = moment.tz("America/Bogota").toDate();
-      }
-      const result = await updateOrder(document.id, data);
-      if (!result.success) {
-        throw result.error;
-      }
+        // Calculate confirmedQuantity sum
+        const confirmedQuantity = validItems.reduce(
+          (sum, item) => sum + (Number(item.currentQuantity) || 0),
+          0,
+        );
+        const items = validItems.map((item) => ({
+          id: item.id,
+          quantity: Number(item.currentQuantity),
+          requestedPackages: item.requestedPackages
+            ? Number(item.requestedPackages)
+            : 1,
+          lot: Number(item.lotNumber) || null,
+          itemNumber: Number(item.itemNumber) || null,
+        }));
 
-      addToast({
-        title: "Orden de Entrada Actualizada",
-        description: "La orden de entrada ha sido actualizada correctamente",
-        type: "success",
+        return {
+          product: p.product.id || p.product,
+          items: items,
+          confirmedQuantity,
+          requestedQuantity: p.requestedQuantity
+            ? Number(p.requestedQuantity)
+            : 0,
+          requestedPackages: p.requestedPackages
+            ? Number(p.requestedPackages)
+            : 1,
+          price: p.price ? Number(p.price) : 0,
+          ivaIncluded: p.ivaIncluded || false,
+          invoicePercentage: p.invoicePercentage
+            ? Number(p.invoicePercentage)
+            : 100,
+        };
       });
-    } catch (error) {
-      console.error(error);
-      let isNegativeStock = false;
-      let negativeStockMessage = "";
-
-      try {
-        const errObj = JSON.parse(error.message);
-        if (errObj.code === "NEGATIVE_STOCK") {
-          isNegativeStock = true;
-          negativeStockMessage = errObj.message;
-        }
-      } catch (e) {
-        // Not a JSON error
-      }
-
-      if (isNegativeStock) {
-        addToast({
-          title: "Error de Inventario",
-          description: negativeStockMessage,
-          color: "danger",
-        });
-      } else {
-        addToast({
-          title: "Error al actualizar",
-          description: "Ocurrió un error al actualizar la orden de entrada",
-          type: "error",
-        });
-      }
-    } finally {
-      setLoadings({
-        isUpdating: false,
-      });
+    const data = {
+      products: formattedProducts,
+      destinationWarehouse:
+        document.destinationWarehouse?.id || document.destinationWarehouse,
+      createdDate: document.createdDate,
+      confirmedDate: document.confirmedDate,
+      completedDate:
+        newState === "completed"
+          ? moment.tz("America/Bogota").toDate()
+          : document.completedDate,
+      actualDispatchDate: document.actualDispatchDate,
+      state: newState
+        ? newState
+        : confirmed && document.state === "draft"
+          ? "confirmed"
+          : document.state,
+    };
+    if (confirmed && document.state === "draft") {
+      data.confirmedDate = moment.tz("America/Bogota").toDate();
     }
+
+    const promise = updateOrder(document.id, data, { background: true })
+      .then((result) => {
+        if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+        return result;
+      });
+    toast.promise(promise, {
+      loading: "Actualizando...",
+      success: "Orden actualizada exitosamente",
+      error: (err) => {
+        try {
+          const errObj = JSON.parse(err.message);
+          if (errObj.code === "NEGATIVE_STOCK") return errObj.message;
+        } catch (e) {
+          // Not a JSON error
+        }
+        return err.message || "Error al actualizar";
+      },
+    });
   };
   const handleBulkUpload = async (data) => {
     if (!Array.isArray(data)) return;
@@ -382,7 +346,6 @@ export default function InflowDetailPage({ params }) {
           onUpdate={handleUpdate}
           onDelete={handleDelete}
           onComplete={handleUpdate}
-          loadings={loadings}
           showAdminActions={true}
         />
       </Section>

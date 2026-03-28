@@ -268,7 +268,6 @@ export async function exportDocumentToPDF(document, _options = {}) {
     const fileName = generateFileName(document, ".pdf");
     doc.save(fileName);
 
-    console.log("PDF generado exitosamente:", fileName);
     return true;
   } catch (error) {
     console.error("Error al exportar el archivo PDF:", error);

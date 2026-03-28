@@ -14,7 +14,7 @@ import EntityFilters from "@/components/entities/EntityFilters";
 import {
   addToast,
   Button,
-  Checkbox,
+  Chip,
   Select,
   SelectItem,
   Modal,
@@ -52,8 +52,6 @@ export default function ProductsPage() {
     listType: "lines",
     limit: 20,
   });
-  const [hideProductsWithoutStock, setHideProductsWithoutStock] =
-    useState(false);
   const [breakdownModal, setBreakdownModal] = useState({
     isOpen: false,
     productName: "",
@@ -222,7 +220,7 @@ export default function ProductsPage() {
             label: "Código",
             render: (product) => (
               <Link href={`/products/${product.id}`} className="text-nowrap">
-                <span className="hover:underline cursor-pointer">{`${product.code} ${product.barcode ? `| ${product.barcode}` : ""}`}</span>
+                <span className="hover:underline cursor-pointer text-xs text-zinc-500">{`${product.code}${product.barcode ? ` | ${product.barcode}` : ""}`}</span>
               </Link>
             ),
           },
@@ -233,44 +231,63 @@ export default function ProductsPage() {
       label: "Nombre",
       render: (product) => (
         <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">{product.name}</span>
+          <span className="hover:underline cursor-pointer font-medium">
+            {product.name}
+          </span>
         </Link>
       ),
     },
     {
       key: "stock",
       label: "Stock",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.stock || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
-      tooltip:
-        "Es la cantidad de producto que actualmente hay en las bodegas de Adatex",
+      render: (product) => {
+        const val = product?.inventory?.stock || 0;
+        return (
+          <Link href={`/products/${product.id}`}>
+            <Chip
+              size="sm"
+              variant="flat"
+              color={val > 0 ? "primary" : "default"}
+              className="cursor-pointer"
+            >
+              {format(val)} {product?.unit}
+            </Chip>
+          </Link>
+        );
+      },
+      tooltip: "Cantidad en bodegas stock de Adatex",
     },
     {
       key: "smartCut",
       label: "Metreados",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.smartCut || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
+      render: (product) => {
+        const val = product?.inventory?.smartCut || 0;
+        return (
+          <Link href={`/products/${product.id}`}>
+            <Chip
+              size="sm"
+              variant="flat"
+              color={val > 0 ? "primary" : "default"}
+              className="cursor-pointer"
+            >
+              {format(val)} {product?.unit}
+            </Chip>
+          </Link>
+        );
+      },
     },
     {
       key: "reserved",
       label: "Reservado",
       render: (product) => {
+        const val = product?.inventory?.reserved || 0;
         const hasData = hasBreakdown(product, "reserved");
         return (
-          <span
-            className={`text-nowrap ${
-              hasData ? "text-primary cursor-pointer hover:underline" : ""
-            }`}
+          <Chip
+            size="sm"
+            variant="flat"
+            color={val > 0 ? "warning" : "default"}
+            className={hasData ? "cursor-pointer" : ""}
             onClick={
               hasData
                 ? (e) => {
@@ -280,8 +297,8 @@ export default function ProductsPage() {
                 : undefined
             }
           >
-            {format(product?.inventory?.reserved || 0)} {product?.unit}
-          </span>
+            {format(val)} {product?.unit}
+          </Chip>
         );
       },
     },
@@ -291,12 +308,14 @@ export default function ProductsPage() {
             key: "arriving",
             label: "Llegando",
             render: (product) => {
+              const val = product?.inventory?.arriving || 0;
               const hasData = hasBreakdown(product, "arriving");
               return (
-                <span
-                  className={`text-nowrap ${
-                    hasData ? "text-primary cursor-pointer hover:underline" : ""
-                  }`}
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  color={val > 0 ? "success" : "default"}
+                  className={hasData ? "cursor-pointer" : ""}
                   onClick={
                     hasData
                       ? (e) => {
@@ -306,8 +325,8 @@ export default function ProductsPage() {
                       : undefined
                   }
                 >
-                  {format(product?.inventory?.arriving || 0)} {product?.unit}
-                </span>
+                  {format(val)} {product?.unit}
+                </Chip>
               );
             },
           },
@@ -316,24 +335,34 @@ export default function ProductsPage() {
     {
       key: "available",
       label: "Disponible",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.available || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
+      render: (product) => {
+        const val = product?.inventory?.available || 0;
+        return (
+          <Link href={`/products/${product.id}`}>
+            <Chip
+              size="sm"
+              variant="flat"
+              color={val > 0 ? "success" : "default"}
+              className="cursor-pointer"
+            >
+              {format(val)} {product?.unit}
+            </Chip>
+          </Link>
+        );
+      },
     },
     {
       key: "required",
       label: "Requerido",
       render: (product) => {
+        const val = product?.inventory?.required || 0;
         const hasData = hasBreakdown(product, "required");
         return (
-          <span
-            className={`text-nowrap ${
-              hasData ? "text-primary cursor-pointer hover:underline" : ""
-            }`}
+          <Chip
+            size="sm"
+            variant="flat"
+            color={val > 0 ? "danger" : "default"}
+            className={hasData ? "cursor-pointer" : ""}
             onClick={
               hasData
                 ? (e) => {
@@ -343,21 +372,23 @@ export default function ProductsPage() {
                 : undefined
             }
           >
-            {format(product?.inventory?.required || 0)} {product?.unit}
-          </span>
+            {format(val)} {product?.unit}
+          </Chip>
         );
       },
     },
     {
       key: "production",
-      label: "En Producción",
+      label: "Producción",
       render: (product) => {
+        const val = product?.inventory?.production || 0;
         const hasData = hasBreakdown(product, "production");
         return (
-          <span
-            className={`text-nowrap ${
-              hasData ? "text-primary cursor-pointer hover:underline" : ""
-            }`}
+          <Chip
+            size="sm"
+            variant="flat"
+            color={val > 0 ? "primary" : "default"}
+            className={hasData ? "cursor-pointer" : ""}
             onClick={
               hasData
                 ? (e) => {
@@ -367,21 +398,23 @@ export default function ProductsPage() {
                 : undefined
             }
           >
-            {format(product?.inventory?.production || 0)} {product?.unit}
-          </span>
+            {format(val)} {product?.unit}
+          </Chip>
         );
       },
     },
     {
       key: "transit",
-      label: "En tránsito",
+      label: "Tránsito",
       render: (product) => {
+        const val = product?.inventory?.transit || 0;
         const hasData = hasBreakdown(product, "transit");
         return (
-          <span
-            className={`text-nowrap ${
-              hasData ? "text-primary cursor-pointer hover:underline" : ""
-            }`}
+          <Chip
+            size="sm"
+            variant="flat"
+            color={val > 0 ? "primary" : "default"}
+            className={hasData ? "cursor-pointer" : ""}
             onClick={
               hasData
                 ? (e) => {
@@ -391,43 +424,75 @@ export default function ProductsPage() {
                 : undefined
             }
           >
-            {format(product?.inventory?.transit || 0)} {product?.unit}
-          </span>
+            {format(val)} {product?.unit}
+          </Chip>
         );
       },
     },
     {
       key: "netAvailable",
-      label: "Disponible neto",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.netAvailable || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
+      label: "Disp. Neto",
+      render: (product) => {
+        const val = product?.inventory?.netAvailable || 0;
+        return (
+          <Link href={`/products/${product.id}`}>
+            <Chip
+              size="sm"
+              variant="solid"
+              color={val > 0 ? "success" : val < 0 ? "danger" : "default"}
+              className="cursor-pointer font-semibold"
+            >
+              {format(val)} {product?.unit}
+            </Chip>
+          </Link>
+        );
+      },
+    },
+    {
+      key: "freeTradeZone",
+      label: "Zona Franca",
+      render: (product) => {
+        const val = product?.inventory?.freeTradeZone || 0;
+        if (val === 0) return <span className="text-xs text-zinc-400">—</span>;
+        return (
+          <Chip size="sm" variant="flat" color="secondary">
+            {format(val)} {product?.unit}
+          </Chip>
+        );
+      },
+      tooltip: "Mercancía en bodega zona franca, pendiente de nacionalización",
     },
     {
       key: "printlab",
       label: "PrintLab",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.printlab || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
+      render: (product) => {
+        const val = product?.inventory?.printlab || 0;
+        return (
+          <Link href={`/products/${product.id}`}>
+            <Chip
+              size="sm"
+              variant="flat"
+              color={val > 0 ? "primary" : "default"}
+              className="cursor-pointer"
+            >
+              {format(val)} {product?.unit}
+            </Chip>
+          </Link>
+        );
+      },
     },
     {
       key: "defective",
       label: "Defectuosos",
-      render: (product) => (
-        <Link href={`/products/${product.id}`} className="text-nowrap">
-          <span className="hover:underline cursor-pointer">
-            {format(product?.inventory?.defective || 0)} {product?.unit}
-          </span>
-        </Link>
-      ),
+      render: (product) => {
+        const val = product?.inventory?.defective || 0;
+        if (val === 0) return <span className="text-xs text-zinc-400">—</span>;
+        return (
+          <Chip size="sm" variant="flat" color="danger">
+            {format(val)} {product?.unit}
+          </Chip>
+        );
+      },
     },
   ];
   const onInventoryModeChange = (key) => {
@@ -445,7 +510,7 @@ export default function ProductsPage() {
         showCreate={user?.type === "admin" || user?.type === "warehouseKeeper"}
       >
         <Select
-          className="w-full sm:w-48"
+          className="w-full sm:w-48 min-w-80"
           size={screenSize === "lg" ? "md" : "sm"}
           items={linesList.options}
           isLoading={linesList.isLoading}
@@ -467,7 +532,7 @@ export default function ProductsPage() {
         </Select>
 
         <Select
-          className="w-full sm:w-48"
+          className="w-full sm:w-48 min-w-80"
           size={screenSize === "lg" ? "md" : "sm"}
           items={collectionsList.options}
           isLoading={collectionsList.isLoading}
@@ -500,16 +565,6 @@ export default function ProductsPage() {
         isFetching={isFetching}
       />
       <div className="flex lg:justify-end justify-center gap-2">
-        {user?.type === "admin" && (
-          <Button
-            color="danger"
-            variant="flat"
-            className="w-full lg:w-auto"
-            onPress={() => setIsDeleteCutItemsModalOpen(true)}
-          >
-            Borrar Metreados
-          </Button>
-        )}
         <Button
           color="secondary"
           className="w-full lg:w-auto"

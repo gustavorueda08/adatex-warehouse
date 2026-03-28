@@ -256,10 +256,25 @@ function PackingListProductHeader({
     }
   };
 
+  const showNationalization =
+    document?.type === "purchase" &&
+    document?.destinationWarehouse?.type === "freeTradeZone";
+  const ftzWarehouseId = document?.destinationWarehouse?.id;
+  const nationalizedCount = showNationalization
+    ? (product.items || []).filter(
+        (i) => i.warehouse?.id && i.warehouse.id !== ftzWarehouseId,
+      ).length
+    : 0;
+  const inProgressCount = showNationalization
+    ? (product.items || []).filter(
+        (i) => i.state === "reserved" && i.warehouse?.id === ftzWarehouseId,
+      ).length
+    : 0;
+
   return (
     <div className="flex  flex-col justify-between gap-2">
       <div className="flex flex-row gap-2 align-middle justify-between">
-        <div className="flex flex-row gap-2 align-middle">
+        <div className="flex flex-row gap-2 align-middle flex-wrap">
           <h3 className="text-sm self-center lg:font-bold">{product.name}</h3>
           <Chip
             color={isCompleted ? "success" : "warning"}
@@ -268,6 +283,26 @@ function PackingListProductHeader({
           >
             {isCompleted ? "Completado" : "Pendiente"}
           </Chip>
+          {showNationalization && nationalizedCount > 0 && (
+            <Chip
+              color="success"
+              variant="flat"
+              className="self-center md:flex hidden"
+              size="sm"
+            >
+              {nationalizedCount} Nacionalizado{nationalizedCount !== 1 ? "s" : ""}
+            </Chip>
+          )}
+          {showNationalization && inProgressCount > 0 && (
+            <Chip
+              color="warning"
+              variant="flat"
+              className="self-center md:flex hidden"
+              size="sm"
+            >
+              {inProgressCount} En Proceso
+            </Chip>
+          )}
         </div>
         <Input
           placeholder={finalIsInputEnabled ? placeholderText : ""}
@@ -503,6 +538,10 @@ function PackingListProduct({
   // I will add a log to verify IDs.
   // console.log("Items with Ghost IDs:", itemsWithGhost.map(i => i.id));
 
+  const showNationalization =
+    document?.type === "purchase" &&
+    document?.destinationWarehouse?.type === "freeTradeZone";
+
   const columns = useMemo(() => {
     if (screenSize === "xs" || screenSize === "sm") {
       return [
@@ -510,13 +549,17 @@ function PackingListProduct({
         { key: "more", label: "" },
       ];
     }
-    return [
+    const cols = [
       { key: "currentQuantity", label: "Cantidad" },
       { key: "lotNumber", label: "Lote" },
       { key: "itemNumber", label: "Numero" },
-      { key: "remove", label: "" },
     ];
-  }, [screenSize]);
+    if (showNationalization) {
+      cols.push({ key: "nationalizationState", label: "Nac." });
+    }
+    cols.push({ key: "remove", label: "" });
+    return cols;
+  }, [screenSize, showNationalization]);
 
   const handleItemChange = useCallback(
     (targetItem, field, value) => {
@@ -695,6 +738,26 @@ function PackingListProduct({
         ) : (
           <Input value={item.itemNumber ?? ""} isReadOnly />
         );
+      case "nationalizationState": {
+        const ftzId = document?.destinationWarehouse?.id;
+        const isNationalized =
+          item.warehouse?.id && item.warehouse.id !== ftzId;
+        const isInProgress =
+          item.state === "reserved" && item.warehouse?.id === ftzId;
+        if (isNationalized)
+          return (
+            <Chip size="sm" color="success" variant="flat">
+              Nacionalizado
+            </Chip>
+          );
+        if (isInProgress)
+          return (
+            <Chip size="sm" color="warning" variant="flat">
+              En Proceso
+            </Chip>
+          );
+        return null;
+      }
       case "remove":
         return (
           <Button

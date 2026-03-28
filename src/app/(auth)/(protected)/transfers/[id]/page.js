@@ -14,14 +14,14 @@ import PackingList from "@/components/documents/PackingList";
 import Comments from "@/components/documents/Comments";
 import Actions from "@/components/documents/Actions";
 import Products from "@/components/documents/Products";
-import { addToast } from "@heroui/react";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function TransferDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
-  const { orders, updateOrder, deleteOrder, refetch, addItem, removeItem } =
+  const { orders, updateOrder, deleteOrder, addItem, removeItem } =
     useOrders({
       filters: { id: [id] },
       populate: [
@@ -33,10 +33,6 @@ export default function TransferDetailPage({ params }) {
       ],
     });
   const [document, setDocument] = useState(orders[0] || null);
-  const [loadings, setLoadings] = useState({
-    isUpdating: false,
-    isDeleting: false,
-  });
   const headerFields = useMemo(() => {
     return [
       {
@@ -145,40 +141,23 @@ export default function TransferDetailPage({ params }) {
     ];
   }, [orders, document]);
 
-  const handleDelete = async () => {
-    try {
-      setLoadings({
-        ...loadings,
-        isDeleting: true,
+  const handleDelete = () => {
+    router.push("/transfers");
+
+    const deletePromise = deleteOrder(document.id, { background: true })
+      .then(result => {
+        if (!result.success) throw new Error("Error al eliminar");
+        return result;
       });
-      await deleteOrder(document.id);
-      addToast({
-        title: "Transferencia Eliminada",
-        description: "La transferencia ha sido eliminada correctamente",
-        type: "success",
-      });
-      router.push("/transfers");
-    } catch (error) {
-      console.error(error);
-      addToast({
-        title: "Error al eliminar",
-        description: "Ocurrió un error al eliminar la transferencia",
-        type: "error",
-      });
-    } finally {
-      setLoadings({
-        ...loadings,
-        isDeleting: false,
-      });
-    }
+    toast.promise(deletePromise, {
+      loading: "Eliminando orden...",
+      success: "Orden eliminada exitosamente",
+      error: "Error al eliminar la orden",
+    });
   };
 
   const handleUpdate = async (newState = null) => {
-    try {
-      setLoadings({
-        isUpdating: true,
-      });
-      const products = document?.orderProducts || [];
+    const products = document?.orderProducts || [];
       const confirmed = products
         .filter((p) => p.product)
         .every((product) => {
@@ -263,50 +242,16 @@ export default function TransferDetailPage({ params }) {
       if (confirmed && document.state === "draft") {
         data.confirmedDate = moment.tz("America/Bogota").toDate();
       }
-      const result = await updateOrder(document.id, data);
-      if (!result.success) {
-        throw result.error;
-      }
-
-      addToast({
-        title: "Transferencia Actualizada",
-        description: "La transferencia ha sido actualizada correctamente",
-        type: "success",
-      });
-      await refetch();
-    } catch (error) {
-      console.error(error);
-      let isNegativeStock = false;
-      let negativeStockMessage = "";
-
-      try {
-        const errObj = JSON.parse(error.message);
-        if (errObj.code === "NEGATIVE_STOCK") {
-          isNegativeStock = true;
-          negativeStockMessage = errObj.message;
-        }
-      } catch (e) {
-        // Not a JSON error
-      }
-
-      if (isNegativeStock) {
-        addToast({
-          title: "Error de Inventario",
-          description: negativeStockMessage,
-          color: "danger",
+      const promise = updateOrder(document.id, data, { background: true })
+        .then(result => {
+          if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+          return result;
         });
-      } else {
-        addToast({
-          title: "Error al actualizar",
-          description: "Ocurrió un error al actualizar la transferencia",
-          type: "error",
-        });
-      }
-    } finally {
-      setLoadings({
-        isUpdating: false,
+      toast.promise(promise, {
+        loading: "Actualizando...",
+        success: "Orden actualizada exitosamente",
+        error: (err) => err.message || "Error al actualizar",
       });
-    }
   };
 
   useEffect(() => {
@@ -370,7 +315,6 @@ export default function TransferDetailPage({ params }) {
           onUpdate={handleUpdate}
           onComplete={handleUpdate}
           onDelete={handleDelete}
-          loadings={loadings}
           showAdminActions={true}
         />
       </Section>

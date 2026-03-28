@@ -61,7 +61,6 @@ export function prepareDocumentData(document) {
     // Cliente para factura (solo sales)
     customerForInvoice: document.customerForInvoice?.name || null,
   };
-  console.log("DATOS", data);
   return data;
 }
 
@@ -163,8 +162,6 @@ export function formatPackingList(products, options = {}) {
       });
     }
   });
-
-  console.log("ROOWS", rows);
 
   return rows;
 }

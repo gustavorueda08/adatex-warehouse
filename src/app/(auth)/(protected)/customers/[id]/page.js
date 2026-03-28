@@ -14,6 +14,8 @@ import EntityActions from "@/components/entities/EntityActions";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { useUser } from "@/lib/hooks/useUser";
+import CustomerForecastSection from "@/components/forecast/CustomerForecastSection";
+import AccountsReceivable from "@/components/customers/AccountsReceivable";
 
 export default function CustomerDetailPage() {
   const router = useRouter();
@@ -445,6 +447,18 @@ export default function CustomerDetailPage() {
             </div>
           )}
         </div>
+      </Section>
+      <Section
+        title="Predicción de Demanda (Prophet)"
+        description="Demanda semanal predicha por producto con intervalos de confianza al 95%."
+      >
+        <CustomerForecastSection customerId={customerId} />
+      </Section>
+      <Section
+        title="Cuentas por Cobrar"
+        description="Saldo pendiente en Siigo (cuenta 1305) y facturas sin cancelar."
+      >
+        <AccountsReceivable customerId={customerId} />
       </Section>
       <Section title="Ordenes" description={"Ordenes del Cliente"}>
         <div className="p-4">

@@ -20,11 +20,9 @@ function NewInflowPageInner() {
     {
       enabled: false,
       onCreate: (createdOrder) => {
-        console.log("Orden creada exitosamente:", createdOrder);
         router.push(`/inflows/${createdOrder.id}`);
       },
       onError: (error) => {
-        console.log(error);
         toast.error("Error: La orden no pudo ser creada");
       },
     },

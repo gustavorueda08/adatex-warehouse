@@ -24,6 +24,7 @@ import { useCollections } from "@/lib/hooks/useCollections";
 import { useUser } from "@/lib/hooks/useUser";
 import { exportInventoryToExcel } from "@/lib/utils/exportInventoryToExcel";
 import { exportItemsToExcel } from "@/lib/utils/exportItemsToExcel";
+import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 
 export function useProductListConfig({ bulkProps = {}, onExportItems } = {}) {
   const { user } = useUser();
@@ -528,7 +529,7 @@ export function createProductDetailConfig({
                       render: (order) => {
                         const customer = order.customer;
                         if (!customer) return "-";
-                        return `${customer.name} ${customer.lastName || ""}`;
+                        return getPartyLabel(customer);
                       },
                     },
                     {

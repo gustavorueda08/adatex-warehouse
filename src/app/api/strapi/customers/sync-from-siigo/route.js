@@ -27,8 +27,6 @@ export async function GET(request, context) {
       strapiUrl.searchParams.append(key, value);
     });
 
-    console.log("Fetching consignment history:", strapiUrl.toString());
-
     // Configurar headers
     const headers = {
       "Content-Type": "application/json",
@@ -62,7 +60,6 @@ export async function GET(request, context) {
     }
 
     const data = await response.json();
-    console.log(data, "DATOS DE CUSTOMERSß");
 
     // Validar estructura de respuesta
     if (!data || typeof data !== "object") {

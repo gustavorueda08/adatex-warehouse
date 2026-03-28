@@ -548,8 +548,6 @@ function renderField(
 ) {
   const value = formState[field.key];
 
-  console.log(field);
-
   switch (field.type) {
     case "select":
       const options =

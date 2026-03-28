@@ -1,6 +1,4 @@
 export const getChipVariant = (document) => {
-  console.log(document.state);
-
   const state = document?.state;
   if (state === "completed") {
     if (

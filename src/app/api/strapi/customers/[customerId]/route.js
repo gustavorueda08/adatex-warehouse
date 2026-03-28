@@ -122,11 +122,6 @@ export async function DELETE(request, context) {
       STRAPI_URL.toString()
     );
 
-    console.log(
-      `🗑️ Attempting to DELETE customer ${customerId} from:`,
-      strapiUrl.toString()
-    );
-
     // Configurar headers
     const headers = {
       "Content-Type": "application/json",
@@ -138,45 +133,6 @@ export async function DELETE(request, context) {
       method: "DELETE",
       headers,
     });
-
-    console.log(`📬 DELETE Response:`, {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      contentType: response.headers.get("content-type"),
-      contentLength: response.headers.get("content-length"),
-    });
-
-    // Verificar si el customer realmente se eliminó
-    if (response.ok) {
-      // Intentar hacer un GET para verificar si el customer aún existe
-      setTimeout(async () => {
-        try {
-          const verifyResponse = await fetch(strapiUrl.toString(), {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (verifyResponse.ok) {
-            console.log(
-              `⚠️ WARNING: Customer ${customerId} STILL EXISTS after DELETE!`
-            );
-          } else if (verifyResponse.status === 404) {
-            console.log(
-              `✅ VERIFIED: Customer ${customerId} was successfully deleted`
-            );
-          } else {
-            console.log(
-              `❓ Unable to verify deletion, status: ${verifyResponse.status}`
-            );
-          }
-        } catch (err) {
-          console.log(`❌ Error verifying deletion:`, err.message);
-        }
-      }, 500);
-    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -201,9 +157,6 @@ export async function DELETE(request, context) {
       response.status === 204 ||
       response.headers.get("content-length") === "0"
     ) {
-      console.log(
-        `✅ Customer ${customerId} deleted successfully (204 No Content)`
-      );
       return NextResponse.json(
         {
           data: {
@@ -220,9 +173,6 @@ export async function DELETE(request, context) {
     if (contentType && contentType.includes("application/json")) {
       const text = await response.text();
       if (text.trim().length === 0) {
-        console.log(
-          `✅ Customer ${customerId} deleted successfully (empty JSON)`
-        );
         return NextResponse.json(
           {
             data: {
@@ -235,7 +185,6 @@ export async function DELETE(request, context) {
       }
 
       const data = JSON.parse(text);
-      console.log(`✅ Customer ${customerId} deleted, Strapi response:`, data);
 
       // Validar estructura de respuesta
       if (!data || typeof data !== "object") {
@@ -249,9 +198,6 @@ export async function DELETE(request, context) {
     }
 
     // Si no es JSON, asumir éxito
-    console.log(
-      `✅ Customer ${customerId} deleted successfully (non-JSON response)`
-    );
     return NextResponse.json(
       {
         data: {

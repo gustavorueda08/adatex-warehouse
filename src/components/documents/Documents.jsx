@@ -268,14 +268,14 @@ export default function Documents({
         return `/returns/${document.id}`;
       case ORDER_TYPES.TRANSFORM:
         return `/transformations/${document.id}`;
+      case ORDER_TYPES.NATIONALIZATION:
+        return `/nationalizations/${document.id}`;
       default:
         return "/";
     }
   };
 
   const handleSelectionChange = (keys) => {
-    console.log("PASO", keys);
-
     setSelectedKeys(keys === "all" ? "all" : new Set([...keys]));
   };
 

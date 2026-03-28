@@ -335,6 +335,7 @@ export function normalizeOrderTypes(types) {
     "transfer",
     "transform",
     "partial-invoice",
+    "nationalization",
     "cut",
     "by-warehouse",
     "by-product",
@@ -372,18 +373,18 @@ export function normalizeDate(date) {
 }
 
 /**
- * Función de debug para ver la query generada
+ * Returns the query string for the given params and logs it to the console
+ * in development. Useful when debugging unexpected Strapi query shapes.
+ *
+ * @param {Object} params - Strapi query params object.
+ * @returns {string} The generated query string.
  */
 export function debugStrapiQuery(params) {
   const query = buildStrapiQuery(params);
-  console.log("🔍 Debug Strapi Query:");
-  console.log("📝 Parámetros originales:", JSON.stringify(params, null, 2));
-  console.log("🔗 Query generada:", query);
-  console.log("🌐 URL completa:", `/api/strapi/orders?${query}`);
-  console.log(
-    "📋 URL decodificada:",
-    decodeURIComponent(`/api/strapi/orders?${query}`),
-  );
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[debugStrapiQuery] params:", JSON.stringify(params, null, 2));
+    console.log("[debugStrapiQuery] query:", decodeURIComponent(query));
+  }
   return query;
 }
 
@@ -399,7 +400,6 @@ export function normalizeFilters(filters) {
 
   // Normalizar tipos de orden
   if (normalized.type) {
-    console.log("🔍 Tipo antes de normalizar:", normalized.type);
 
     if (normalized.type.$in) {
       const normalizedTypes = normalizeOrderTypes(normalized.type.$in);
@@ -425,7 +425,6 @@ export function normalizeFilters(filters) {
       }
     }
 
-    console.log("✅ Tipo después de normalizar:", normalized.type);
   }
 
   return normalized;

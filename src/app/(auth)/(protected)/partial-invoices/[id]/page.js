@@ -49,7 +49,6 @@ export default function PartialInvoiceDetailPage({ params }) {
           order.customer.id,
           { "pagination[limit]": -1 },
         );
-        console.log("PartialInvoiceDetailPage: Fetched groups", groups);
         setInvoiceableItems(groups);
       } catch (error) {
         console.error("Error fetching invoiceable items:", error);

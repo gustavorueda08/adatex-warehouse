@@ -168,11 +168,8 @@ export const saleDocumentConfig = {
             options={selectOptions}
             value={row.product || null}
             onChange={(product) => {
-              console.log("PRODUITO", product);
               handleProductSelect(product, index);
               if (selectedCustomerForInvoice?.prices) {
-                console.log(selectedCustomerForInvoice?.prices);
-
                 const priceData = selectedCustomerForInvoice.prices.find(
                   (p) => p.product.id == product.id,
                 );
