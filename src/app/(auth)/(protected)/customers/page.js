@@ -11,12 +11,11 @@ import moment from "moment-timezone";
 import { useUser } from "@/lib/hooks/useUser";
 import RoleGuard from "@/components/auth/RoleGuard";
 import {
-  Button, Chip, Tabs, Tab, Skeleton,
+  Button, Chip, Skeleton, Tabs, Tab,
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
   useDisclosure, Tooltip,
 } from "@heroui/react";
 import { exportCustomersToExcel } from "@/lib/utils/exportCustomersToExcel";
-import { buildStrapiQuery } from "@/lib/api/strapiQueryBuilder";
 import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 import ExportCustomersModal from "@/components/customers/ExportCustomersModal";
 import toast from "react-hot-toast";
@@ -40,35 +39,6 @@ const STATUS_COLORS = {
   churned: "danger",
   prospect: "primary",
 };
-
-function DashboardCard({ label, value, subtitle, color = "default", loading }) {
-  const colorClasses = {
-    default: "bg-default-50 border-default-200",
-    success: "bg-success-50 border-success-200",
-    warning: "bg-warning-50 border-warning-200",
-    primary: "bg-primary-50 border-primary-200",
-    danger: "bg-danger-50 border-danger-200",
-  };
-  return (
-    <div
-      className={`flex flex-col gap-1 p-4 rounded-xl border ${colorClasses[color] ?? colorClasses.default}`}
-    >
-      <span className="text-xs font-medium text-default-500 uppercase tracking-wider">
-        {label}
-      </span>
-      {loading ? (
-        <Skeleton className="h-7 w-3/4 rounded-lg mt-1" />
-      ) : (
-        <span className="text-xl lg:text-2xl font-bold text-default-900">
-          {value}
-        </span>
-      )}
-      {subtitle && (
-        <span className="text-xs text-default-400">{subtitle}</span>
-      )}
-    </div>
-  );
-}
 
 /** Pace-adjusted compliance: how the customer is tracking vs their 3M average at this point in the month. */
 function pacePercent(currentMonthVolume, threeMonthAverage) {
@@ -185,8 +155,14 @@ function CustomerArModal({ isOpen, onClose, customer, data, loading, error, onDo
               )}
 
               {error && (
-                <div className="p-4 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">
-                  {error}
+                <div className="flex flex-col items-center gap-3 py-10 text-center">
+                  <div className="text-4xl">⚠️</div>
+                  <p className="text-sm font-semibold text-default-700">
+                    No se pudo obtener la información de cartera
+                  </p>
+                  <p className="text-xs text-default-400 max-w-xs">
+                    Es posible que este cliente no tenga movimientos registrados en Siigo o esté inactivo en el sistema contable.
+                  </p>
                 </div>
               )}
 
@@ -409,98 +385,6 @@ function CustomersPageInner() {
     }
   };
 
-  // ── Forecast summary ────────────────────────────────────────────────────────
-  const [forecast, setForecast] = useState({ deficit: 0, orderSoon: 0, loading: true });
-
-  useEffect(() => {
-    let cancelled = false;
-    setForecast((prev) => ({ ...prev, loading: true }));
-    fetch("/api/forecast/purchase-suggestions?horizon_days=30")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
-        if (cancelled) return;
-        const deficit = data.filter((p) => p.status === "deficit").length;
-        const orderSoon = data.filter((p) => p.status === "order_soon").length;
-        setForecast({ deficit, orderSoon, loading: false });
-      })
-      .catch(() => {
-        if (!cancelled) setForecast({ deficit: 0, orderSoon: 0, loading: false });
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  // ── Dashboard summary (all customers matching filters) ──────────────────────
-  const [summary, setSummary] = useState({
-    totalCurrentMonth: 0,
-    totalProjected: 0,
-    totalAvg3M: 0,
-    activeCount: 0,
-    atRiskCount: 0,
-    churnedCount: 0,
-    totalCustomers: 0,
-    loading: true,
-  });
-
-  const fetchSummary = useCallback(async () => {
-    setSummary((prev) => ({ ...prev, loading: true }));
-    try {
-      let all = [];
-      let page = 1;
-      let totalPages = 1;
-      do {
-        const qs = buildStrapiQuery({
-          pagination: { page, pageSize: 100 },
-          filters,
-          fields: [
-            "currentMonthVolume",
-            "projectedVolume",
-            "threeMonthAverage",
-            "status",
-          ],
-        });
-        const res = await fetch(`/api/strapi/customers?${qs}`);
-        if (!res.ok) break;
-        const data = await res.json();
-        all.push(...(data.data || []));
-        totalPages = data.meta?.pagination?.pageCount || 1;
-        page++;
-      } while (page <= totalPages);
-
-      let totalCurrentMonth = 0,
-        totalProjected = 0,
-        totalAvg3M = 0,
-        activeCount = 0,
-        atRiskCount = 0,
-        churnedCount = 0;
-
-      for (const c of all) {
-        totalCurrentMonth += Number(c.currentMonthVolume) || 0;
-        totalProjected += Number(c.projectedVolume) || 0;
-        totalAvg3M += Number(c.threeMonthAverage) || 0;
-        if (c.status === "active") activeCount++;
-        if (c.status === "at_risk") atRiskCount++;
-        if (c.status === "churned") churnedCount++;
-      }
-
-      setSummary({
-        totalCurrentMonth,
-        totalProjected,
-        totalAvg3M,
-        activeCount,
-        atRiskCount,
-        churnedCount,
-        totalCustomers: all.length,
-        loading: false,
-      });
-    } catch {
-      setSummary((prev) => ({ ...prev, loading: false }));
-    }
-  }, [filters]);
-
-  useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
-
   // ── Columns ─────────────────────────────────────────────────────────────────
   const columns = useMemo(() => {
     const isSmall = screenSize !== "lg";
@@ -675,20 +559,6 @@ function CustomersPageInner() {
     }
   };
 
-  const currentMonthName = moment().format("MMMM YYYY");
-  const dayOfMonth = moment().date();
-  const daysInMonth = moment().daysInMonth();
-
-  // Pace-adjusted cumplimiento across all filtered customers
-  const expectedToDate =
-    summary.totalAvg3M > 0
-      ? (summary.totalAvg3M / daysInMonth) * dayOfMonth
-      : 0;
-  const cumplimiento =
-    expectedToDate > 0
-      ? Math.round((summary.totalCurrentMonth / expectedToDate) * 100)
-      : null;
-
   return (
     <div className="flex flex-col gap-4">
       {/* Title + actions */}
@@ -725,69 +595,6 @@ function CustomersPageInner() {
             Exportar Clientes
           </Button>
         </div>
-      </div>
-
-      {/* Dashboard summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <DashboardCard
-          label={`Ventas ${currentMonthName}`}
-          value={COP(summary.totalCurrentMonth)}
-          subtitle={`${summary.activeCount} activos · ${summary.totalCustomers} total`}
-          color="primary"
-          loading={summary.loading}
-        />
-        <DashboardCard
-          label="Proyección Fin de Mes"
-          value={COP(summary.totalProjected)}
-          subtitle="Modelo estacional + tendencia"
-          color={
-            summary.totalProjected >= summary.totalAvg3M ? "success" : "warning"
-          }
-          loading={summary.loading}
-        />
-        <DashboardCard
-          label="Cumplimiento vs Ritmo"
-          value={cumplimiento !== null ? `${cumplimiento}%` : "N/A"}
-          subtitle={`Día ${dayOfMonth} de ${daysInMonth} · Prom 3M ${COP(summary.totalAvg3M)}`}
-          color={
-            cumplimiento === null
-              ? "default"
-              : cumplimiento >= 90
-                ? "success"
-                : cumplimiento >= 60
-                  ? "warning"
-                  : "danger"
-          }
-          loading={summary.loading}
-        />
-        <DashboardCard
-          label="En Riesgo / Inactivos"
-          value={`${summary.atRiskCount} / ${summary.churnedCount}`}
-          subtitle={`De ${summary.totalCustomers} clientes filtrados`}
-          color={
-            summary.atRiskCount + summary.churnedCount > 0 ? "danger" : "success"
-          }
-          loading={summary.loading}
-        />
-        <DashboardCard
-          label="Reposición Urgente"
-          value={forecast.loading ? "—" : `${forecast.deficit + forecast.orderSoon}`}
-          subtitle={
-            forecast.loading
-              ? "Calculando pronóstico..."
-              : `${forecast.deficit} crítico(s) · ${forecast.orderSoon} próximo(s)`
-          }
-          color={
-            forecast.loading
-              ? "default"
-              : forecast.deficit > 0
-                ? "danger"
-                : forecast.orderSoon > 0
-                  ? "warning"
-                  : "success"
-          }
-          loading={forecast.loading}
-        />
       </div>
 
       {/* Status tabs + search */}
