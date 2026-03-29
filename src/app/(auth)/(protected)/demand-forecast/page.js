@@ -350,7 +350,9 @@ function DemandForecastPageInner() {
     setLoading(true);
     setUnavailable(false);
     try {
-      const res = await fetch("/api/forecast/purchase-suggestions");
+      // horizon_days=120 ensures forecast covers the full 70-day import lead time (35d
+      // manufacturing + 30d transit + 5d nationalization) with margin for planning.
+      const res = await fetch("/api/forecast/purchase-suggestions?horizon_days=120");
       if (res.status === 503) { setUnavailable(true); return; }
       if (!res.ok) throw new Error("Error");
       const data = await res.json();
@@ -425,7 +427,8 @@ function DemandForecastPageInner() {
   const stockCoverage = (p) => {
     const rp = p.safety_stock_info?.reorder_point || 0;
     if (!rp) return 100;
-    return Math.min(Math.round((p.current_stock / rp) * 100), 200);
+    const effective = (p.current_stock || 0) + (p.incoming_stock || 0);
+    return Math.min(Math.round((effective / rp) * 100), 200);
   };
 
   const exportToExcel = () => {
@@ -486,7 +489,7 @@ function DemandForecastPageInner() {
             <Chip size="sm" color="secondary" variant="flat">Prophet ML</Chip>
           </div>
           <p className="text-sm text-default-500 mt-0.5">
-            Predicciones semanales con intervalos de confianza 95% · Stock de seguridad estadístico · ABC-XYZ
+            Predicciones 120 días · Lead time importación: 70 días (35 fab. + 30 tránsito + 5 nac.) · IC 95% · ABC-XYZ
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -646,7 +649,7 @@ function DemandForecastPageInner() {
                                 </Tooltip>
                               ) : "—"}
                             </td>
-                            <td className="px-3 py-3 min-w-[160px]">
+                            <td className="px-3 py-3 min-w-[170px]">
                               <div className="flex flex-col gap-1">
                                 <div className="flex justify-between text-xs text-default-500">
                                   <span>{NUM(p.current_stock)} {p.product_unit}</span>
@@ -659,6 +662,12 @@ function DemandForecastPageInner() {
                                   color={coverage < 100 ? "danger" : coverage < 150 ? "warning" : "success"}
                                 />
                                 <span className="text-xs font-medium text-default-600">{coverage}% del punto de reorden</span>
+                                {p.incoming_stock > 0 && (
+                                  <span className="text-xs text-primary-600 font-medium">
+                                    📦 +{NUM(p.incoming_stock)} en tránsito
+                                    {p.earliest_arrival ? ` · ~${moment(p.earliest_arrival).format("DD/MM/YY")}` : ""}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-3 py-3 text-right font-semibold text-default-900">

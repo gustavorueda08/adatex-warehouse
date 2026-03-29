@@ -37,7 +37,8 @@ function BalanceSummaryCard({ label, value, color = "default", loading }) {
  * Carga el balance contable + facturas pendientes desde Siigo bajo demanda.
  */
 export default function AccountsReceivable({ customerId }) {
-  const { getCustomerAccountsReceivable, downloadCustomerAccountsReceivable } = useCustomers();
+  // enabled: false — we only need the callback functions, not a full customers fetch
+  const { getCustomerAccountsReceivable, downloadCustomerAccountsReceivable } = useCustomers({}, { enabled: false });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);

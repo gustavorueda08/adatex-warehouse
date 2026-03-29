@@ -21,7 +21,9 @@ export default function Taxes({ taxes = [], setEntity, disabled = false }) {
         $containsi: search,
       },
     }),
-    selectedOption: taxes,
+    // Avoid passing an empty array (new reference each render when customer not yet loaded)
+    // which causes Effect 3 in useEntityList to loop. Use null when there are no selections.
+    selectedOption: taxes?.length ? taxes : null,
   });
   const [, scrollerRef] = useInfiniteScroll({
     hasMore,

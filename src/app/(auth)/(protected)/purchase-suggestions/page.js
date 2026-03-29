@@ -142,7 +142,13 @@ function ExpandedRow({ p }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "Stock Actual",       value: `${NUM(p.current_stock)} ${p.product_unit}`,              cls: "text-default-900",
-            tip: "Cantidad disponible en inventario actualmente" },
+            tip: "Cantidad disponible en inventario actualmente (solo lo que está en bodega)" },
+          ...(p.incoming_stock > 0 ? [{
+            label: "En Tránsito",
+            value: `${NUM(p.incoming_stock)} ${p.product_unit}`,
+            cls: "text-primary-700",
+            tip: `Stock en órdenes de compra confirmadas o en proceso. Llegada estimada: ${p.earliest_arrival ? moment(p.earliest_arrival).format("DD/MM/YYYY") : "sin fecha definida"}`,
+          }] : []),
           { label: "Stock de Seguridad", value: `${NUM(ss.safety_stock)} ${p.product_unit}`,               cls: "text-warning-700",
             tip: "Buffer mínimo para absorber variaciones en la demanda o el tiempo de entrega" },
           { label: "Punto de Reorden",   value: `${NUM(ss.reorder_point)} ${p.product_unit}`,              cls: "text-default-900",
@@ -190,7 +196,8 @@ function PurchaseSuggestionsInner() {
     setLoading(true);
     setUnavailable(false);
     try {
-      const res = await fetch("/api/forecast/purchase-suggestions");
+      // horizon_days=120 covers the 70-day import lead time with sufficient planning margin
+      const res = await fetch("/api/forecast/purchase-suggestions?horizon_days=120");
       if (res.status === 503) { setUnavailable(true); return; }
       if (!res.ok) throw new Error("Error fetching");
       const data = await res.json();
@@ -246,10 +253,11 @@ function PurchaseSuggestionsInner() {
     return { deficit, orderSoon, sufficient, prophetCount, total: suggestions.length };
   }, [suggestions]);
 
-  const stockCoverage = (p) => {
+  const stockCoverage = (p, effective) => {
     const rp = p.safety_stock_info?.reorder_point || 0;
     if (!rp) return 100;
-    return Math.min(Math.round((p.current_stock / rp) * 100), 200);
+    const stock = effective ?? ((p.current_stock || 0) + (p.incoming_stock || 0));
+    return Math.min(Math.round((stock / rp) * 100), 200);
   };
 
   const exportToExcel = () => {
@@ -307,7 +315,7 @@ function PurchaseSuggestionsInner() {
         <div>
           <h1 className="font-bold text-xl lg:text-3xl">Compras Sugeridas</h1>
           <p className="text-sm text-default-500 mt-0.5">
-            ¿Qué necesito comprar? · Basado en predicciones Prophet ML + stock de seguridad estadístico
+            ¿Qué pedir esta semana? · Lead time: 70 días (35 fab. + 30 tránsito + 5 nac.) · Solo productos de línea
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -425,7 +433,7 @@ function PurchaseSuggestionsInner() {
                     </Tooltip>
                   </th>
                   <th className="px-3 py-3 text-right font-semibold text-default-600 text-xs uppercase tracking-wide">
-                    <Tooltip content="Cuánto comprar: diferencia entre stock actual + stock de seguridad y la demanda predicha.">
+                    <Tooltip content="Cantidad sugerida para reponer: diferencia entre el punto de reorden (demanda durante 70 días de lead time + stock de seguridad) y el stock actual.">
                       <span className="cursor-help underline decoration-dotted">A Comprar</span>
                     </Tooltip>
                   </th>
@@ -443,10 +451,12 @@ function PurchaseSuggestionsInner() {
               </thead>
               <tbody className="divide-y divide-default-100">
                 {filtered.map((p, idx) => {
-                  const sc       = STATUS_CONFIG[p.status] || STATUS_CONFIG.sufficient;
-                  const coverage = stockCoverage(p);
-                  const isExp    = expandedRow === idx;
-                  const toBuy    = p.deficit > 0 ? p.deficit : 0;
+                  const sc           = STATUS_CONFIG[p.status] || STATUS_CONFIG.sufficient;
+                  const isExp        = expandedRow === idx;
+                  const rop          = p.safety_stock_info?.reorder_point ?? 0;
+                  const effectiveStock = (p.current_stock || 0) + (p.incoming_stock || 0);
+                  const coverage     = stockCoverage(p, effectiveStock);
+                  const toBuy        = Math.max(0, Math.round((rop - effectiveStock) * 10) / 10);
 
                   return [
                     <tr
@@ -479,10 +489,10 @@ function PurchaseSuggestionsInner() {
                           </Tooltip>
                         ) : "—"}
                       </td>
-                      <td className="px-3 py-3 min-w-[170px]">
+                      <td className="px-3 py-3 min-w-[180px]">
                         <div className="flex flex-col gap-1">
                           <div className="flex justify-between text-xs text-default-500">
-                            <span>Stock: {NUM(p.current_stock)}</span>
+                            <span>Efectivo: {NUM(effectiveStock)}</span>
                             <span>Reorden: {NUM(p.safety_stock_info?.reorder_point)} {p.product_unit}</span>
                           </div>
                           <Progress
@@ -492,6 +502,12 @@ function PurchaseSuggestionsInner() {
                             color={coverage < 100 ? "danger" : coverage < 150 ? "warning" : "success"}
                           />
                           <span className="text-xs font-medium text-default-600">{coverage}% del punto de reorden</span>
+                          {p.incoming_stock > 0 && (
+                            <span className="text-xs text-primary-600 font-medium">
+                              📦 +{NUM(p.incoming_stock)} {p.product_unit} en tránsito
+                              {p.earliest_arrival ? ` · llega ~${moment(p.earliest_arrival).format("DD/MM/YY")}` : ""}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-3 text-right">

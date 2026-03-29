@@ -103,6 +103,9 @@ export function useEntityList({
   // Effect to ensure selected options are always in the list without resetting it
   useEffect(() => {
     if (!selectedOption) return;
+    // Skip empty arrays — nothing to prepend and avoids re-render loops when the
+    // parent passes a new [] reference on every render (e.g. default parameters).
+    if (Array.isArray(selectedOption) && selectedOption.length === 0) return;
 
     setOptions((prev) => {
       let candidates = [...prev];
@@ -121,7 +124,25 @@ export function useEntityList({
           uniqueItems.set(key, item);
         }
       });
-      return Array.from(uniqueItems.values());
+      const next = Array.from(uniqueItems.values());
+      // Bail out if content is identical by id to avoid triggering a re-render
+      // when selectedOption is a new reference but logically the same.
+      if (
+        prev.length === next.length &&
+        prev.every((item, i) => {
+          const prevKey =
+            item && typeof item === "object" && "id" in item ? item.id : item;
+          const nextItem = next[i];
+          const nextKey =
+            nextItem && typeof nextItem === "object" && "id" in nextItem
+              ? nextItem.id
+              : nextItem;
+          return prevKey === nextKey;
+        })
+      ) {
+        return prev;
+      }
+      return next;
     });
   }, [selectedOption]);
 

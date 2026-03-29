@@ -204,6 +204,18 @@ export default function ProductDetailPage({ params }) {
           },
         ]
       : []),
+    ...(product?.type !== "service" && product?.type !== "cutItem"
+      ? [
+          {
+            key: "isLineProduct",
+            label: "Producto de Línea (se importa de forma recurrente)",
+            type: "checkbox",
+            value: product?.isLineProduct !== false,
+            onChange: (isLineProduct) => setProduct({ ...product, isLineProduct }),
+            fullWidth: true,
+          },
+        ]
+      : []),
     {
       key: "description",
       label: "Descripción",
@@ -368,6 +380,7 @@ export default function ProductDetailPage({ params }) {
         ? Number(product.cutTransformationFactor)
         : undefined,
       collections: product?.collections?.map((c) => c.id),
+      isLineProduct: product?.isLineProduct !== false,
     };
     if (
       product?.type === "cutItem" &&
