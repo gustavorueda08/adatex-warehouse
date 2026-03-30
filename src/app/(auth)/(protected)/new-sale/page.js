@@ -13,6 +13,7 @@ import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import { parseDate } from "@internationalized/date";
 import RoleGuard from "@/components/auth/RoleGuard";
 import { getPartyLabel } from "@/lib/utils/getPartyLabel";
+import CustomerCreditAlert from "@/components/customers/CustomerCreditAlert";
 
 function NewSalePageInner() {
   const router = useRouter();
@@ -181,6 +182,9 @@ function NewSalePageInner() {
 
   return (
     <Document title="Nueva Orden Venta" headerFields={headerFields}>
+      {document?.customer && (
+        <CustomerCreditAlert customer={document.customer} />
+      )}
       <Section
         title="Productos"
         description="Productos de la orden de venta"

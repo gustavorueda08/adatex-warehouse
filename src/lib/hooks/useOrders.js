@@ -306,6 +306,43 @@ export function useOrders(queryParams = {}, options = {}) {
     [strapiResult.refetch],
   );
 
+  /**
+   * Approves or revokes the credit block exception for a sale order (admin only).
+   *
+   * @param {string|number} orderId - ID of the sale order.
+   * @param {boolean} [override=true] - true to approve, false to revoke.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
+  const approveCredit = useCallback(
+    async (orderId, override = true) => {
+      if (!orderId) {
+        return { success: false, error: new Error("Order ID es requerido") };
+      }
+      try {
+        const response = await fetch(
+          `/api/strapi/orders/${orderId}/approve-credit`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ override }),
+          },
+        );
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            result.error?.message ||
+              result.message ||
+              `Error ${response.status}: ${response.statusText}`,
+          );
+        }
+        return { success: true, data: result.data };
+      } catch (err) {
+        return { success: false, error: err };
+      }
+    },
+    [],
+  );
+
   return {
     ...strapiResult,
     addItem,
@@ -315,5 +352,6 @@ export function useOrders(queryParams = {}, options = {}) {
     getInvoices,
     getNationalizableItems,
     createNationalization,
+    approveCredit,
   };
 }

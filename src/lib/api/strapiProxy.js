@@ -115,11 +115,32 @@ async function parseStrapiResponse(response, entityId = null) {
 /**
  * Returns a standardised error NextResponse from a failed Strapi response.
  *
+ * When Strapi returns a JSON error body (e.g. 400 BadRequest, 500 Internal),
+ * we forward it as-is so that `error.message` remains accessible on the
+ * client side.  Plain-text or unparseable bodies fall back to a wrapper.
+ *
  * @param {Response} response
  * @param {string} [context] - Short description of what failed (for the error message).
  * @returns {Promise<NextResponse>}
  */
 async function errorResponse(response, context = "Strapi request") {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const body = await response.json();
+      console.error(`[strapiProxy] ${context} failed:`, {
+        status: response.status,
+        body,
+      });
+      // Pass the Strapi error body through unchanged so the client can read
+      // error.message directly (e.g. credit-block validation messages).
+      return NextResponse.json(body, { status: response.status });
+    } catch {
+      // fall through to text fallback
+    }
+  }
+
   const details = await response.text().catch(() => "");
   console.error(`[strapiProxy] ${context} failed:`, {
     status: response.status,

@@ -72,11 +72,28 @@ export default function AccountsReceivable({ customerId }) {
     }
   };
 
-  // Número de días desde la fecha de vencimiento
-  function daysOverdue(due_date) {
-    if (!due_date) return null;
-    const diff = Math.floor((Date.now() - new Date(due_date).getTime()) / 86400000);
-    return diff;
+  /**
+   * Calcula los días de mora de una factura aplicando el plazo global del cliente.
+   * días_efectivos = max(plazo_global, días_propios_de_la_factura)
+   * Positivo = vencida (mora), negativo = aún dentro del plazo.
+   */
+  function daysOverdue(inv) {
+    const todayMs = Date.now();
+    const globalPaymentTerms = data?.paymentTerms || 0;
+
+    if (!inv.date) {
+      if (!inv.due_date) return null;
+      return Math.floor((todayMs - new Date(inv.due_date).getTime()) / 86400000);
+    }
+
+    const invoiceDateMs = new Date(inv.date).getTime();
+    const siigoDueDateMs = inv.due_date ? new Date(inv.due_date).getTime() : 0;
+    const invoiceSpecificDays =
+      siigoDueDateMs > invoiceDateMs
+        ? Math.round((siigoDueDateMs - invoiceDateMs) / 86400000)
+        : 0;
+    const effectiveDays = Math.max(globalPaymentTerms, invoiceSpecificDays);
+    return Math.floor((todayMs - (invoiceDateMs + effectiveDays * 86400000)) / 86400000);
   }
 
   return (
@@ -178,7 +195,7 @@ export default function AccountsReceivable({ customerId }) {
                   </thead>
                   <tbody>
                     {data.invoices.map((inv, idx) => {
-                      const overdue = daysOverdue(inv.due_date);
+                      const overdue = daysOverdue(inv);
                       const isOverdue = overdue !== null && overdue > 0;
                       return (
                         <tr

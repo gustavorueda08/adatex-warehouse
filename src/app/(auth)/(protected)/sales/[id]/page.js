@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/hooks/useUser";
 import toast from "react-hot-toast";
 import { getPartyLabel } from "@/lib/utils/getPartyLabel";
+import CustomerCreditAlert from "@/components/customers/CustomerCreditAlert";
 
 export default function SaleDetailPage({ params }) {
   const { id } = use(params);
@@ -41,6 +42,7 @@ export default function SaleDetailPage({ params }) {
     addItem,
     removeItem,
     getInvoices,
+    approveCredit,
   } = useOrders(
     {
       filters: { id: [id] },
@@ -426,6 +428,16 @@ export default function SaleDetailPage({ params }) {
     }
   }, [orders]);
 
+  const handleApproveCredit = async (orderId, override) => {
+    const result = await approveCredit(orderId, override);
+    if (!result.success) {
+      toast.error(result.error?.message || "Error al gestionar excepción de crédito");
+      return;
+    }
+    setDocument((prev) => ({ ...prev, creditBlockOverridden: result.data.creditBlockOverridden }));
+    toast.success(override ? "Excepción de crédito aprobada" : "Excepción de crédito revocada");
+  };
+
   return (
     <Document
       title="Orden de Venta"
@@ -434,6 +446,9 @@ export default function SaleDetailPage({ params }) {
       setDocument={setDocument}
       headerFields={headerFields}
     >
+      {document?.customer && (
+        <CustomerCreditAlert customer={document.customer} />
+      )}
       <Section
         title="Productos"
         description="Productos de la orden de venta"
@@ -507,6 +522,7 @@ export default function SaleDetailPage({ params }) {
           onInvoice={handleUpdate}
           getInvoices={getInvoices}
           onDelete={handleDelete}
+          onApproveCredit={user?.type === "admin" ? handleApproveCredit : undefined}
           showAdminActions={
             user?.type === "admin" || user?.type === "warehouseKeeper"
           }

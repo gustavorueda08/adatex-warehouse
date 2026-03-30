@@ -6,6 +6,7 @@ import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import {
   addToast,
   Button,
+  Chip,
   Modal,
   ModalBody,
   ModalContent,
@@ -177,6 +178,7 @@ export default function Actions({
   onInvoice,
   getInvoices,
   onDelete,
+  onApproveCredit,
   loadings: parentLoadings,
   showAdminActions = true,
 }) {
@@ -189,6 +191,7 @@ export default function Actions({
     downloadingInvoice: false,
     invoicing: false,
     deleting: false,
+    approvingCredit: false,
   });
 
   // Controls for Confirmation Modal
@@ -297,6 +300,36 @@ export default function Actions({
           }, "completing");
         },
       });
+    } else if (type === "approveCredit") {
+      setModalConfig({
+        title: "Aprobar Excepción de Crédito",
+        description:
+          "Esta acción permitirá al área de bodega despachar y facturar esta orden aunque el cliente esté bloqueado por cupo o cartera vencida. ¿Confirmar?",
+        loadingKey: "approvingCredit",
+        color: "warning",
+        confirmText: "Aprobar Excepción",
+        onConfirm: async () => {
+          await handleAction(async () => {
+            await onApproveCredit(document.id, true);
+            onConfirmClose();
+          }, "approvingCredit");
+        },
+      });
+    } else if (type === "revokeCredit") {
+      setModalConfig({
+        title: "Revocar Excepción de Crédito",
+        description:
+          "¿Revocar la excepción de crédito? El cliente volverá a estar bloqueado para esta orden.",
+        loadingKey: "approvingCredit",
+        color: "danger",
+        confirmText: "Revocar",
+        onConfirm: async () => {
+          await handleAction(async () => {
+            await onApproveCredit(document.id, false);
+            onConfirmClose();
+          }, "approvingCredit");
+        },
+      });
     }
     onConfirmOpen();
   };
@@ -360,21 +393,19 @@ export default function Actions({
         Descargar Lista de Empaque
       </Button>
       {document?.type === ORDER_TYPES.SALE &&
+        document?.state === ORDER_STATES.COMPLETED &&
         showAdminActions &&
         !(document?.siigoIdTypeA || document?.siigoIdTypeB) && (
           <Button
             color="secondary"
             isLoading={localLoadings.invoicing}
             onPress={() => openConfirmModal("invoice")}
-            isDisabled={
-              document?.state === ORDER_STATES.COMPLETED &&
-              (document?.siigoIdTypeA || document?.siigoIdTypeB)
-            }
           >
             Facturar Orden
           </Button>
         )}
       {document?.type === ORDER_TYPES.SALE &&
+        document?.state === ORDER_STATES.COMPLETED &&
         (document?.siigoIdTypeA || document?.siigoIdTypeB) && (
           <Button
             color="secondary"
@@ -402,6 +433,42 @@ export default function Actions({
           >
             Descargar Factura
           </Button>
+        )}
+      {user?.type === "admin" &&
+        document?.type === ORDER_TYPES.SALE &&
+        document?.state !== ORDER_STATES.COMPLETED &&
+        document?.customer?.creditLimit > 0 &&
+        onApproveCredit &&
+        !document?.creditBlockOverridden && (
+          <Button
+            color="warning"
+            variant="flat"
+            isLoading={localLoadings.approvingCredit}
+            onPress={() => openConfirmModal("approveCredit")}
+          >
+            Aprobar Excepción de Crédito
+          </Button>
+        )}
+      {user?.type === "admin" &&
+        document?.type === ORDER_TYPES.SALE &&
+        document?.state !== ORDER_STATES.COMPLETED &&
+        document?.customer?.creditLimit > 0 &&
+        onApproveCredit &&
+        document?.creditBlockOverridden && (
+          <div className="flex items-center gap-2 col-span-2">
+            <Chip color="success" variant="flat" size="sm">
+              Excepción de Crédito Aprobada
+            </Chip>
+            <Button
+              size="sm"
+              color="danger"
+              variant="light"
+              isLoading={localLoadings.approvingCredit}
+              onPress={() => openConfirmModal("revokeCredit")}
+            >
+              Revocar
+            </Button>
+          </div>
         )}
       {showAdminActions && (
         <Button
