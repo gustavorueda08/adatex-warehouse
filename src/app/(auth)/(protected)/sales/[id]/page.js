@@ -27,6 +27,7 @@ import {
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/hooks/useUser";
+import { useSocket } from "@/lib/hooks/useSocket";
 import toast from "react-hot-toast";
 import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 import CustomerCreditAlert from "@/components/customers/CustomerCreditAlert";
@@ -67,6 +68,7 @@ export default function SaleDetailPage({ params }) {
     {},
   );
   const [document, setDocument] = useState(orders[0] || null);
+  const { isConnected, joinOrder, leaveOrder, on } = useSocket();
   const {
     isOpen: isNegativeStockOpen,
     onOpen: onNegativeStockOpen,
@@ -427,6 +429,25 @@ export default function SaleDetailPage({ params }) {
       setDocument(orders[0]);
     }
   }, [orders]);
+
+  // Escuchar evento de factura creada por el backend (afterUpdate lifecycle)
+  useEffect(() => {
+    if (!isConnected || !document?.id) return;
+
+    joinOrder(document.id);
+
+    const unsubInvoice = on("order:invoice-created", (payload) => {
+      if (payload?.order) {
+        setDocument(payload.order);
+        toast.success("Factura creada exitosamente");
+      }
+    });
+
+    return () => {
+      leaveOrder(document.id);
+      unsubInvoice?.();
+    };
+  }, [isConnected, document?.id, joinOrder, leaveOrder, on]);
 
   const handleApproveCredit = async (orderId, override) => {
     const result = await approveCredit(orderId, override);
