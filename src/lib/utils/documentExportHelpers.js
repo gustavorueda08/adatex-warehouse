@@ -33,12 +33,12 @@ export function prepareDocumentData(document) {
     entityLabel = "Bodega";
   }
 
-  // Para órdenes de venta con facturas Siigo, usar los números de factura
+  // Para órdenes de venta con facturas Siigo, usar los números de factura con prefijo
   let code = document.code || "-";
   if (type === "sale") {
     const invoiceParts = [];
-    if (document.invoiceNumberTypeA) invoiceParts.push(document.invoiceNumberTypeA);
-    if (document.invoiceNumberTypeB) invoiceParts.push(document.invoiceNumberTypeB);
+    if (document.invoiceNumberTypeA) invoiceParts.push(`ADTX-${document.invoiceNumberTypeA}`);
+    if (document.invoiceNumberTypeB) invoiceParts.push(`AD-${document.invoiceNumberTypeB}`);
     if (invoiceParts.length > 0) code = invoiceParts.join(" | ");
   }
 
@@ -275,8 +275,8 @@ export function generateFileName(document, extension) {
   if (type === "sale") {
     // Construir identificador: números de factura Siigo si existen, sino código interno
     const invoiceParts = [];
-    if (document.invoiceNumberTypeA) invoiceParts.push(document.invoiceNumberTypeA);
-    if (document.invoiceNumberTypeB) invoiceParts.push(document.invoiceNumberTypeB);
+    if (document.invoiceNumberTypeA) invoiceParts.push(`ADTX-${document.invoiceNumberTypeA}`);
+    if (document.invoiceNumberTypeB) invoiceParts.push(`AD-${document.invoiceNumberTypeB}`);
     const identifier = invoiceParts.length > 0
       ? invoiceParts.join(" | ")
       : (document.code || "DOC");
