@@ -290,7 +290,7 @@ export default function Actions({
         confirmText: "Facturar",
         onConfirm: async () => {
           await handleAction(async () => {
-            await (onCreateSaleInvoice ?? onInvoice?.("completed", true));
+            await (onCreateSaleInvoice ? onCreateSaleInvoice() : onInvoice?.("completed", true));
             onConfirmClose();
           }, "invoicing");
         },
