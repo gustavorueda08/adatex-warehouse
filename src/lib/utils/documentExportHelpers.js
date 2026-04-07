@@ -16,7 +16,7 @@ export function prepareDocumentData(document) {
   let entityLabel = "Entidad";
 
   if (type === "sale" && document.customer) {
-    entityName = document.customer.name || "-";
+    entityName = [document.customer.name, document.customer.lastName].filter(Boolean).join(" ") || "-";
     entityAddress = document.customer.address || "-";
     entityLabel = "Cliente";
   } else if (type === "purchase" && document.supplier) {
@@ -24,7 +24,7 @@ export function prepareDocumentData(document) {
     entityAddress = document.supplier.address || "-";
     entityLabel = "Proveedor";
   } else if (type === "return" && document.customer) {
-    entityName = document.customer.name || "-";
+    entityName = [document.customer.name, document.customer.lastName].filter(Boolean).join(" ") || "-";
     entityAddress = document.customer.address || "-";
     entityLabel = "Cliente";
   } else if (type === "transform" || type === "in" || type === "out") {
@@ -259,11 +259,11 @@ export function generateFileName(document, extension) {
   let entityName = "documento";
 
   if (type === "sale" && document.customer) {
-    entityName = sanitizeFileName(document.customer.name);
+    entityName = sanitizeFileName([document.customer.name, document.customer.lastName].filter(Boolean).join(" "));
   } else if (type === "purchase" && document.supplier) {
     entityName = sanitizeFileName(document.supplier.name);
   } else if (type === "return" && document.customer) {
-    entityName = sanitizeFileName(document.customer.name);
+    entityName = sanitizeFileName([document.customer.name, document.customer.lastName].filter(Boolean).join(" "));
   } else if (document.warehouse) {
     entityName = sanitizeFileName(document.warehouse.name);
   }
