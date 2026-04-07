@@ -401,9 +401,10 @@ export function createProductDetailConfig({
         label: "Unidad",
         type: "select",
         options: [
-          { label: "m", value: "m" },
-          { label: "und", value: "und" },
-          { label: "kg", value: "kg" },
+          { label: "Metro (m)", value: "m" },
+          { label: "Unidad (und)", value: "und" },
+          { label: "Kilogramo (kg)", value: "kg" },
+          { label: "Par (par)", value: "par" },
         ],
         required: true,
       },

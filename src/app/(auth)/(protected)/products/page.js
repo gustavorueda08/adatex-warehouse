@@ -14,6 +14,7 @@ import EntityFilters from "@/components/entities/EntityFilters";
 import {
   addToast,
   Button,
+  Checkbox,
   Chip,
   Select,
   SelectItem,
@@ -48,6 +49,7 @@ export default function ProductsPage() {
   );
   const [selectedLine, setSelectedLine] = useState(null);
   const [selectedCollections, setSelectedCollections] = useState(new Set());
+  const [hideZeroStock, setHideZeroStock] = useState(true);
   const linesList = useEntityList({
     listType: "lines",
     limit: 20,
@@ -146,6 +148,7 @@ export default function ProductsPage() {
     },
     {
       withInventory: true,
+      hideZeroStock,
       ...dateParams,
     },
   );
@@ -175,6 +178,7 @@ export default function ProductsPage() {
         inventoryMode,
         dateParams,
         exportType,
+        hideZeroStock,
         toast: {
           loading: (msg) => toast.loading(msg),
           success: (msg) => toast.success(msg),
@@ -546,6 +550,20 @@ export default function ProductsPage() {
         >
           {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
         </Select>
+
+        <div className="flex items-center justify-center align-middle">
+          <Checkbox
+            isSelected={hideZeroStock}
+            onValueChange={(val) => {
+              setHideZeroStock(val);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            size="sm"
+            className="text-nowrap"
+          >
+            Solo con stock
+          </Checkbox>
+        </div>
       </EntityFilters>
       <InventoryMode
         inventoryMode={inventoryMode}

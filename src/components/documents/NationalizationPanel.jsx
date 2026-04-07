@@ -30,6 +30,7 @@ import {
   TableRow,
   TableCell,
   Input,
+  Pagination,
 } from "@heroui/react";
 import { GlobeAltIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
@@ -51,6 +52,12 @@ export default function NationalizationPanel({
   const [groups, setGroups] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+
+  const GROUP_PAGE_SIZE = 5;
+  const [groupPage, setGroupPage] = useState(1);
+
+  const ITEMS_PAGE_SIZE = 10;
+  const [itemPages, setItemPages] = useState({}); // { [productId]: number }
 
   // Set of selected item IDs (numbers)
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -84,9 +91,14 @@ export default function NationalizationPanel({
       .finally(() => setLoadingItems(false));
   }, [document?.id]);
 
+  const setItemPage = useCallback((productId, page) => {
+    setItemPages((prev) => ({ ...prev, [productId]: page }));
+  }, []);
+
   // When qty input changes: FIFO-select items for that product
   const handleQtyChange = useCallback((productId, value, items) => {
     setQtyInputs((prev) => ({ ...prev, [productId]: value }));
+    setItemPages((prev) => ({ ...prev, [productId]: 1 }));
     const qty = Number(value);
     if (!value || isNaN(qty) || qty <= 0) {
       setSelectedItems((prev) => {
@@ -125,6 +137,7 @@ export default function NationalizationPanel({
       0,
     );
     setQtyInputs((prev) => ({ ...prev, [productId]: String(total) }));
+    setItemPages((prev) => ({ ...prev, [productId]: 1 }));
   }, []);
 
   const handleClearAll = useCallback((productId, items) => {
@@ -134,22 +147,37 @@ export default function NationalizationPanel({
       return next;
     });
     setQtyInputs((prev) => ({ ...prev, [productId]: "" }));
+    setItemPages((prev) => ({ ...prev, [productId]: 1 }));
   }, []);
 
   const handleTableSelectionChange = useCallback(
-    (productId, items, keys) => {
+    (productId, visibleItems, allGroupItems, keys) => {
       if (keys === "all") {
-        handleSelectAll(productId, items);
+        // Select all visible items on this page; preserve other pages' selections
+        setSelectedItems((prev) => {
+          const next = new Set(prev);
+          visibleItems.forEach((item) => next.add(item.id));
+          const total = allGroupItems
+            .filter((i) => next.has(i.id))
+            .reduce((s, i) => s + (Number(i.currentQuantity) || 0), 0);
+          setQtyInputs((prevQ) => ({
+            ...prevQ,
+            [productId]: total > 0 ? String(total) : "",
+          }));
+          return next;
+        });
         return;
       }
       const newSelectedIds = new Set([...keys].map(Number));
       setSelectedItems((prev) => {
         const next = new Set(prev);
-        items.forEach((item) => {
+        // Only update visible items — items on other pages are untouched
+        visibleItems.forEach((item) => {
           if (newSelectedIds.has(item.id)) next.add(item.id);
           else next.delete(item.id);
         });
-        const total = items
+        // Compute total from ALL group items so qty reflects the full selection
+        const total = allGroupItems
           .filter((i) => next.has(i.id))
           .reduce((s, i) => s + (Number(i.currentQuantity) || 0), 0);
         setQtyInputs((prevQ) => ({
@@ -159,7 +187,7 @@ export default function NationalizationPanel({
         return next;
       });
     },
-    [handleSelectAll],
+    [],
   );
 
   const handleSubmit = async () => {
@@ -236,6 +264,11 @@ export default function NationalizationPanel({
   }
 
   const totalSelectedItems = selectedItems.size;
+  const groupPageCount = Math.ceil(groups.length / GROUP_PAGE_SIZE);
+  const visibleGroups = groups.slice(
+    (groupPage - 1) * GROUP_PAGE_SIZE,
+    groupPage * GROUP_PAGE_SIZE,
+  );
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6">
@@ -245,7 +278,7 @@ export default function NationalizationPanel({
       </p>
 
       {/* Product groups */}
-      {groups.map((group) => {
+      {visibleGroups.map((group) => {
         const pid = group.product.id;
         const selectedCount = group.items.filter((i) =>
           selectedItems.has(i.id),
@@ -254,6 +287,13 @@ export default function NationalizationPanel({
           .filter((i) => selectedItems.has(i.id))
           .reduce((s, i) => s + (Number(i.currentQuantity) || 0), 0);
         const unit = group.product.unit || "u";
+
+        const itemPage = itemPages[pid] ?? 1;
+        const itemPageCount = Math.ceil(group.items.length / ITEMS_PAGE_SIZE);
+        const visibleItems = group.items.slice(
+          (itemPage - 1) * ITEMS_PAGE_SIZE,
+          itemPage * ITEMS_PAGE_SIZE,
+        );
 
         return (
           <div
@@ -325,18 +365,34 @@ export default function NationalizationPanel({
               selectionMode="multiple"
               selectedKeys={
                 new Set(
-                  group.items
+                  visibleItems
                     .filter((i) => selectedItems.has(i.id))
                     .map((i) => String(i.id)),
                 )
               }
               onSelectionChange={(keys) =>
-                handleTableSelectionChange(pid, group.items, keys)
+                handleTableSelectionChange(pid, visibleItems, group.items, keys)
+              }
+              bottomContent={
+                itemPageCount > 1 ? (
+                  <div className="flex w-full justify-center pb-2">
+                    <Pagination
+                      isCompact
+                      showControls
+                      showShadow
+                      color="primary"
+                      page={itemPage}
+                      total={itemPageCount}
+                      onChange={(p) => setItemPage(pid, p)}
+                    />
+                  </div>
+                ) : null
               }
               aria-label={`Items de ${group.product.name}`}
               classNames={{
                 td: "py-2 text-sm",
                 th: "text-xs bg-transparent",
+                wrapper: itemPageCount > 1 ? "min-h-[180px]" : undefined,
               }}
             >
               <TableHeader>
@@ -346,7 +402,7 @@ export default function NationalizationPanel({
                 <TableColumn className="text-right">Costo</TableColumn>
               </TableHeader>
               <TableBody>
-                {group.items.map((item) => (
+                {visibleItems.map((item) => (
                   <TableRow key={String(item.id)}>
                     <TableCell className="font-mono text-xs">
                       {item.itemNumber ?? item.id}
@@ -367,6 +423,21 @@ export default function NationalizationPanel({
           </div>
         );
       })}
+
+      {/* Paginación de grupos */}
+      {groupPageCount > 1 && (
+        <div className="flex justify-center">
+          <Pagination
+            isCompact
+            showControls
+            showShadow
+            color="primary"
+            page={groupPage}
+            total={groupPageCount}
+            onChange={setGroupPage}
+          />
+        </div>
+      )}
 
       {/* Bottom action bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 pt-2 border-t border-zinc-200 dark:border-zinc-700">

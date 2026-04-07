@@ -24,7 +24,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     name: "",
     parentProduct: "",
-    unit: "unit",
+    unit: "und",
     cutTransformationFactor: "",
     cutWarehouseType: "printlab",
   });
@@ -143,7 +143,7 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
       setFormData({
         name: "",
         parentProduct: "",
-        unit: "unit",
+        unit: "und",
         cutTransformationFactor: "",
         cutWarehouseType: "printlab",
       });
@@ -230,11 +230,11 @@ export default function CreateCutItemModal({ isOpen, onClose, onSuccess }) {
                 }
                 isRequired
               >
-                <SelectItem key="unit" value="unit">
+                <SelectItem key="und" value="und">
                   Unidad (und)
                 </SelectItem>
-                <SelectItem key="piece" value="piece">
-                  Pieza
+                <SelectItem key="par" value="par">
+                  Par (par)
                 </SelectItem>
                 <SelectItem key="m" value="m">
                   Metro (m)

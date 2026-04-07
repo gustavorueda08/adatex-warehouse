@@ -176,7 +176,12 @@ export default function Actions({
   onUpdate,
   onComplete,
   onInvoice,
+  onCreateSaleInvoice,
   getInvoices,
+  onCreditNote,
+  getCreditNotePdf,
+  onCreatePurchaseInvoice,
+  onUpdatePurchaseInvoice,
   onDelete,
   onApproveCredit,
   loadings: parentLoadings,
@@ -192,6 +197,10 @@ export default function Actions({
     invoicing: false,
     deleting: false,
     approvingCredit: false,
+    issuingCreditNote: false,
+    downloadingCreditNote: false,
+    creatingPurchaseInvoice: false,
+    updatingPurchaseInvoice: false,
   });
 
   // Controls for Confirmation Modal
@@ -281,7 +290,7 @@ export default function Actions({
         confirmText: "Facturar",
         onConfirm: async () => {
           await handleAction(async () => {
-            await onInvoice("completed", true);
+            await (onCreateSaleInvoice ?? onInvoice?.("completed", true));
             onConfirmClose();
           }, "invoicing");
         },
@@ -328,6 +337,51 @@ export default function Actions({
             await onApproveCredit(document.id, false);
             onConfirmClose();
           }, "approvingCredit");
+        },
+      });
+    } else if (type === "creditNote") {
+      setModalConfig({
+        title: "Emitir Nota Crédito",
+        description:
+          "¿Deseas emitir una nota crédito en Siigo para esta devolución? Se generará vinculada a la factura de venta original.",
+        loadingKey: "issuingCreditNote",
+        color: "secondary",
+        confirmText: "Emitir Nota Crédito",
+        onConfirm: async () => {
+          await handleAction(async () => {
+            await onCreditNote();
+            onConfirmClose();
+          }, "issuingCreditNote");
+        },
+      });
+    } else if (type === "createPurchaseInvoice") {
+      setModalConfig({
+        title: "Crear Soporte Contable",
+        description:
+          "¿Deseas crear el soporte contable (factura de compra FC) en Siigo para esta orden?",
+        loadingKey: "creatingPurchaseInvoice",
+        color: "secondary",
+        confirmText: "Crear Soporte Contable",
+        onConfirm: async () => {
+          await handleAction(async () => {
+            await onCreatePurchaseInvoice();
+            onConfirmClose();
+          }, "creatingPurchaseInvoice");
+        },
+      });
+    } else if (type === "updatePurchaseInvoice") {
+      setModalConfig({
+        title: "Actualizar Soporte Contable",
+        description:
+          "¿Deseas actualizar el soporte contable en Siigo con las cantidades y estado actuales de esta orden?",
+        loadingKey: "updatingPurchaseInvoice",
+        color: "primary",
+        confirmText: "Actualizar Soporte Contable",
+        onConfirm: async () => {
+          await handleAction(async () => {
+            await onUpdatePurchaseInvoice();
+            onConfirmClose();
+          }, "updatingPurchaseInvoice");
         },
       });
     }
@@ -395,6 +449,7 @@ export default function Actions({
       {document?.type === ORDER_TYPES.SALE &&
         document?.state === ORDER_STATES.COMPLETED &&
         showAdminActions &&
+        onCreateSaleInvoice &&
         !(document?.siigoIdTypeA || document?.siigoIdTypeB) && (
           <Button
             color="secondary"
@@ -433,6 +488,85 @@ export default function Actions({
           >
             Descargar Factura
           </Button>
+        )}
+      {document?.type === ORDER_TYPES.RETURN &&
+        document?.state === ORDER_STATES.COMPLETED &&
+        onCreditNote &&
+        (document?.parentOrder?.siigoIdTypeA ||
+          document?.parentOrder?.siigoIdTypeB ||
+          document?.parentOrder?.siigoId) &&
+        !document?.creditNoteIdTypeA &&
+        !document?.creditNoteIdTypeB && (
+          <Button
+            color="secondary"
+            isLoading={localLoadings.issuingCreditNote}
+            onPress={() => openConfirmModal("creditNote")}
+          >
+            Emitir Nota Crédito
+          </Button>
+        )}
+      {document?.type === ORDER_TYPES.RETURN &&
+        (document?.creditNoteIdTypeA || document?.creditNoteIdTypeB) && (
+          <Button
+            color="secondary"
+            isLoading={localLoadings.downloadingCreditNote}
+            onPress={() =>
+              handleAction(async () => {
+                try {
+                  const res = await getCreditNotePdf(document.id);
+                  if (!res.success) throw new Error(res.error?.message);
+                  addToast({
+                    title: "Nota Crédito Descargada",
+                    description:
+                      "La nota crédito ha sido descargada correctamente",
+                    type: "success",
+                  });
+                } catch (error) {
+                  console.error(error);
+                  addToast({
+                    title: "Error al descargar",
+                    description:
+                      "Ocurrió un error al descargar la nota crédito",
+                    type: "error",
+                  });
+                }
+              }, "downloadingCreditNote")
+            }
+          >
+            Descargar Nota Crédito
+          </Button>
+        )}
+      {/* Botón: Crear Soporte Contable (cuando no existe aún) */}
+      {document?.type === ORDER_TYPES.PURCHASE &&
+        onCreatePurchaseInvoice &&
+        !document?.purchaseSiigoId && (
+          <Button
+            color="secondary"
+            isLoading={localLoadings.creatingPurchaseInvoice}
+            onPress={() => openConfirmModal("createPurchaseInvoice")}
+          >
+            Crear Soporte Contable
+          </Button>
+        )}
+      {/* Chip + Botón: Actualizar Soporte Contable (cuando ya existe) */}
+      {document?.type === ORDER_TYPES.PURCHASE &&
+        document?.purchaseSiigoId && (
+          <div className="flex items-center gap-2 col-span-2">
+            <Chip color="success" variant="flat" size="sm">
+              Siigo FC: {document.purchaseInvoiceNumber || document.purchaseSiigoId}
+            </Chip>
+            {onUpdatePurchaseInvoice && (
+              <Button
+                size="sm"
+                color="primary"
+                variant="flat"
+                isLoading={localLoadings.updatingPurchaseInvoice}
+                onPress={() => openConfirmModal("updatePurchaseInvoice")}
+              >
+                Actualizar
+              </Button>
+            )}
+          </div>
         )}
       {user?.type === "admin" &&
         document?.type === ORDER_TYPES.SALE &&

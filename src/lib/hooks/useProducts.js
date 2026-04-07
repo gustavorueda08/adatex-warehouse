@@ -12,13 +12,14 @@ import { useState } from "react";
  * @returns {Object} Estado y funciones del hook
  */
 export function useProducts(queryParams = {}, options = {}) {
-  const { withInventory, date, fromDate, toDate, ...strapiOptions } = options;
+  const { withInventory, date, fromDate, toDate, hideZeroStock, ...strapiOptions } = options;
   const endpoint = withInventory ? "products/inventory" : "products";
 
   const finalQueryParams = { ...queryParams };
   if (date) finalQueryParams.date = date;
   if (fromDate) finalQueryParams.fromDate = fromDate;
   if (toDate) finalQueryParams.toDate = toDate;
+  if (hideZeroStock === false) finalQueryParams.hideZeroStock = false;
 
   const strapiResult = useStrapi(endpoint, finalQueryParams, {
     ...strapiOptions,

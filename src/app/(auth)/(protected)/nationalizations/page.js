@@ -125,7 +125,10 @@ function NationalizationsPageInner() {
           );
           return {
             product: p.product.id || p.product,
-            items: validItems.map((item) => ({ id: item.id, quantity: item.quantity })),
+            items: validItems.map((item) => ({
+              id: item.id,
+              quantity: item.quantity,
+            })),
             confirmedQuantity: validItems.reduce(
               (sum, item) => sum + (Number(item.quantity) || 0),
               0,
@@ -142,7 +145,8 @@ function NationalizationsPageInner() {
 
       const data = {
         products: formattedProducts,
-        sourceWarehouse: document.sourceWarehouse?.id || document.sourceWarehouse,
+        sourceWarehouse:
+          document.sourceWarehouse?.id || document.sourceWarehouse,
         destinationWarehouse:
           document.destinationWarehouse?.id || document.destinationWarehouse,
         createdDate: document.createdDate,
@@ -172,6 +176,7 @@ function NationalizationsPageInner() {
         setDateRange={setDateRange}
         selectedStates={selectedStates}
         setSelectedStates={setSelectedStates}
+        showCreate={false}
       />
       <Documents
         screenSize={screenSize}

@@ -39,6 +39,8 @@ export default function PurchaseDetailPage({ params }) {
     deleteOrder,
     createNationalization,
     getNationalizableItems,
+    createPurchaseInvoice,
+    updatePurchaseInvoice,
   } = useOrders({
     filters: { id: [id] },
     populate: [
@@ -56,6 +58,18 @@ export default function PurchaseDetailPage({ params }) {
 
   // Hook para obtener productos para mapBulkItems
   const { products } = useProducts({});
+
+  // Auto-populate siigoCostCenterName from containerCode when not set
+  useEffect(() => {
+    if (
+      document?.containerCode &&
+      !document?.siigoCostCenterName &&
+      !document?.siigoCostCenterId
+    ) {
+      const derivedName = document.containerCode.replace(/-\d+$/, "");
+      setDocument((prev) => ({ ...prev, siigoCostCenterName: derivedName }));
+    }
+  }, [document?.containerCode]);
 
   useEffect(() => {
     if (orders.length > 0) {
@@ -221,6 +235,42 @@ export default function PurchaseDetailPage({ params }) {
         },
         disabled: document?.state === ORDER_STATES.COMPLETED,
       },
+      {
+        label: "Prefijo Factura Proveedor",
+        type: "input",
+        placeholder: "Ej: FP",
+        value: document?.supplierInvoicePrefix || "",
+        disabled: !!document?.purchaseSiigoId,
+        onChange: (e) => {
+          setDocument({ ...document, supplierInvoicePrefix: e.target.value });
+        },
+      },
+      {
+        label: "N° Factura Proveedor",
+        type: "input",
+        placeholder: "Ej: 1234",
+        value: document?.supplierInvoiceNumber || "",
+        disabled: !!document?.purchaseSiigoId,
+        onChange: (e) => {
+          setDocument({ ...document, supplierInvoiceNumber: e.target.value });
+        },
+      },
+      {
+        label: document?.siigoCostCenterId
+          ? `Centro de Costos Siigo (ID: ${document.siigoCostCenterId})`
+          : "Centro de Costos Siigo",
+        type: "input",
+        placeholder: "Ej: ADX23-2025 (auto-detectado del contenedor)",
+        value: document?.siigoCostCenterName || "",
+        disabled: !!document?.siigoCostCenterId,
+        onChange: (e) => {
+          setDocument({
+            ...document,
+            siigoCostCenterName: e.target.value,
+            siigoCostCenterId: null,
+          });
+        },
+      },
     ];
   }, [document]);
   const handleDelete = () => {
@@ -314,6 +364,10 @@ export default function PurchaseDetailPage({ params }) {
       supplier: document?.supplier?.id || document?.supplier,
       destinationWarehouse:
         document?.destinationWarehouse?.id || document?.destinationWarehouse,
+      supplierInvoicePrefix: document?.supplierInvoicePrefix || null,
+      supplierInvoiceNumber: document?.supplierInvoiceNumber || null,
+      siigoCostCenterName: document?.siigoCostCenterName || null,
+      siigoCostCenterId: document?.siigoCostCenterId || null,
       createdDate: document?.createdDate,
       confirmedDate: document?.confirmedDate,
       completedDate:
@@ -344,6 +398,44 @@ export default function PurchaseDetailPage({ params }) {
       loading: "Actualizando...",
       success: "Orden actualizada exitosamente",
       error: (err) => err.message || "Error al actualizar",
+    });
+  };
+
+  const handleCreatePurchaseInvoice = () => {
+    const promise = createPurchaseInvoice(document.id).then((result) => {
+      if (!result.success)
+        throw new Error(
+          result.error?.message || "Error al crear el soporte contable",
+        );
+      if (result.data) {
+        setDocument((prev) => ({
+          ...prev,
+          purchaseSiigoId: result.data.purchaseSiigoId ?? prev.purchaseSiigoId,
+          purchaseInvoiceNumber:
+            result.data.purchaseInvoiceNumber ?? prev.purchaseInvoiceNumber,
+        }));
+      }
+      return result;
+    });
+    toast.promise(promise, {
+      loading: "Creando soporte contable en Siigo...",
+      success: "Soporte contable creado exitosamente",
+      error: (err) => err.message || "Error al crear el soporte contable",
+    });
+  };
+
+  const handleUpdatePurchaseInvoice = () => {
+    const promise = updatePurchaseInvoice(document.id).then((result) => {
+      if (!result.success)
+        throw new Error(
+          result.error?.message || "Error al actualizar el soporte contable",
+        );
+      return result;
+    });
+    toast.promise(promise, {
+      loading: "Actualizando soporte contable en Siigo...",
+      success: "Soporte contable actualizado exitosamente",
+      error: (err) => err.message || "Error al actualizar el soporte contable",
     });
   };
 
@@ -456,6 +548,7 @@ export default function PurchaseDetailPage({ params }) {
               title="Nacionalización Parcial"
               description="Mueve mercancía de esta zona franca a una bodega stock"
               icon={<GlobeAltIcon className="w-6 h-6" />}
+              defaultOpen={false}
             >
               <NationalizationPanel
                 document={document}
@@ -477,6 +570,8 @@ export default function PurchaseDetailPage({ params }) {
             onUpdate={handleUpdate}
             onDelete={handleDelete}
             onComplete={handleUpdate}
+            onCreatePurchaseInvoice={handleCreatePurchaseInvoice}
+            onUpdatePurchaseInvoice={handleUpdatePurchaseInvoice}
           />
         </Section>
       </Document>

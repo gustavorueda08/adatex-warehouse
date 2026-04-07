@@ -38,6 +38,7 @@ export async function exportInventory({
   inventoryMode = "standard",
   dateParams = {},
   exportType = "current_page",
+  hideZeroStock = true,
   toast,
 } = {}) {
   let loadingToast;
@@ -85,6 +86,8 @@ export async function exportInventory({
           urlParams.append("fromDate", dateParams.fromDate.toString());
         if (dateParams.toDate)
           urlParams.append("toDate", dateParams.toDate.toString());
+        if (hideZeroStock === false)
+          urlParams.append("hideZeroStock", "false");
 
         const fullQueryStr = urlParams.toString()
           ? `${queryStr}&${urlParams.toString()}`

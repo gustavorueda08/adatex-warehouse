@@ -44,6 +44,7 @@ export default function SaleDetailPage({ params }) {
     removeItem,
     getInvoices,
     approveCredit,
+    createSaleInvoice,
   } = useOrders(
     {
       filters: { id: [id] },
@@ -260,9 +261,21 @@ export default function SaleDetailPage({ params }) {
       error: "Error al eliminar la orden",
     });
   };
+  const handleCreateSaleInvoice = async () => {
+    const promise = createSaleInvoice(document.id).then((result) => {
+      if (!result.success)
+        throw new Error(result.error?.message || "Error al facturar la orden");
+      return result;
+    });
+    toast.promise(promise, {
+      loading: "Facturando orden en Siigo...",
+      success: "Factura creada exitosamente",
+      error: (err) => err.message || "Error al facturar la orden",
+    });
+  };
+
   const handleUpdate = async (
     newState = null,
-    emitInvoice = false,
     forceNegativeStock = false,
   ) => {
     const products = document?.orderProducts || [];
@@ -407,7 +420,6 @@ export default function SaleDetailPage({ params }) {
           : confirmed && document.state === "draft"
             ? "confirmed"
             : document.state,
-        emitInvoice: emitInvoice,
         notes: document.notes || "",
       };
       if (confirmed && document.state === "draft") {
@@ -540,7 +552,7 @@ export default function SaleDetailPage({ params }) {
           document={document}
           onUpdate={handleUpdate}
           onComplete={handleUpdate}
-          onInvoice={handleUpdate}
+          onCreateSaleInvoice={handleCreateSaleInvoice}
           getInvoices={getInvoices}
           onDelete={handleDelete}
           onApproveCredit={user?.type === "admin" ? handleApproveCredit : undefined}

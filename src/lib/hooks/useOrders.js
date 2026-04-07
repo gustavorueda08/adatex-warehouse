@@ -307,6 +307,192 @@ export function useOrders(queryParams = {}, options = {}) {
   );
 
   /**
+   * Creates a credit note in Siigo for a completed return order.
+   * The return order must have a parent sale order with at least one Siigo invoice.
+   *
+   * @param {string|number} returnOrderId - ID of the completed return order.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
+  const createCreditNote = useCallback(
+    async (returnOrderId) => {
+      if (!returnOrderId) {
+        return {
+          success: false,
+          error: new Error("Return order ID es requerido"),
+        };
+      }
+      try {
+        const response = await fetch(
+          `/api/strapi/orders/${returnOrderId}/credit-note`,
+          { method: "POST", headers: { "Content-Type": "application/json" } },
+        );
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            result.error?.message ||
+              result.message ||
+              `Error ${response.status}: ${response.statusText}`,
+          );
+        }
+        return { success: true, data: result.data };
+      } catch (err) {
+        return { success: false, error: err };
+      }
+    },
+    [],
+  );
+
+  /**
+   * Downloads the credit note PDF(s) for a return order.
+   * Mirrors getInvoices but uses the /credit-notes endpoint.
+   *
+   * @param {string|number} returnOrderId - ID of the return order.
+   * @returns {Promise<{success: boolean, error?: Error}>}
+   */
+  const getCreditNotePdf = useCallback(
+    async (returnOrderId) => {
+      if (!returnOrderId) {
+        return { success: false, error: new Error("Return order ID es requerido") };
+      }
+      try {
+        const response = await fetch(
+          `/api/strapi/orders/${returnOrderId}/credit-notes`,
+          { method: "GET" },
+        );
+
+        const contentType = response.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        if (isJson) {
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              result.error?.message ||
+                result.message ||
+                `Error ${response.status}: ${response.statusText}`,
+            );
+          }
+          return { success: true, data: result.data };
+        } else {
+          if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+          }
+          const blob = await response.blob();
+          const contentDisposition = response.headers.get("content-disposition");
+          let filename = `nota-credito-${returnOrderId}.pdf`;
+          if (contentDisposition) {
+            const match = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (match?.[1]) filename = match[1];
+          } else if (contentType?.includes("zip")) {
+            filename = `notas-credito-${returnOrderId}.zip`;
+          }
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          return { success: true };
+        }
+      } catch (err) {
+        return { success: false, error: err };
+      }
+    },
+    [],
+  );
+
+  /**
+   * Crea un soporte contable (factura de compra FC) en Siigo para una orden de compra.
+   *
+   * @param {string|number} orderId - ID de la orden de compra.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
+  const createPurchaseInvoice = useCallback(async (orderId) => {
+    if (!orderId) {
+      return { success: false, error: new Error("Order ID es requerido") };
+    }
+    try {
+      const response = await fetch(
+        `/api/strapi/orders/${orderId}/purchase-invoice`,
+        { method: "POST", headers: { "Content-Type": "application/json" } }
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.error?.message ||
+            result.message ||
+            `Error ${response.status}: ${response.statusText}`
+        );
+      }
+      return { success: true, data: result.data };
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  }, []);
+
+  /**
+   * Actualiza el soporte contable en Siigo con las cantidades confirmadas.
+   *
+   * @param {string|number} orderId - ID de la orden de compra.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
+  const updatePurchaseInvoice = useCallback(async (orderId) => {
+    if (!orderId) {
+      return { success: false, error: new Error("Order ID es requerido") };
+    }
+    try {
+      const response = await fetch(
+        `/api/strapi/orders/${orderId}/purchase-invoice`,
+        { method: "PUT", headers: { "Content-Type": "application/json" } }
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.error?.message ||
+            result.message ||
+            `Error ${response.status}: ${response.statusText}`
+        );
+      }
+      return { success: true, data: result.data };
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  }, []);
+
+  /**
+   * Crea la factura electrónica en Siigo para una orden de venta completada.
+   * Llama al endpoint dedicado POST /api/orders/:orderId/sale-invoice en lugar de
+   * pasar por el lifecycle de afterUpdate.
+   *
+   * @param {string|number} orderId - ID de la orden de venta.
+   * @returns {Promise<{success: boolean, data?: Object, error?: Error}>}
+   */
+  const createSaleInvoice = useCallback(async (orderId) => {
+    if (!orderId) {
+      return { success: false, error: new Error("Order ID es requerido") };
+    }
+    try {
+      const response = await fetch(
+        `/api/strapi/orders/${orderId}/sale-invoice`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.error?.message ||
+            result.message ||
+            `Error ${response.status}: ${response.statusText}`,
+        );
+      }
+      return { success: true, data: result.data };
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  }, []);
+
+  /**
    * Approves or revokes the credit block exception for a sale order (admin only).
    *
    * @param {string|number} orderId - ID of the sale order.
@@ -353,5 +539,10 @@ export function useOrders(queryParams = {}, options = {}) {
     getNationalizableItems,
     createNationalization,
     approveCredit,
+    createCreditNote,
+    getCreditNotePdf,
+    createPurchaseInvoice,
+    updatePurchaseInvoice,
+    createSaleInvoice,
   };
 }

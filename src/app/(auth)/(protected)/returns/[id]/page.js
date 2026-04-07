@@ -23,7 +23,7 @@ import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 export default function ReturnDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
-  const { orders, updateOrder, deleteOrder } = useOrders({
+  const { orders, updateOrder, deleteOrder, createCreditNote, getCreditNotePdf } = useOrders({
     filters: { id: [id] },
     populate: [
       "orderProducts",
@@ -198,6 +198,31 @@ export default function ReturnDetailPage({ params }) {
       },
     ];
   }, [document]);
+  const handleCreditNote = () => {
+    const promise = createCreditNote(document.id).then((result) => {
+      if (!result.success)
+        throw new Error(
+          result.error?.message || "Error al emitir la nota crédito",
+        );
+      // Actualizar document local con los nuevos IDs de nota crédito
+      if (result.data) {
+        setDocument((prev) => ({
+          ...prev,
+          creditNoteIdTypeA: result.data.creditNoteTypeA?.siigoId ?? prev.creditNoteIdTypeA,
+          creditNoteNumberTypeA: result.data.creditNoteTypeA?.number ?? prev.creditNoteNumberTypeA,
+          creditNoteIdTypeB: result.data.creditNoteTypeB?.siigoId ?? prev.creditNoteIdTypeB,
+          creditNoteNumberTypeB: result.data.creditNoteTypeB?.number ?? prev.creditNoteNumberTypeB,
+        }));
+      }
+      return result;
+    });
+    toast.promise(promise, {
+      loading: "Emitiendo nota crédito en Siigo...",
+      success: "Nota crédito emitida exitosamente",
+      error: (err) => err.message || "Error al emitir la nota crédito",
+    });
+  };
+
   const handleDelete = () => {
     router.push("/returns");
 
@@ -322,6 +347,8 @@ export default function ReturnDetailPage({ params }) {
           onUpdate={handleUpdate}
           onDelete={handleDelete}
           onComplete={handleUpdate}
+          onCreditNote={handleCreditNote}
+          getCreditNotePdf={getCreditNotePdf}
         />
       </Section>
     </Document>

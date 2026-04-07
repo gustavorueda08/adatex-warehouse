@@ -348,8 +348,34 @@ export default function CustomerDetailPage() {
         />
       </Section>
       <Section
+        title="Cuentas por Cobrar"
+        description="Saldo pendiente en Siigo (cuenta 1305) y facturas sin cancelar."
+      >
+        <AccountsReceivable customerId={customerId} />
+      </Section>
+      <Section
+        title="Ordenes"
+        description={"Ordenes del Cliente"}
+        defaultOpen={false}
+      >
+        <div className="p-4">
+          <Documents
+            documents={orders}
+            pagination={orderPagination}
+            setPagination={setOrderPagination}
+            pageCount={pageCount}
+            columns={columns}
+            screenSize={screenSize}
+            loading={ordersLoading}
+            selectedKeys={selectedKeys}
+            setSelectedKeys={setSelectedKeys}
+          />
+        </div>
+      </Section>
+      <Section
         title={"Precios"}
         description={"Configuración de precios aplicables al cliente"}
+        defaultOpen={false}
       >
         <Prices
           prices={customer?.prices}
@@ -360,6 +386,7 @@ export default function CustomerDetailPage() {
       <Section
         title="Proyección de Ventas"
         description="Ventas del mes actual y proyección estacional."
+        defaultOpen={false}
       >
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -415,6 +442,7 @@ export default function CustomerDetailPage() {
       <Section
         title="Productos Principales (Últimos 90 días)"
         description="Volumen y cantidad de los productos más comprados por el cliente."
+        defaultOpen={false}
       >
         <div className="p-4">
           {!customer?.topProducts || customer.topProducts.length === 0 ? (
@@ -451,30 +479,11 @@ export default function CustomerDetailPage() {
       <Section
         title="Predicción de Demanda (Prophet)"
         description="Demanda semanal predicha por producto con intervalos de confianza al 95%."
+        defaultOpen={false}
       >
         <CustomerForecastSection customerId={customerId} />
       </Section>
-      <Section
-        title="Cuentas por Cobrar"
-        description="Saldo pendiente en Siigo (cuenta 1305) y facturas sin cancelar."
-      >
-        <AccountsReceivable customerId={customerId} />
-      </Section>
-      <Section title="Ordenes" description={"Ordenes del Cliente"}>
-        <div className="p-4">
-          <Documents
-            documents={orders}
-            pagination={orderPagination}
-            setPagination={setOrderPagination}
-            pageCount={pageCount}
-            columns={columns}
-            screenSize={screenSize}
-            loading={ordersLoading}
-            selectedKeys={selectedKeys}
-            setSelectedKeys={setSelectedKeys}
-          />
-        </div>
-      </Section>
+
       {user?.type !== "seller" && (
         <Section title={"Acciones"}>
           <EntityActions

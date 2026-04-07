@@ -77,7 +77,8 @@ function NewProductPageInner() {
         options: [
           { key: "kg", label: "Kilogramo (kg)" },
           { key: "m", label: "Metro (m)" },
-          { key: "unit", label: "Unidad (und)" },
+          { key: "und", label: "Unidad (und)" },
+          { key: "par", label: "Par (par)" },
         ],
         value: product.unit,
         required: true,
@@ -137,7 +138,8 @@ function NewProductPageInner() {
               options: [
                 { key: "kg", label: "Kilogramo (kg)" },
                 { key: "m", label: "Metro (m)" },
-                { key: "unit", label: "Unidad (und)" },
+                { key: "und", label: "Unidad (und)" },
+                { key: "par", label: "Par (par)" },
               ],
               value: product?.cutUnit,
               required: true,

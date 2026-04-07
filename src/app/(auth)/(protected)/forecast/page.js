@@ -28,6 +28,7 @@ import {
   ModalHeader,
   ModalBody,
   useDisclosure,
+  Pagination,
 } from "@heroui/react";
 import RoleGuard from "@/components/auth/RoleGuard";
 import moment from "moment-timezone";
@@ -465,7 +466,10 @@ function DemandForecastPageInner() {
   const [abcFilter,   setAbcFilter]       = useState("all");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [activeTab,   setActiveTab]       = useState("suggestions");
+  const [page,        setPage]            = useState(1);
   const { isOpen: isDetailOpen, onOpen: onDetailOpen, onOpenChange: onDetailOpenChange } = useDisclosure();
+
+  const PAGE_SIZE = 20;
 
   // ── Carga de datos ──────────────────────────────────────────────────────────
 
@@ -542,6 +546,15 @@ function DemandForecastPageInner() {
     if (abcFilter   !== "all") r = r.filter((p) => p.abc_xyz?.abc === abcFilter);
     return r;
   }, [suggestions, search, statusFilter, abcFilter]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); setSelectedProduct(null); }, [search, statusFilter, abcFilter]);
+
+  const pageCount     = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedItems = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
+  );
 
   const kpi = useMemo(() => {
     let deficit = 0, orderSoon = 0, prophetCount = 0;
@@ -867,6 +880,21 @@ function DemandForecastPageInner() {
                     th: "bg-default-50 text-default-400 text-xs font-semibold uppercase tracking-widest",
                     tr: "cursor-pointer",
                   }}
+                  bottomContent={
+                    pageCount > 1 && (
+                      <div className="flex w-full justify-center lg:justify-end pb-1">
+                        <Pagination
+                          isCompact
+                          showControls
+                          showShadow
+                          color="secondary"
+                          page={page}
+                          total={pageCount}
+                          onChange={(p) => { setPage(p); setSelectedProduct(null); }}
+                        />
+                      </div>
+                    )
+                  }
                 >
                   <TableHeader columns={SUGGESTION_COLUMNS}>
                     {(col) => (
@@ -890,7 +918,7 @@ function DemandForecastPageInner() {
                     )}
                   </TableHeader>
                   <TableBody
-                    items={filtered}
+                    items={paginatedItems}
                     isLoading={loading}
                     loadingContent={
                       <Spinner label="Calculando predicciones..." color="secondary" />
@@ -914,6 +942,7 @@ function DemandForecastPageInner() {
                   <p className="text-xs text-default-400 mt-2 text-right">
                     {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
                     {filtered.length !== suggestions.length && ` (de ${suggestions.length})`}
+                    {pageCount > 1 && ` · Página ${page} de ${pageCount}`}
                   </p>
                 )}
               </div>
