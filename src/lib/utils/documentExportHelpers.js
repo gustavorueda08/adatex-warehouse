@@ -32,9 +32,19 @@ export function prepareDocumentData(document) {
     entityAddress = "-";
     entityLabel = "Bodega";
   }
+
+  // Para órdenes de venta con facturas Siigo, usar los números de factura
+  let code = document.code || "-";
+  if (type === "sale") {
+    const invoiceParts = [];
+    if (document.invoiceNumberTypeA) invoiceParts.push(document.invoiceNumberTypeA);
+    if (document.invoiceNumberTypeB) invoiceParts.push(document.invoiceNumberTypeB);
+    if (invoiceParts.length > 0) code = invoiceParts.join(" | ");
+  }
+
   const data = {
     type,
-    code: document.code || "-",
+    code,
     entityName,
     entityAddress,
     entityLabel,
@@ -244,7 +254,6 @@ export function calculateSummary(products) {
  * @returns {string} Nombre del archivo
  */
 export function generateFileName(document, extension) {
-  const code = document.code || "DOC";
   const type = document.type || "document";
 
   let entityName = "documento";
@@ -260,10 +269,21 @@ export function generateFileName(document, extension) {
   }
 
   const date = document.createdAt
-    ? moment(document.createdAt).format("YYYY-MM-DD")
-    : moment().format("YYYY-MM-DD");
+    ? moment(document.createdAt).format("DD-MM-YYYY")
+    : moment().format("DD-MM-YYYY");
 
-  return `${code} - ${entityName} (${date})${extension}`;
+  if (type === "sale") {
+    // Construir identificador: números de factura Siigo si existen, sino código interno
+    const invoiceParts = [];
+    if (document.invoiceNumberTypeA) invoiceParts.push(document.invoiceNumberTypeA);
+    if (document.invoiceNumberTypeB) invoiceParts.push(document.invoiceNumberTypeB);
+    const identifier = invoiceParts.length > 0
+      ? invoiceParts.join(" | ")
+      : (document.code || "DOC");
+    return `LE - ${identifier} - ${entityName} (${date})${extension}`;
+  }
+
+  return `${document.code || "DOC"} - ${entityName} (${date})${extension}`;
 }
 
 /**
