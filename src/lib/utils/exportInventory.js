@@ -10,6 +10,7 @@ const EXPORT_COLUMNS = [
   { header: "NOMBRE", key: "name" },
   { header: "BARCODE", key: "barcode" },
   { header: "STOCK", key: "stock" },
+  { header: "METREADOS", key: "smartCut" },
   { header: "RESERVADO", key: "reserved" },
   { header: "DISPONIBLE", key: "available" },
   { header: "LLEGANDO", key: "arriving" },
@@ -17,6 +18,9 @@ const EXPORT_COLUMNS = [
   { header: "EN PRODUCCIÓN", key: "production" },
   { header: "EN TRÁNSITO", key: "transit" },
   { header: "DISPONIBLE NETO", key: "netAvailable" },
+  { header: "ZONA FRANCA", key: "freeTradeZone" },
+  { header: "PRINTLAB", key: "printlab" },
+  { header: "DEFECTUOSOS", key: "defective" },
   { header: "UNIDAD", key: "unit" },
 ];
 
