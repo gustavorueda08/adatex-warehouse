@@ -1,28 +1,35 @@
 import * as XLSX from "xlsx";
 import { buildStrapiQuery } from "@/lib/api/strapiQueryBuilder";
-import format from "@/lib/utils/format";
+
+const TOP_LEVEL_KEYS = new Set(["code", "name", "barcode", "unit"]);
 
 /**
- * Column mapping: Excel header → export field.
+ * Returns the column list matching the ProductsPage table for the given inventory mode.
+ * - projection adds "LLEGANDO" between RESERVADO and DISPONIBLE (same as the UI table).
  */
-const EXPORT_COLUMNS = [
-  { header: "CÓDIGO", key: "code" },
-  { header: "NOMBRE", key: "name" },
-  { header: "BARCODE", key: "barcode" },
-  { header: "STOCK", key: "stock" },
-  { header: "METREADOS", key: "smartCut" },
-  { header: "RESERVADO", key: "reserved" },
-  { header: "DISPONIBLE", key: "available" },
-  { header: "LLEGANDO", key: "arriving" },
-  { header: "REQUERIDO", key: "required" },
-  { header: "EN PRODUCCIÓN", key: "production" },
-  { header: "EN TRÁNSITO", key: "transit" },
-  { header: "DISPONIBLE NETO", key: "netAvailable" },
-  { header: "ZONA FRANCA", key: "freeTradeZone" },
-  { header: "PRINTLAB", key: "printlab" },
-  { header: "DEFECTUOSOS", key: "defective" },
-  { header: "UNIDAD", key: "unit" },
-];
+function getExportColumns(inventoryMode) {
+  const base = [
+    { header: "CÓDIGO", key: "code" },
+    { header: "NOMBRE", key: "name" },
+    { header: "BARCODE", key: "barcode" },
+    { header: "STOCK", key: "stock" },
+    { header: "METREADOS", key: "smartCut" },
+    { header: "RESERVADO", key: "reserved" },
+    ...(inventoryMode === "projection"
+      ? [{ header: "LLEGANDO", key: "arriving" }]
+      : []),
+    { header: "DISPONIBLE", key: "available" },
+    { header: "REQUERIDO", key: "required" },
+    { header: "EN PRODUCCIÓN", key: "production" },
+    { header: "EN TRÁNSITO", key: "transit" },
+    { header: "DISPONIBLE NETO", key: "netAvailable" },
+    { header: "ZONA FRANCA", key: "freeTradeZone" },
+    { header: "PRINTLAB", key: "printlab" },
+    { header: "DEFECTUOSOS", key: "defective" },
+    { header: "UNIDAD", key: "unit" },
+  ];
+  return base;
+}
 
 /**
  * Downloads inventory data to Excel.
@@ -117,14 +124,13 @@ export async function exportInventory({
     }
 
     // 2. Map products to rows
+    const columns = getExportColumns(inventoryMode);
     const rows = productsToExport.map((product) => {
       const row = {};
-      EXPORT_COLUMNS.forEach(({ header, key }) => {
-        // Top level properties
-        if (["code", "name", "barcode", "unit"].includes(key)) {
+      columns.forEach(({ header, key }) => {
+        if (TOP_LEVEL_KEYS.has(key)) {
           row[header] = product[key] ?? "";
         } else {
-          // Inventory properties
           row[header] = product.inventory?.[key] || 0;
         }
       });
@@ -133,11 +139,11 @@ export async function exportInventory({
 
     // 3. Build workbook
     const worksheet = XLSX.utils.json_to_sheet(rows, {
-      header: EXPORT_COLUMNS.map((c) => c.header),
+      header: columns.map((c) => c.header),
     });
 
     // Auto-size columns
-    worksheet["!cols"] = EXPORT_COLUMNS.map(({ header }) => ({
+    worksheet["!cols"] = columns.map(({ header }) => ({
       wch: Math.max(header.length + 2, 20),
     }));
 
