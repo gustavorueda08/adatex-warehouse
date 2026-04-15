@@ -50,6 +50,12 @@ export async function POST(request, context) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorText);
+      } catch (e) {
+        parsedError = { error: { message: errorText } };
+      }
       console.error("Strapi Error:", {
         status: response.status,
         statusText: response.statusText,
@@ -59,8 +65,7 @@ export async function POST(request, context) {
 
       return NextResponse.json(
         {
-          error: "Error al crear la orden en Strapi",
-          details: errorText,
+          error: parsedError.error || { message: "Error al eliminar el item de la orden" },
           status: response.status,
         },
         { status: response.status }

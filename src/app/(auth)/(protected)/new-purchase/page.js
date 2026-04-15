@@ -64,6 +64,7 @@ export default function NewPurchasePage() {
               $or: [
                 { name: { $containsi: term } },
                 { lastName: { $containsi: term } },
+                { companyName: { $containsi: term } },
                 { identification: { $containsi: term } },
                 { email: { $containsi: term } },
               ],

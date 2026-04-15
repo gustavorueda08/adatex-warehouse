@@ -64,6 +64,7 @@ function NewSalePageInner() {
               $or: [
                 { name: { $containsi: term } },
                 { lastName: { $containsi: term } },
+                { companyName: { $containsi: term } },
                 { identification: { $containsi: term } },
                 { email: { $containsi: term } },
               ],
@@ -102,6 +103,7 @@ function NewSalePageInner() {
               $or: [
                 { name: { $containsi: term } },
                 { lastName: { $containsi: term } },
+                { companyName: { $containsi: term } },
                 { identification: { $containsi: term } },
                 { email: { $containsi: term } },
               ],

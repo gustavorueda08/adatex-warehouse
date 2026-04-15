@@ -69,9 +69,12 @@ export function isProductRowValid(orderProduct) {
  *
  * @param {Object} orderProduct - The order-product row from local state.
  * @param {boolean} [forceNegativeStock=false] - Allow items with negative stock.
+ * @param {boolean} [itemsLoaded=true] - Whether items have been loaded from the server
+ *   (i.e. the accordion was opened). When false, sends `items: null` so the backend
+ *   preserves existing items instead of deleting them. Only affects VARIABLE_QUANTITY.
  * @returns {Object} Payload fragment for one product.
  */
-export function formatProductForPayload(orderProduct, forceNegativeStock = false) {
+export function formatProductForPayload(orderProduct, forceNegativeStock = false, itemsLoaded = true) {
   const type = getProductType(orderProduct.product);
 
   const base = {
@@ -115,6 +118,16 @@ export function formatProductForPayload(orderProduct, forceNegativeStock = false
   }
 
   // VARIABLE_QUANTITY
+  // When itemsLoaded is false (accordion was never opened), send null so the backend
+  // preserves existing items instead of treating an empty array as "delete all items".
+  if (!itemsLoaded) {
+    return {
+      ...base,
+      confirmedQuantity: orderProduct.confirmedQuantity || 0,
+      items: null,
+    };
+  }
+
   const validItems = (orderProduct.items || []).filter((i) => {
     const qty = Number(i.currentQuantity);
     return (

@@ -131,6 +131,7 @@ export default function ReturnDetailPage({ params }) {
               { code: { $containsi: search } },
               { "customer.name": { $containsi: search } },
               { "customer.lastName": { $containsi: search } },
+              { "customer.companyName": { $containsi: search } },
             ],
           };
         },
@@ -223,10 +224,8 @@ export default function ReturnDetailPage({ params }) {
     });
   };
 
-  const handleDelete = () => {
-    router.push("/returns");
-
-    const deletePromise = deleteOrder(document.id, { background: true })
+  const handleDelete = async () => {
+    const deletePromise = deleteOrder(document.id)
       .then((result) => {
         if (!result.success) throw new Error("Error al eliminar");
         return result;
@@ -236,6 +235,12 @@ export default function ReturnDetailPage({ params }) {
       success: "Orden eliminada exitosamente",
       error: "Error al eliminar la orden",
     });
+    try {
+      await deletePromise;
+      router.push("/returns");
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   };
   const handleUpdate = (newState = null) => {
     // Agrupar items seleccionados por producto

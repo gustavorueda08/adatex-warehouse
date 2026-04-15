@@ -87,10 +87,8 @@ export default function OutflowDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = () => {
-    router.push("/outflows");
-
-    const deletePromise = deleteOrder(document.id, { background: true })
+  const handleDelete = async () => {
+    const deletePromise = deleteOrder(document.id)
       .then((result) => {
         if (!result.success) throw new Error("Error al eliminar");
         return result;
@@ -100,6 +98,12 @@ export default function OutflowDetailPage({ params }) {
       success: "Orden eliminada exitosamente",
       error: "Error al eliminar la orden",
     });
+    try {
+      await deletePromise;
+      router.push("/outflows");
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   };
   const handleUpdate = (newState = null) => {
     const products = document?.orderProducts || [];
@@ -125,47 +129,48 @@ export default function OutflowDetailPage({ params }) {
     const formattedProducts = products
       .filter((p) => p.product)
       .map((p) => {
-        const validItems = (p.items || []).filter((i) => {
-          const qty = Number(i.currentQuantity);
-          return (
-            i.currentQuantity !== "" &&
-            i.currentQuantity !== null &&
-            i.currentQuantity !== undefined &&
-            !isNaN(qty) &&
-            qty !== 0
-          );
-        });
+        const itemsLoaded = (p.items || []).length > 0 || !p.id;
 
-        // Calculate quantities
-        const confirmedQuantity = validItems.reduce(
-          (sum, item) => sum + (Number(item.currentQuantity) || 0),
-          0,
-        );
+        const validItems = itemsLoaded
+          ? (p.items || []).filter((i) => {
+              const qty = Number(i.currentQuantity);
+              return (
+                i.currentQuantity !== "" &&
+                i.currentQuantity !== null &&
+                i.currentQuantity !== undefined &&
+                !isNaN(qty) &&
+                qty !== 0
+              );
+            })
+          : null;
 
-        const items = validItems.map((item) => ({
-          id: item.id, // Keep existing ID if present
-          quantity: Number(item.currentQuantity),
-          requestedPackages: item.requestedPackages
-            ? Number(item.requestedPackages)
-            : 1,
-          // Outflows might not always need lot/itemNumber strictness like Sales depending on specific business logic,
-          // but usually yes for traceability. Keeping it flexible or strict based on requirement?
-          // Sales logic requires them. For "Out", we will pass what we have.
-          lot: Number(item.lotNumber) || null,
-          itemNumber: Number(item.itemNumber) || null,
-          warehouse: item.warehouse || document.sourceWarehouse?.id, // Ensure warehouse is set if it's a new item
-        }));
+        const confirmedQuantity = validItems !== null
+          ? validItems.reduce((sum, item) => sum + (Number(item.currentQuantity) || 0), 0)
+          : (p.confirmedQuantity || 0);
+
+        const items = validItems !== null
+          ? validItems.map((item) => ({
+              id: item.id,
+              quantity: Number(item.currentQuantity),
+              requestedPackages: item.requestedPackages
+                ? Number(item.requestedPackages)
+                : 1,
+              lot: Number(item.lotNumber) || null,
+              itemNumber: Number(item.itemNumber) || null,
+              warehouse: item.warehouse || document.sourceWarehouse?.id,
+            }))
+          : null;
 
         return {
           product: p.product.id || p.product,
-          items: items,
+          items,
           requestedQuantity: p.requestedQuantity
             ? Number(p.requestedQuantity)
-            : 0, // Keep requested as is, or update? usually requested is what was planned.
+            : 0,
           requestedPackages: p.requestedPackages
             ? Number(p.requestedPackages)
             : 1,
-          confirmedQuantity: confirmedQuantity,
+          confirmedQuantity,
         };
       });
 

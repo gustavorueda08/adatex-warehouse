@@ -10,6 +10,7 @@ import {
   Chip,
   Divider,
   Input,
+  Pagination,
   Progress,
   Table,
   TableBody,
@@ -25,7 +26,8 @@ import {
   useDisclosure,
   addToast,
 } from "@heroui/react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useItems } from "@/lib/hooks/useItems";
 import { v4 as uuidv4 } from "uuid";
 import DebouncedInput from "../ui/DebounceInput";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
@@ -38,6 +40,8 @@ function PackingListProductHeader({
   onHeaderScan,
   isInputEnabled = true,
   setDocument,
+  onItemsReplaced,
+  onItemsReserved,
 }) {
   const isCompleted = product.confirmedQuantity >= product.requestedQuantity;
   const completedPercentage =
@@ -87,10 +91,11 @@ function PackingListProductHeader({
         return;
       }
       if (onHeaderScan) {
-        // En ventas y salidas, mandamos count y el backend los busca y reserva.
+        // En ventas y salidas: replace: true instruye al backend a cancelar la reserva
+        // anterior y crear una nueva con el nuevo count (operación atómica en una sola transacción).
         result = await onHeaderScan(document.id, {
           product: product.product.id,
-          item: { count },
+          item: { count, replace: true },
         });
       } else {
         // Compras e ingresos generan localmente
@@ -169,8 +174,25 @@ function PackingListProductHeader({
 
         let newItems = [...(currentProduct.items || [])];
         if (type === "fixedQuantityPerItem" && Array.isArray(newItem)) {
-          // User requested that entering a new number REPLACES the generated list, rather than appending
+          // Purchase: entering a new number REPLACES the generated list
           newItems = [...newItem];
+        } else if (
+          type === "fixedQuantityPerItem" &&
+          newItem?.count !== undefined &&
+          !Array.isArray(newItem)
+        ) {
+          // Sale/out bulk reserve (replace behavior): backend unreserved all existing items
+          // and reserved a new batch. confirmedQuantity = the new count, not cumulative.
+          const newOrderProducts = [...prev.orderProducts];
+          newOrderProducts[productIndex] = {
+            ...currentProduct,
+            confirmedQuantity: newItem.count,
+          };
+          return {
+            ...prev,
+            state: prev.state === "draft" ? "confirmed" : prev.state,
+            orderProducts: newOrderProducts,
+          };
         } else {
           if (newItem.quantity && !newItem.currentQuantity) {
             newItem.currentQuantity = newItem.quantity;
@@ -198,7 +220,7 @@ function PackingListProductHeader({
         };
 
         let newState = prev.state;
-        if (type !== "fixedQuantityPerItem") {
+        if (prev.state === "draft") {
           newState = "confirmed";
         }
 
@@ -208,6 +230,19 @@ function PackingListProductHeader({
           orderProducts: newOrderProducts,
         };
       });
+
+      if (type === "fixedQuantityPerItem" && Array.isArray(result.data)) {
+        // Purchase/in: locally generated items replaced — reset pagination
+        onItemsReplaced?.();
+      }
+      if (
+        type === "fixedQuantityPerItem" &&
+        !Array.isArray(result.data) &&
+        result.data?.count !== undefined
+      ) {
+        // Sale/out: backend bulk-reserved items → trigger accordion refetch to show them
+        onItemsReserved?.();
+      }
 
       addToast({
         title: "Agregado",
@@ -326,7 +361,9 @@ function PackingListProductHeader({
           {format(product.requestedQuantity)} {product.unit}
         </span>
         <span className="text-xs text-zinc-500">
-          Items {product.items.length}
+          Items {type === "fixedQuantityPerItem"
+            ? Math.round(product.confirmedQuantity || 0)
+            : (product.items || []).length}
         </span>
       </div>
       <Input
@@ -414,6 +451,10 @@ function createEmptyItem(defaults = {}) {
   };
 }
 
+const PAGE_SIZE = 100;
+
+// PAGE_SIZE must be ≤ maxLimit in adatex-warehouse-server/config/api.js (currently 100)
+
 function PackingListProduct({
   document,
   product,
@@ -423,10 +464,158 @@ function PackingListProduct({
   isHeaderInputEnabled = true,
   onRemoveItem,
 }) {
-  const { items } = product;
+  const type = product.product?.type || "variableQuantityPerItem";
+  const isFixed = type === "fixedQuantityPerItem";
+
   const screenSize = useScreenSize();
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // ── Accordion open state ─────────────────────────────────────────────────────
+  // Controls the `enabled` prop of useItems so items are only fetched when the
+  // accordion is actually visible. Avoids wasted network requests on mount.
+  const [accordionOpen, setAccordionOpen] = useState(false);
+
+  // ── Server page ───────────────────────────────────────────────────────────────
+  // fixedQty: current page being displayed (changed by pagination clicks)
+  // variableQty: auto-increments while accumulating all pages in sequence
+  const [serverPage, setServerPage] = useState(1);
+
+  // ── Variable-item accumulation ────────────────────────────────────────────────
+  // variableQty items are collected across all server pages into this ref, then
+  // written to document state in one batch once complete. document state is the
+  // source of truth for handleItemChange and handleUpdate in the detail pages.
+  const variableAccumRef = React.useRef([]);
+  const [variableAllLoaded, setVariableAllLoaded] = useState(false);
+
+  // ── Local page (variable only) ────────────────────────────────────────────────
+  // After accumulation is complete, the full list is paginated client-side.
+  const [localPage, setLocalPage] = useState(1);
+
+  // ── Scalar fields requested from the API ─────────────────────────────────────
+  // Only scalar columns — no sub-relations (warehouse, product). This avoids the
+  // SQLite "too many SQL variables" limit and keeps the payload lean.
+  const ITEM_FIELDS = useMemo(() => [
+    "id", "state", "currentQuantity", "lotNumber", "itemNumber",
+    "barcode", "alternativeBarcode", "cost", "isInvoiced",
+    "cbm", "weight", "isPartition", "partitionNumber",
+    "qualityStatus", "qualityNotes", "receiptDate",
+  ], []);
+
+  // ── useItems hook ─────────────────────────────────────────────────────────────
+  // Single hook for both product types. Differences:
+  //   fixedQty:    enabled while accordion is open; serverPage is user-controlled
+  //   variableQty: enabled until all pages accumulated; serverPage auto-increments
+  //
+  // useStrapi re-fetches automatically when queryParams changes (apiUrl changes).
+  // When `enabled` toggles false→true with the same URL it does NOT re-fetch
+  // (guarded by currentUrlRef), so closing/re-opening the accordion is free.
+  const {
+    entities: pageItems,
+    loading: isLoadingPage,
+    isFetching,
+    pagination: serverPagination,
+    refetch: refetchItems,
+  } = useItems(
+    {
+      filters: { orderProducts: { id: { $eq: product.id } } },
+      pagination: { page: serverPage, pageSize: PAGE_SIZE },
+      fields: ITEM_FIELDS,
+    },
+    {
+      enabled: accordionOpen && !!product.id && (isFixed || !variableAllLoaded),
+    },
+  );
+
+  // ── Effect: multi-page accumulation for variable products ─────────────────────
+  // Each time a new page arrives: append it, then either load the next page (by
+  // incrementing serverPage which triggers a new apiUrl → auto-refetch) or
+  // finalize by copying the full accumulated list to document state so that
+  // handleItemChange and handleUpdate can read it from product.items.
+  useEffect(() => {
+    if (isFixed || !pageItems || !accordionOpen || isLoadingPage || isFetching) return;
+
+    if (serverPage === 1) {
+      variableAccumRef.current = [...pageItems];
+    } else {
+      variableAccumRef.current = [...variableAccumRef.current, ...pageItems];
+    }
+
+    const pageCount = serverPagination?.pageCount ?? 1;
+
+    if (serverPage < pageCount) {
+      setServerPage((prev) => prev + 1);
+    } else {
+      setVariableAllLoaded(true);
+      const allItems = variableAccumRef.current;
+      if (allItems.length > 0) {
+        setDocument((prev) => {
+          const idx = prev.orderProducts.findIndex((op) => op.id === product.id);
+          if (idx === -1) return prev;
+          const ops = [...prev.orderProducts];
+          ops[idx] = { ...ops[idx], items: allItems };
+          return { ...prev, orderProducts: ops };
+        });
+      }
+    }
+  }, [pageItems, serverPage, serverPagination, isFixed, accordionOpen, isLoadingPage, isFetching, setDocument, product.id]);
+
+  // ── Effect: refetch fixed items after external document update ────────────────
+  // After handleUpdate → setDocument(result.data), product.items may gain new
+  // entries (ORDER_POPULATE returns item scalars). Detect the length change and
+  // refetch the current server page to reflect the updated state.
+  const productItemsLen = (product.items || []).length;
+  const prevProductItemsLenRef = React.useRef(productItemsLen);
+  useEffect(() => {
+    if (!isFixed || !accordionOpen) return;
+    if (prevProductItemsLenRef.current !== productItemsLen) {
+      refetchItems();
+    }
+    prevProductItemsLenRef.current = productItemsLen;
+  }, [productItemsLen, isFixed, accordionOpen, refetchItems]);
+
+  // ── Accordion selection change handler ────────────────────────────────────────
+  // Triggers on user open/close. On first open (or re-open for variable), resets
+  // state so a fresh load begins from page 1.
+  const handleAccordionSelectionChange = useCallback(
+    (keys) => {
+      const open = keys instanceof Set ? keys.size > 0 : Boolean(keys);
+      if (open && !accordionOpen) {
+        if (!isFixed) {
+          // Reset accumulation for a clean re-load
+          variableAccumRef.current = [];
+          setVariableAllLoaded(false);
+          setServerPage(1);
+          setLocalPage(1);
+        }
+        setAccordionOpen(true);
+      }
+    },
+    [accordionOpen, isFixed],
+  );
+
+  // ── handleItemsReplaced: purchase/in fixedQty local generation ───────────────
+  // Called after the user types a new count in the PackingList header for a
+  // purchase order (items generated locally with UUIDs, not yet saved to server).
+  // Resets to page 1 — no server refetch because items don't exist in DB yet.
+  const handleItemsReplaced = useCallback(() => {
+    setServerPage(1);
+  }, []);
+
+  // ── handleItemsReserved: sale/out fixedQty bulk reservation ──────────────────
+  // Called after onHeaderScan returns a count summary (backend reserved items in
+  // bulk). Resets to page 1 and refetches so the newly reserved items appear.
+  const handleItemsReserved = useCallback(() => {
+    if (accordionOpen) {
+      setServerPage(1);
+      refetchItems();
+    }
+  }, [accordionOpen, refetchItems]);
+
+  // ── Items to render ───────────────────────────────────────────────────────────
+  // fixedQty:    pageItems from the hook (server-paginated, ~100 at a time)
+  // variableQty: product.items from document state (full list after accumulation)
+  const items = isFixed ? (pageItems || []) : (product.items || []);
 
   // Refs for keyboard navigation
   const inputRefs = React.useRef({});
@@ -434,7 +623,8 @@ function PackingListProduct({
   // Ghost Row Logic
   const ghostItemRef = React.useRef(null);
   const itemsWithGhost = useMemo(() => {
-    if (!isItemEditable) return items;
+    // Ghost rows only apply to variable products (fixedQty items are read-only server records)
+    if (isFixed || !isItemEditable) return items;
 
     // Calculate defaults for the ghost item
     let nextItemNumber = "1";
@@ -528,15 +718,53 @@ function PackingListProduct({
     return items;
   }, [items, isItemEditable]);
 
-  // Create a ref to store the ghost item to keep its ID stable across renders unless consumed
-  // Actually, useMemo creates a new object every time.
-  // If we want stable ID, we need to persist the ID for the "next" ghost.
-  // But since the ghost is recreated when `items` changes (which is when we consume it),
-  // the NEW ghost naturally has a new ID.
-  // The OLD ghost (now in items) has its ID preserved in `items`.
-  // So focus *should* be preserved.
-  // I will add a log to verify IDs.
-  // console.log("Items with Ghost IDs:", itemsWithGhost.map(i => i.id));
+  // ── Pagination ────────────────────────────────────────────────────────────────
+  // fixedQty:    server returns pageCount via serverPagination
+  // variableQty: local computation over the full accumulated list
+  const totalPages = isFixed
+    ? (serverPagination?.pageCount ?? 1)
+    : Math.max(1, Math.ceil(itemsWithGhost.length / PAGE_SIZE));
+
+  const safePage = isFixed
+    ? (serverPagination?.page ?? serverPage)
+    : Math.min(localPage, totalPages);
+
+  const displayedItems = useMemo(
+    () =>
+      isFixed
+        ? (pageItems || []) // Server already sent this page's items
+        : itemsWithGhost.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [isFixed, pageItems, itemsWithGhost, safePage],
+  );
+
+  // Clamp localPage when variable list shrinks (e.g. after removeItem)
+  useEffect(() => {
+    if (!isFixed && safePage !== localPage) setLocalPage(safePage);
+  }, [isFixed, safePage, localPage]);
+
+  // Page change handler
+  const handlePageChange = useCallback(
+    (newPage) => {
+      if (isFixed) {
+        setServerPage(newPage); // triggers hook re-fetch via apiUrl change
+      } else {
+        setLocalPage(newPage);  // client-side slice only
+      }
+    },
+    [isFixed],
+  );
+
+  // Loading state:
+  //   fixedQty:    hook loading flags
+  //   variableQty: waiting for accumulation to finish (only while accordion is open)
+  const isLoadingItems = isFixed
+    ? (isLoadingPage || isFetching)
+    : (!variableAllLoaded && accordionOpen);
+
+  // Displayed total count for the accordion footer / subtitle
+  const displayTotalItems = isFixed
+    ? (serverPagination?.total ?? (product.confirmedQuantity || 0))
+    : items.length;
 
   const showNationalization =
     document?.type === "purchase" &&
@@ -619,31 +847,38 @@ function PackingListProduct({
         if (onRemoveItem) {
           await onRemoveItem(document.id, itemId);
         }
-        setDocument((prev) => {
-          const productIndex = prev.orderProducts.findIndex(
-            (p) => p.id === product.id,
-          );
-          if (productIndex === -1) return prev;
-          const currentProduct = prev.orderProducts[productIndex];
-          const newItems = currentProduct.items.filter((i) => i.id !== itemId);
-          const newConfirmedQuantity =
-            Math.round(
-              newItems.reduce(
-                (sum, item) => sum + (parseFloat(item.currentQuantity) || 0),
-                0,
-              ) * 100,
-            ) / 100;
-          const newOrderProducts = [...prev.orderProducts];
-          newOrderProducts[productIndex] = {
-            ...currentProduct,
-            items: newItems,
-            confirmedQuantity: newConfirmedQuantity,
-          };
-          return {
-            ...prev,
-            orderProducts: newOrderProducts,
-          };
-        });
+        if (isFixed) {
+          // For fixed products, items live in pageItems (hook state) not document state.
+          // Refetch the current server page to reflect the deletion immediately.
+          await refetchItems();
+        } else {
+          // For variable products, remove the item from document state locally.
+          setDocument((prev) => {
+            const productIndex = prev.orderProducts.findIndex(
+              (p) => p.id === product.id,
+            );
+            if (productIndex === -1) return prev;
+            const currentProduct = prev.orderProducts[productIndex];
+            const newItems = currentProduct.items.filter((i) => i.id !== itemId);
+            const newConfirmedQuantity =
+              Math.round(
+                newItems.reduce(
+                  (sum, item) => sum + (parseFloat(item.currentQuantity) || 0),
+                  0,
+                ) * 100,
+              ) / 100;
+            const newOrderProducts = [...prev.orderProducts];
+            newOrderProducts[productIndex] = {
+              ...currentProduct,
+              items: newItems,
+              confirmedQuantity: newConfirmedQuantity,
+            };
+            return {
+              ...prev,
+              orderProducts: newOrderProducts,
+            };
+          });
+        }
         addToast({
           title: "Item removido",
           description: "El item se ha removido correctamente",
@@ -657,7 +892,7 @@ function PackingListProduct({
         });
       }
     },
-    [product.id, setDocument, items, onRemoveItem],
+    [product.id, setDocument, onRemoveItem, isFixed, refetchItems],
   );
 
   const handleOpenModal = (item) => {
@@ -669,14 +904,14 @@ function PackingListProduct({
     if (e.key === "Enter") {
       e.preventDefault();
 
-      // Find current item index
-      const currentIndex = itemsWithGhost.findIndex(
+      // Find current item index within the current page
+      const currentIndex = displayedItems.findIndex(
         (i) => i.id === currentItem.id,
       );
 
-      // Check if there's a next row
-      if (currentIndex !== -1 && currentIndex < itemsWithGhost.length - 1) {
-        const nextItem = itemsWithGhost[currentIndex + 1];
+      // Check if there's a next row on this page
+      if (currentIndex !== -1 && currentIndex < displayedItems.length - 1) {
+        const nextItem = displayedItems[currentIndex + 1];
         const nextInputKey = `${nextItem.id}-${field}`;
 
         // Focus next input if it exists
@@ -786,12 +1021,34 @@ function PackingListProduct({
     }
   };
 
-  const type = product.product?.type || "variableQuantityPerItem";
+  // Para fixedQty nunca tiene sentido mostrar la lista individual de ítems
+  // (pueden ser 50k+). Renderizar solo el header con el input de "definir cantidad".
+  // - Con onHeaderScan (ventas/salidas/transferencias): reserva en servidor.
+  // - Sin onHeaderScan (compras/ingresos): genera localmente.
+  if (isFixed) {
+    return (
+      <Card shadow="sm" className="p-4">
+        <PackingListProductHeader
+          document={document}
+          product={product}
+          onHeaderScan={onHeaderScan}
+          isInputEnabled={isHeaderInputEnabled}
+          setDocument={setDocument}
+          onItemsReplaced={handleItemsReplaced}
+          onItemsReserved={handleItemsReserved}
+        />
+      </Card>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <Accordion variant="shadow">
+      <Accordion
+        variant="shadow"
+        onSelectionChange={handleAccordionSelectionChange}
+      >
         <AccordionItem
+          key={`items-${product.id}`}
           title={
             <PackingListProductHeader
               document={document}
@@ -800,6 +1057,8 @@ function PackingListProduct({
               isInputEnabled={isHeaderInputEnabled}
               isItemEditable={isItemEditable}
               setDocument={setDocument}
+              onItemsReplaced={handleItemsReplaced}
+              onItemsReserved={handleItemsReserved}
             />
           }
           textValue={product.name}
@@ -807,25 +1066,53 @@ function PackingListProduct({
           {type === "service" ? (
             <div className="p-4 text-sm text-center text-zinc-500">
               Este producto no requiere escaneo ni gestión física de inventario.
-              Ingrese y confime su cantidad en el cajón superior.
+              Ingrese y confirme su cantidad en el cajón superior.
+            </div>
+          ) : isLoadingItems ? (
+            <div className="p-4 text-sm text-center text-zinc-400">
+              Cargando items ({displayTotalItems} en total)…
             </div>
           ) : (
-            <Table shadow="none" classNames={{ wrapper: "p-0" }}>
-              <TableHeader columns={columns}>
-                {(column) => (
-                  <TableColumn key={column.key}>{column.label}</TableColumn>
-                )}
-              </TableHeader>
-              <TableBody items={itemsWithGhost} emptyContent="Sin Items">
-                {(item) => (
-                  <TableRow key={item.id}>
-                    {(columnKey) => (
-                      <TableCell>{renderCell(item, columnKey)}</TableCell>
-                    )}
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <>
+              <Table shadow="none" classNames={{ wrapper: "p-0" }}>
+                <TableHeader columns={columns}>
+                  {(column) => (
+                    <TableColumn key={column.key}>{column.label}</TableColumn>
+                  )}
+                </TableHeader>
+                <TableBody
+                  items={displayedItems}
+                  emptyContent={!accordionOpen ? "Abra el acordeón para cargar los items" : "Sin Items"}
+                >
+                  {(item) => (
+                    <TableRow key={item.id}>
+                      {(columnKey) => (
+                        <TableCell>{renderCell(item, columnKey)}</TableCell>
+                      )}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {totalPages > 1 && (
+                <div className="flex w-full justify-center pt-2 pb-1">
+                  <Pagination
+                    isCompact
+                    showControls
+                    showShadow
+                    color="primary"
+                    page={safePage}
+                    total={totalPages}
+                    onChange={handlePageChange}
+                  />
+                </div>
+              )}
+              {isFixed && displayTotalItems > 0 && (
+                <p className="text-xs text-zinc-400 text-center pb-2">
+                  Mostrando {displayedItems.length} de {displayTotalItems} items •
+                  Página {serverPagination?.page ?? serverPage} de {serverPagination?.pageCount ?? 1}
+                </p>
+              )}
+            </>
           )}
         </AccordionItem>
       </Accordion>
@@ -938,7 +1225,7 @@ export default function PackingList({
       }, 0) * 100,
     ) / 100;
   const totalItems = products.reduce((acc, product) => {
-    return acc + (Number(product.items.length) || 0);
+    return acc + (Number((product.items || []).length) || 0);
   }, 0);
   const completedPercentage =
     Math.round(((totalConfirmed / totalRequested) * 100 || 0) * 100) / 100;

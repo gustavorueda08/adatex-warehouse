@@ -3,6 +3,11 @@ export const getPartyLabel = (party) => {
 
   const name = party.name || "";
   const lastName = party.lastName || "";
+  const fullName = `${name} ${lastName}`.trim();
 
-  return `${name} ${lastName}`.trim();
+  if (party.companyName) {
+    return fullName ? `${party.companyName} (${fullName})` : party.companyName;
+  }
+
+  return fullName;
 };

@@ -23,6 +23,7 @@ const CATEGORY_LABELS = {
   required: "Requerido",
   arriving: "Llegando",
   reserved: "Reservado",
+  freeTradeZone: "Zona Franca",
 };
 
 /**
@@ -45,7 +46,9 @@ export default function BreakdownModal({
   entries = [],
 }) {
   const label = CATEGORY_LABELS[category] || category;
-  const isCustomerCategory = category === "required";
+  // "required" and "reserved" correspond to sale orders → show customer column
+  const isCustomerCategory =
+    category === "required" || category === "reserved";
 
   const total = entries.reduce((sum, e) => sum + (Number(e.quantity) || 0), 0);
 
@@ -60,9 +63,13 @@ export default function BreakdownModal({
 
   const getOrderLink = (entry) => {
     if (!entry.order) return null;
-    // required = sale orders, others = purchase orders
-    const basePath = isCustomerCategory ? "/sales" : "/purchases";
-    return `${basePath}/${entry.order}`;
+    // Use the order type stored in the entry when available; fall back to
+    // category-based heuristic for backward compatibility.
+    const isSaleType =
+      entry.orderType != null
+        ? ["sale", "return", "partial-invoice"].includes(entry.orderType)
+        : isCustomerCategory;
+    return `${isSaleType ? "/sales" : "/purchases"}/${entry.order}`;
   };
 
   return (

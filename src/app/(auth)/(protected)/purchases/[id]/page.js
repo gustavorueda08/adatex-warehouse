@@ -46,8 +46,21 @@ export default function PurchaseDetailPage({ params }) {
     populate: [
       "orderProducts",
       "orderProducts.product",
-      "orderProducts.items",
-      "orderProducts.items.warehouse",
+      // "orderProducts.items" — OMITIDO INTENCIONALMENTE
+      //
+      // Con órdenes de tipo fixedQuantityPerItem que tienen 50k+ items, incluir este
+      // populate en el GET inicial hace que Strapi intente serializar 50k registros de
+      // items en una sola respuesta JSON. Eso agota la memoria del proceso de Node y
+      // cierra la conexión con ECONNRESET antes de que el cliente reciba nada.
+      //
+      // Solución:
+      //   1. Eliminamos "orderProducts.items" del GET de la lista (esta línea).
+      //   2. Para fixedQuantityPerItem: usamos p.confirmedQuantity (escalar en orderProduct,
+      //      siempre presente) en lugar de p.items.length para calcular el count.
+      //   3. Después de cada updateOrder() exitoso, actualizamos document con result.data,
+      //      que viene de ORDER_POPULATE en el backend (incluye los escalares de items).
+      //   4. El useEffect que sincroniza document con orders[0] usa merge: si el servidor
+      //      no retorna items, preserva los items que ya teníamos en el estado local.
       "supplier",
       "supplier.prices",
       "destinationWarehouse",
@@ -85,7 +98,36 @@ export default function PurchaseDetailPage({ params }) {
           .add(65, "days")
           .toDate();
       }
-      setDocument(order);
+
+      // Merge: preservar los items del estado local si el servidor no los retorna.
+      //
+      // El GET de la lista no incluye "orderProducts.items" (ver comentario en useOrders)
+      // para evitar el ECONNRESET con 50k items. Pero tras un updateOrder() exitoso,
+      // ya habíamos actualizado document con result.data (que SÍ tiene items del backend).
+      // El re-fetch posterior de useOrders retorna orders[0] sin items → si hiciéramos
+      // setDocument(order) directamente, perderíamos esos items.
+      //
+      // La lógica de merge:
+      //   - Si el servidor retornó items para un orderProduct (op.items.length > 0), úsalos.
+      //   - Si no, conserva los items que ya teníamos en el estado previo (prev).
+      setDocument((prev) => {
+        if (!prev) return order; // Primera carga: no hay estado previo, usar servidor tal cual
+
+        return {
+          ...order,
+          orderProducts: (order.orderProducts || []).map((op) => {
+            // ¿El servidor trajo items para este orderProduct?
+            if (op.items && op.items.length > 0) return op;
+
+            // Si no, buscar el orderProduct equivalente en el estado previo y conservar sus items
+            const prevOp = prev.orderProducts?.find((p) => p.id === op.id);
+            return {
+              ...op,
+              items: prevOp?.items || [],
+            };
+          }),
+        };
+      });
     }
   }, [orders]);
 
@@ -109,6 +151,7 @@ export default function PurchaseDetailPage({ params }) {
               $or: [
                 { name: { $containsi: term } },
                 { lastName: { $containsi: term } },
+                { companyName: { $containsi: term } },
                 { identification: { $containsi: term } },
                 { email: { $containsi: term } },
               ],
@@ -273,10 +316,8 @@ export default function PurchaseDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = () => {
-    router.push("/purchases");
-
-    const deletePromise = deleteOrder(document.id, { background: true }).then(
+  const handleDelete = async () => {
+    const deletePromise = deleteOrder(document.id).then(
       (result) => {
         if (!result.success) throw new Error("Error al eliminar");
         return result;
@@ -287,6 +328,12 @@ export default function PurchaseDetailPage({ params }) {
       success: "Orden eliminada exitosamente",
       error: "Error al eliminar la orden",
     });
+    try {
+      await deletePromise;
+      router.push("/purchases");
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   };
   const handleUpdate = (newState = null) => {
     const products = document?.orderProducts || [];
@@ -323,31 +370,78 @@ export default function PurchaseDetailPage({ params }) {
     const formattedProducts = products
       .filter((p) => p.product)
       .map((p) => {
-        const validItems = (p.items || []).filter((i) => {
-          const qty = Number(i.currentQuantity);
-          return (
-            i.currentQuantity !== "" &&
-            i.currentQuantity !== null &&
-            i.currentQuantity !== undefined &&
-            !isNaN(qty) &&
-            qty !== 0
-          );
-        });
-        // Calculate confirmedQuantity sum
-        const confirmedQuantity = validItems.reduce(
-          (sum, item) => sum + (Number(item.currentQuantity) || 0),
-          0,
-        );
-        const items = validItems.map((item) => ({
-          id: item.id,
-          quantity: Number(item.currentQuantity),
-          lot: Number(item.lotNumber) || null,
-          itemNumber: Number(item.itemNumber) || null,
-        }));
+        const productType = p.product?.type || "variableQuantityPerItem";
+
+        // fixedQuantityPerItem: send only the count to avoid 50k-item payloads.
+        // The backend bulk-creates/deletes items efficiently from the count.
+        if (productType === "fixedQuantityPerItem") {
+          // Usamos confirmedQuantity en lugar de p.items.length por dos razones:
+          //
+          // 1. El GET de la lista ya NO incluye items (ver populate de useOrders).
+          //    Si usáramos p.items.length, el count sería 0 → el backend borraría
+          //    todos los items existentes en cada actualización de cabecera.
+          //
+          // 2. confirmedQuantity es un escalar en el orderProduct, siempre presente
+          //    en el GET. Refleja el conteo real de items en BD.
+          //
+          // Flujo de actualización del usuario:
+          //   - Usuario escribe "60000" en el input del PackingList
+          //   - submitItem genera items locales (UUIDs) y actualiza confirmedQuantity=60000
+          //   - handleUpdate lee p.confirmedQuantity=60000 → envía count:60000 al backend
+          //   - Backend crea/borra items para igualar el count
+          const count = p.confirmedQuantity || 0;
+          return {
+            product: p.product.id || p.product,
+            count,
+            confirmedQuantity: count,
+            requestedQuantity: p.requestedQuantity
+              ? Number(p.requestedQuantity)
+              : 0,
+            price: p.price ? Number(p.price) : 0,
+            ivaIncluded: p.ivaIncluded || false,
+            invoicePercentage: p.invoicePercentage
+              ? Number(p.invoicePercentage)
+              : 100,
+          };
+        }
+
+        // Only send items when they have been loaded from the server.
+        // The GET populate for purchases omits "orderProducts.items" to avoid
+        // ECONNRESET with 50k-item orders. Until the accordion is opened,
+        // p.items is empty. Sending items:null tells the backend to preserve
+        // the existing items instead of deleting them.
+        const itemsLoaded = (p.items || []).length > 0 || !p.id;
+
+        const validItems = itemsLoaded
+          ? (p.items || []).filter((i) => {
+              const qty = Number(i.currentQuantity);
+              return (
+                i.currentQuantity !== "" &&
+                i.currentQuantity !== null &&
+                i.currentQuantity !== undefined &&
+                !isNaN(qty) &&
+                qty !== 0
+              );
+            })
+          : null;
+
+        // When items weren't loaded, fall back to the server-side scalar
+        const confirmedQuantity = validItems !== null
+          ? validItems.reduce((sum, item) => sum + (Number(item.currentQuantity) || 0), 0)
+          : (p.confirmedQuantity || 0);
+
+        const items = validItems !== null
+          ? validItems.map((item) => ({
+              id: item.id,
+              quantity: Number(item.currentQuantity),
+              lot: Number(item.lotNumber) || null,
+              itemNumber: Number(item.itemNumber) || null,
+            }))
+          : null; // null → backend preserves existing items
 
         return {
           product: p.product.id || p.product,
-          items: items,
+          items,
           confirmedQuantity,
           requestedQuantity: p.requestedQuantity
             ? Number(p.requestedQuantity)
@@ -391,6 +485,22 @@ export default function PurchaseDetailPage({ params }) {
       (result) => {
         if (!result.success)
           throw new Error(result.error?.message || "Error al actualizar");
+
+        // Sincronizar document con la respuesta del servidor.
+        //
+        // La respuesta de updateOrder viene de ORDER_POPULATE en el backend, que
+        // incluye los escalares de los items (id, state, barcode, etc.) de todos los
+        // orderProducts. Esto popula los items en el estado local para:
+        //   1. variableQuantityPerItem: mostrar los items reales en el PackingList
+        //   2. fixedQuantityPerItem: tener los IDs reales de los items (no los UUIDs
+        //      locales generados por submitItem) por si se necesitan operaciones futuras
+        //
+        // El useEffect que escucha orders[] hará un merge al re-fetchear, pero si
+        // result.data actualiza document primero, el merge preservará esos items.
+        if (result.data) {
+          setDocument(result.data);
+        }
+
         return result;
       },
     );

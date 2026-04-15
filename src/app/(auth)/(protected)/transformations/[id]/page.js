@@ -316,10 +316,8 @@ export default function TransformationDetailPage({ params }) {
     ];
   }, [document, isReadOnly, transformType]);
 
-  const handleDelete = () => {
-    router.push("/transformations");
-
-    const deletePromise = deleteOrder(document.id, { background: true })
+  const handleDelete = async () => {
+    const deletePromise = deleteOrder(document.id)
       .then(result => {
         if (!result.success) throw new Error("Error al eliminar");
         return result;
@@ -329,6 +327,12 @@ export default function TransformationDetailPage({ params }) {
       success: "Orden eliminada exitosamente",
       error: "Error al eliminar la orden",
     });
+    try {
+      await deletePromise;
+      router.push("/transformations");
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   };
 
   const handleUpdate = async (newState = null) => {

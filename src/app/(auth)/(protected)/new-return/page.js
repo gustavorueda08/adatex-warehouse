@@ -66,6 +66,7 @@ function NewReturnPageInner() {
               { code: { $containsi: search } },
               { customer: { name: { $containsi: search } } },
               { customer: { lastName: { $containsi: search } } },
+              { customer: { companyName: { $containsi: search } } },
             ],
           };
         },

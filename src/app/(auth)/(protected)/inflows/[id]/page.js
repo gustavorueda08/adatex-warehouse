@@ -106,12 +106,10 @@ export default function InflowDetailPage({ params }) {
       },
     ];
   }, [document]);
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!document) return;
 
-    router.push("/inflows");
-
-    const deletePromise = deleteOrder(document.id, { background: true })
+    const deletePromise = deleteOrder(document.id)
       .then((result) => {
         if (!result.success) throw new Error("Error al eliminar");
         return result;
@@ -121,6 +119,12 @@ export default function InflowDetailPage({ params }) {
       success: "Orden eliminada exitosamente",
       error: "Error al eliminar la orden",
     });
+    try {
+      await deletePromise;
+      router.push("/inflows");
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   };
   const handleUpdate = (newState = null) => {
     if (!document) return;
@@ -161,34 +165,40 @@ export default function InflowDetailPage({ params }) {
     const formattedProducts = products
       .filter((p) => p.product)
       .map((p) => {
-        const validItems = (p.items || []).filter((i) => {
-          const qty = Number(i.currentQuantity);
-          return (
-            i.currentQuantity !== "" &&
-            i.currentQuantity !== null &&
-            i.currentQuantity !== undefined &&
-            !isNaN(qty) &&
-            qty !== 0
-          );
-        });
-        // Calculate confirmedQuantity sum
-        const confirmedQuantity = validItems.reduce(
-          (sum, item) => sum + (Number(item.currentQuantity) || 0),
-          0,
-        );
-        const items = validItems.map((item) => ({
-          id: item.id,
-          quantity: Number(item.currentQuantity),
-          requestedPackages: item.requestedPackages
-            ? Number(item.requestedPackages)
-            : 1,
-          lot: Number(item.lotNumber) || null,
-          itemNumber: Number(item.itemNumber) || null,
-        }));
+        const itemsLoaded = (p.items || []).length > 0 || !p.id;
+
+        const validItems = itemsLoaded
+          ? (p.items || []).filter((i) => {
+              const qty = Number(i.currentQuantity);
+              return (
+                i.currentQuantity !== "" &&
+                i.currentQuantity !== null &&
+                i.currentQuantity !== undefined &&
+                !isNaN(qty) &&
+                qty !== 0
+              );
+            })
+          : null;
+
+        const confirmedQuantity = validItems !== null
+          ? validItems.reduce((sum, item) => sum + (Number(item.currentQuantity) || 0), 0)
+          : (p.confirmedQuantity || 0);
+
+        const items = validItems !== null
+          ? validItems.map((item) => ({
+              id: item.id,
+              quantity: Number(item.currentQuantity),
+              requestedPackages: item.requestedPackages
+                ? Number(item.requestedPackages)
+                : 1,
+              lot: Number(item.lotNumber) || null,
+              itemNumber: Number(item.itemNumber) || null,
+            }))
+          : null;
 
         return {
           product: p.product.id || p.product,
-          items: items,
+          items,
           confirmedQuantity,
           requestedQuantity: p.requestedQuantity
             ? Number(p.requestedQuantity)

@@ -430,12 +430,7 @@ export function useDocumentDetail(config) {
     });
     if (!confirmation.isConfirmed) return;
 
-    // Redirigir de inmediato — el usuario no debe esperar al backend
-    if (redirectPath) {
-      router.push(redirectPath);
-    }
-
-    const deletePromise = deleteDocument(document.id, { background: true }).then(
+    const deletePromise = deleteDocument(document.id).then(
       (result) => {
         if (!result.success) throw new Error("Error al eliminar el documento");
         return result;
@@ -447,6 +442,15 @@ export function useDocumentDetail(config) {
       success: "Documento eliminado exitosamente",
       error: "Error al eliminar el documento",
     });
+
+    try {
+      await deletePromise;
+      if (redirectPath) {
+        router.push(redirectPath);
+      }
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   }, [document, deleteDocument, router, redirectPath]);
 
   // Toggle expandir

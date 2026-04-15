@@ -457,9 +457,23 @@ export default function ProductsPage() {
       label: "Zona Franca",
       render: (product) => {
         const val = product?.inventory?.freeTradeZone || 0;
+        const hasData = hasBreakdown(product, "freeTradeZone");
         if (val === 0) return <span className="text-xs text-zinc-400">—</span>;
         return (
-          <Chip size="sm" variant="flat" color="secondary">
+          <Chip
+            size="sm"
+            variant="flat"
+            color="secondary"
+            className={hasData ? "cursor-pointer" : ""}
+            onClick={
+              hasData
+                ? (e) => {
+                    e.preventDefault();
+                    handleCategoryClick(product, "freeTradeZone");
+                  }
+                : undefined
+            }
+          >
             {format(val)} {product?.unit}
           </Chip>
         );

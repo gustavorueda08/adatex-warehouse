@@ -98,10 +98,8 @@ export default function NationalizationDetailPage({ params }) {
     [orders, document],
   );
 
-  const handleDelete = () => {
-    router.push("/nationalizations");
-
-    const deletePromise = deleteOrder(document.id, { background: true }).then(
+  const handleDelete = async () => {
+    const deletePromise = deleteOrder(document.id).then(
       (result) => {
         if (!result.success)
           throw new Error("Error al eliminar la nacionalización");
@@ -114,6 +112,12 @@ export default function NationalizationDetailPage({ params }) {
       success: "Nacionalización eliminada exitosamente",
       error: "Error al eliminar la nacionalización",
     });
+    try {
+      await deletePromise;
+      router.push("/nationalizations");
+    } catch {
+      // Delete failed — stay on page, toast shows the error
+    }
   };
 
   const handleUpdate = async (newState = null) => {
@@ -122,26 +126,32 @@ export default function NationalizationDetailPage({ params }) {
     const formattedProducts = products
       .filter((p) => p.product)
       .map((p) => {
-        const validItems = (p.items || []).filter((i) => {
-          const qty = Number(i.currentQuantity);
-          return (
-            i.currentQuantity !== "" &&
-            i.currentQuantity !== null &&
-            i.currentQuantity !== undefined &&
-            !isNaN(qty) &&
-            qty !== 0
-          );
-        });
+        const itemsLoaded = (p.items || []).length > 0 || !p.id;
+
+        const validItems = itemsLoaded
+          ? (p.items || []).filter((i) => {
+              const qty = Number(i.currentQuantity);
+              return (
+                i.currentQuantity !== "" &&
+                i.currentQuantity !== null &&
+                i.currentQuantity !== undefined &&
+                !isNaN(qty) &&
+                qty !== 0
+              );
+            })
+          : null;
+
         return {
           product: p.product.id || p.product,
-          items: validItems.map((item) => ({
-            id: item.id,
-            quantity: Number(item.currentQuantity),
-          })),
-          confirmedQuantity: validItems.reduce(
-            (sum, item) => sum + (Number(item.currentQuantity) || 0),
-            0,
-          ),
+          items: validItems !== null
+            ? validItems.map((item) => ({
+                id: item.id,
+                quantity: Number(item.currentQuantity),
+              }))
+            : null,
+          confirmedQuantity: validItems !== null
+            ? validItems.reduce((sum, item) => sum + (Number(item.currentQuantity) || 0), 0)
+            : (p.confirmedQuantity || 0),
           requestedQuantity: p.requestedQuantity
             ? Number(p.requestedQuantity)
             : 0,

@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useProducts } from "@/lib/hooks/useProducts";
 import { useWarehouses } from "@/lib/hooks/useWarehouses";
@@ -7,6 +7,8 @@ import { useOrders } from "@/lib/hooks/useOrders";
 import { useScreenSize } from "@/lib/hooks/useScreenSize";
 import {
   Button,
+  Checkbox,
+  Chip,
   Modal,
   ModalContent,
   ModalHeader,
@@ -27,43 +29,76 @@ import format from "@/lib/utils/format";
 import TransformationFactorsManager from "@/components/products/TransformationFactorsManager";
 import { useUser } from "@/lib/hooks/useUser";
 
+// ── Item state display ────────────────────────────────────────────────────────
+const STATE_INFO = {
+  available: { label: "Disponible",    color: "success"  },
+  reserved:  { label: "Reservado",     color: "warning"  },
+  sold:      { label: "Vendido",       color: "primary"  },
+  dropped:   { label: "Dado de Baja",  color: "danger"   },
+};
+
+function ItemStateChip({ state }) {
+  const info = STATE_INFO[state] ?? { label: state ?? "—", color: "default" };
+  return (
+    <Chip size="sm" color={info.color} variant="flat">
+      {info.label}
+    </Chip>
+  );
+}
+
+// ── Summary stat card ─────────────────────────────────────────────────────────
+function StatCard({ label, value }) {
+  return (
+    <div className="flex-1 min-w-0 bg-default-50 border border-default-200 rounded-xl p-3">
+      <p className="text-xs text-default-500 uppercase tracking-wide truncate">{label}</p>
+      <p className="text-xl font-bold text-default-900 mt-0.5 truncate">{value ?? "—"}</p>
+    </div>
+  );
+}
+
 export default function ProductDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const screenSize = useScreenSize();
   const [product, setProduct] = useState(null);
-  const [itemsPagination, setItemsPagination] = useState({
-    page: 1,
-    pageSize: 10,
-  });
+  const [itemsPagination, setItemsPagination] = useState({ page: 1, pageSize: 10 });
   const [warehouseFilter, setWarehouseFilter] = useState("");
+  const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [search, setSearch] = useState("");
-  const {
-    products = [],
-    updateProduct,
-    deleteProduct,
-    updating,
-    refetch,
-  } = useProducts({
+  const [aggregateStats, setAggregateStats] = useState(null);
+
+  const { products = [], updateProduct, deleteProduct, updating, refetch } = useProducts({
     filters: { id: { $eq: id } },
-    populate: [
-      "collections",
-      "transformationFactor",
-      "parentProduct",
-      "orderProducts",
-    ],
+    populate: ["collections", "transformationFactor", "parentProduct", "orderProducts"],
   });
+
   const { user } = useUser();
   const { warehouses } = useWarehouses();
+
+  // ── Auto-select default warehouse on first load ───────────────────────────
+  useEffect(() => {
+    if (warehouses.length > 0 && !warehouseFilter) {
+      const def = warehouses.find((w) => w.isDefault);
+      if (def) setWarehouseFilter(String(def.id));
+    }
+  }, [warehouses]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setItemsPagination((prev) => ({ ...prev, page: 1 }));
+  }, [warehouseFilter, onlyAvailable, search]);
+
   const itemsFilters = useMemo(() => {
     const filters = {
       product: { id: { $eq: id } },
-      warehouse: { $null: false },
+      warehouse: warehouseFilter
+        ? { id: { $eq: warehouseFilter } }
+        : { $null: false },
       currentQuantity: { $gt: 0 },
     };
-    if (warehouseFilter) {
-      filters.warehouse = { id: { $eq: warehouseFilter } };
+    if (onlyAvailable) {
+      filters.state = "available";
     }
     if (search) {
       const searchConditions = [{ barcode: { $containsi: search } }];
@@ -73,7 +108,8 @@ export default function ProductDetailPage({ params }) {
       filters.$or = searchConditions;
     }
     return filters;
-  }, [id, warehouseFilter, search]);
+  }, [id, warehouseFilter, onlyAvailable, search]);
+
   const {
     items = [],
     pagination: { pageCount },
@@ -84,6 +120,31 @@ export default function ProductDetailPage({ params }) {
     populate: ["warehouse"],
     pagination: itemsPagination,
   });
+
+  // ── Aggregate stats (count + totalQuantity) ───────────────────────────────
+  const fetchAggregate = useCallback(async () => {
+    if (!product) return;
+    const params = new URLSearchParams();
+    params.set("productId", id);
+    if (warehouseFilter) params.set("warehouseId", warehouseFilter);
+    if (onlyAvailable)  params.set("state", "available");
+    if (product.type === "fixedQuantityPerItem") params.set("isFixedQty", "true");
+
+    try {
+      const res = await fetch(`/api/strapi/items/aggregate?${params}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setAggregateStats(json.data ?? null);
+    } catch {
+      // Non-critical — summary just stays empty
+    }
+  }, [id, warehouseFilter, onlyAvailable, product]);
+
+  useEffect(() => {
+    fetchAggregate();
+  }, [fetchAggregate]);
+
+  // ── Header fields ─────────────────────────────────────────────────────────
   const headerFields = [
     {
       key: "name",
@@ -124,13 +185,10 @@ export default function ProductDetailPage({ params }) {
       label: "Tipo de Producto",
       type: "select",
       options: [
-        {
-          key: "variableQuantityPerItem",
-          label: "Cantidad Variable por Empaque",
-        },
-        { key: "fixedQuantityPerItem", label: "Cantidad Fija por Empaque" },
-        { key: "cutItem", label: "Producto para Corte" },
-        { key: "service", label: "Servicio (Sin Inventario)" },
+        { key: "variableQuantityPerItem", label: "Cantidad Variable por Empaque" },
+        { key: "fixedQuantityPerItem",    label: "Cantidad Fija por Empaque" },
+        { key: "cutItem",                 label: "Producto para Corte" },
+        { key: "service",                 label: "Servicio (Sin Inventario)" },
       ],
       value: product?.type || "variableQuantityPerItem",
       onChange: (type) => setProduct({ ...product, type }),
@@ -149,8 +207,7 @@ export default function ProductDetailPage({ params }) {
             selectedOptionLabel: product?.parentProduct?.name,
             render: (p) => p?.name,
             filters: (search) => ({ name: { $containsi: search } }),
-            onChange: (parentProduct) =>
-              setProduct({ ...product, parentProduct }),
+            onChange: (parentProduct) => setProduct({ ...product, parentProduct }),
             required: true,
           },
         ]
@@ -165,8 +222,7 @@ export default function ProductDetailPage({ params }) {
             label: "Cantidad de unidades promedio por paquete",
             type: "input",
             value: product?.unitsPerPackage,
-            onChange: (unitsPerPackage) =>
-              setProduct({ ...product, unitsPerPackage }),
+            onChange: (unitsPerPackage) => setProduct({ ...product, unitsPerPackage }),
             inputType: "number",
           },
           {
@@ -186,10 +242,10 @@ export default function ProductDetailPage({ params }) {
             label: "Unidad de Corte",
             type: "select",
             options: [
-              { key: "kg", label: "Kilogramo (kg)" },
-              { key: "m", label: "Metro (m)" },
-              { key: "und", label: "Unidad (und)" },
-              { key: "par", label: "Par (par)" },
+              { key: "kg",   label: "Kilogramo (kg)" },
+              { key: "m",    label: "Metro (m)" },
+              { key: "und",  label: "Unidad (und)" },
+              { key: "par",  label: "Par (par)" },
               { key: "unit", label: "Unidad - legacy (unit)" },
             ],
             value: product?.cutUnit,
@@ -239,47 +295,49 @@ export default function ProductDetailPage({ params }) {
       fullWidth: true,
     },
   ];
+
   useEffect(() => {
     if (products.length > 0) {
       const p = products[0];
-      // Keep transformationFactors array format for our manager component to use
       if (p.transformationFactor && !p.transformationFactors) {
         p.transformationFactors = [p.transformationFactor];
       }
       setProduct(p);
     }
   }, [products]);
-  const itemColumns = useMemo(() => {
-    return [
+
+  // ── Item columns ──────────────────────────────────────────────────────────
+  const itemColumns = useMemo(
+    () => [
       { key: "barcode", label: "Código de Barras" },
       {
         key: "currentQuantity",
         label: "Cantidad",
-        render: (item) =>
-          (
-            <span>
-              {format(item?.currentQuantity)} {item?.unit || product?.unit}
-            </span>
-          ) || "-",
+        render: (item) => (
+          <span>
+            {format(item?.currentQuantity)} {item?.unit || product?.unit}
+          </span>
+        ),
       },
-      { key: "lotNumber", label: "Lote" },
-      { key: "itemNumber", label: "Número" },
+      { key: "lotNumber",   label: "Lote" },
+      { key: "itemNumber",  label: "Número" },
       {
         key: "warehouse",
         label: "Bodega",
         render: (item) => item?.warehouse?.name || "-",
       },
-    ];
-  }, []);
-  const handleExport = async () => {
-    await exportItemsToExcel({
-      filters: itemsFilters,
-      product,
-      toast,
-    });
-  };
-  const filters = useMemo(() => {
-    return [
+      {
+        key: "state",
+        label: "Estado",
+        render: (item) => <ItemStateChip state={item?.state} />,
+      },
+    ],
+    [product?.unit],
+  );
+
+  // ── Warehouse select filter ───────────────────────────────────────────────
+  const filters = useMemo(
+    () => [
       {
         key: "warehouse",
         label: "Bodega",
@@ -287,42 +345,37 @@ export default function ProductDetailPage({ params }) {
         options: warehouses.map((w) => ({ key: w.id, label: w.name })),
         selectedKeys: warehouseFilter ? new Set([warehouseFilter]) : new Set(),
         onSelectionChange: (keys) => {
-          setWarehouseFilter(Array.from(keys)[0]);
+          setWarehouseFilter(Array.from(keys)[0] ?? "");
         },
         selectionMode: "single",
       },
-    ];
-  }, [warehouses, warehouseFilter]);
-  const { createOrder, creating: creatingOrder } = useOrders(
-    {},
-    { enabled: false },
+    ],
+    [warehouses, warehouseFilter],
   );
+
+  // ── Export ────────────────────────────────────────────────────────────────
+  const handleExport = async () => {
+    await exportItemsToExcel({ filters: itemsFilters, product, toast });
+  };
+
+  // ── Delete items (create out order) ──────────────────────────────────────
+  const { createOrder, creating: creatingOrder } = useOrders({}, { enabled: false });
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+
   const handleDeleteItems = async () => {
     try {
       let selectedItems = [];
-      // Handle "Select All" case
       if (selectedKeys === "all") {
         selectedItems = [...items];
       } else {
         const selectedIds = new Set(Array.from(selectedKeys).map(String));
-        // Filter selected items ensuring ID type match
-        selectedItems = items.filter((item) =>
-          selectedIds.has(String(item.id)),
-        );
+        selectedItems = items.filter((item) => selectedIds.has(String(item.id)));
       }
       if (selectedItems.length === 0) {
-        addToast({
-          title: "Error",
-          description: "No se encontraron los items seleccionados",
-          type: "error",
-        });
+        addToast({ title: "Error", description: "No se encontraron los items seleccionados", type: "error" });
         return;
       }
-      const totalQuantity = selectedItems.reduce(
-        (sum, item) => sum + Number(item.currentQuantity),
-        0,
-      );
+      const totalQuantity = selectedItems.reduce((sum, item) => sum + Number(item.currentQuantity), 0);
       const payload = {
         type: "out",
         notes: "Baja de items desde detalle de producto",
@@ -330,36 +383,27 @@ export default function ProductDetailPage({ params }) {
           {
             product: product.id,
             requestedQuantity: Math.round(totalQuantity * 100) / 100,
-            items: selectedItems.map((item) => ({
-              id: item.id,
-              quantity: Number(item.currentQuantity),
-            })),
+            items: selectedItems.map((item) => ({ id: item.id, quantity: Number(item.currentQuantity) })),
           },
         ],
         state: "completed",
       };
       const res = await createOrder(payload);
       if (res && res.data) {
-        addToast({
-          title: "Items eliminados",
-          description:
-            "Se ha creado una orden de salida para los items seleccionados.",
-          type: "success",
-        });
+        addToast({ title: "Items eliminados", description: "Se ha creado una orden de salida para los items seleccionados.", type: "success" });
         await refetch();
         await refetchItems();
+        fetchAggregate();
         setSelectedKeys(new Set());
         onOpenChange();
       }
     } catch (error) {
       console.error("Error deleting items:", error);
-      addToast({
-        title: "Error",
-        description: "No se pudieron eliminar los items. Intente nuevamente.",
-        type: "error",
-      });
+      addToast({ title: "Error", description: "No se pudieron eliminar los items. Intente nuevamente.", type: "error" });
     }
   };
+
+  // ── Product update / delete ───────────────────────────────────────────────
   const handleUpdate = async () => {
     const data = {
       name: product?.name,
@@ -369,9 +413,7 @@ export default function ProductDetailPage({ params }) {
       unit: product?.unit,
       type: product?.type || "variableQuantityPerItem",
       unitsPerPackage:
-        product?.type === "variableQuantityPerItem"
-          ? product?.unitsPerPackage
-          : null,
+        product?.type === "variableQuantityPerItem" ? product?.unitsPerPackage : null,
       parentProduct:
         product?.type === "cutItem" && product?.parentProduct
           ? typeof product.parentProduct === "object"
@@ -380,9 +422,7 @@ export default function ProductDetailPage({ params }) {
           : null,
       canCut: product?.canCut,
       cutUnit: product?.canCut ? product.cutUnit : undefined,
-      cutTransformationFactor: product?.canCut
-        ? Number(product.cutTransformationFactor)
-        : undefined,
+      cutTransformationFactor: product?.canCut ? Number(product.cutTransformationFactor) : undefined,
       collections: product?.collections?.map((c) => c.id),
       isLineProduct: product?.isLineProduct !== false,
     };
@@ -397,29 +437,26 @@ export default function ProductDetailPage({ params }) {
     }
     await updateProduct(product?.id, data);
     await refetch();
-    addToast({
-      title: "Producto actualizado",
-      description: "El producto ha sido actualizado correctamente.",
-      type: "success",
-    });
+    addToast({ title: "Producto actualizado", description: "El producto ha sido actualizado correctamente.", type: "success" });
   };
+
   const handleDeleteProduct = async () => {
     const res = await deleteProduct(id);
     if (res.error) {
-      addToast({
-        title: "Error",
-        description: "No se pudo eliminar el producto.",
-        type: "error",
-      });
+      addToast({ title: "Error", description: "No se pudo eliminar el producto.", type: "error" });
       return;
     }
-    addToast({
-      title: "Producto eliminado",
-      description: "El producto ha sido eliminado correctamente.",
-      type: "success",
-    });
+    addToast({ title: "Producto eliminado", description: "El producto ha sido eliminado correctamente.", type: "success" });
     router.push("/products");
   };
+
+  // ── Summary label helpers ─────────────────────────────────────────────────
+  const summaryUnit = product?.unit ?? "";
+  const countLabel = aggregateStats != null ? aggregateStats.count.toLocaleString("es-CO") : "—";
+  const qtyLabel =
+    aggregateStats != null
+      ? `${format(aggregateStats.totalQuantity)} ${summaryUnit}`.trim()
+      : "—";
 
   return (
     <Entity
@@ -430,25 +467,35 @@ export default function ProductDetailPage({ params }) {
     >
       {product?.type === "cutItem" && (
         <Section title="Factor de Transformación">
-          <TransformationFactorsManager
-            product={product}
-            setProduct={setProduct}
-          />
+          <TransformationFactorsManager product={product} setProduct={setProduct} />
         </Section>
       )}
 
       {product?.type !== "service" && (
-        <Section
-          title="Items"
-          description={"Items del producto en diferentes bodegas"}
-        >
-          <EntityFilters
-            filters={filters}
-            showCreate={false}
-            className="px-3 pt-2 pb-0"
-            search={search}
-            setSearch={setSearch}
-          />
+        <Section title="Items" description="Items del producto en diferentes bodegas">
+          {/* ── Summary stats ─────────────────────────────────────────── */}
+          <div className="flex gap-3 px-3 pt-3">
+            <StatCard label="Bultos / Ítems" value={countLabel} />
+            <StatCard label="Cantidad total" value={qtyLabel} />
+          </div>
+
+          {/* ── Filters row ───────────────────────────────────────────── */}
+          <div className="flex flex-col gap-2 px-3 pt-3 pb-0">
+            <EntityFilters
+              filters={filters}
+              showCreate={false}
+              search={search}
+              setSearch={setSearch}
+            />
+            <Checkbox
+              isSelected={onlyAvailable}
+              onValueChange={setOnlyAvailable}
+              size="sm"
+            >
+              Solo disponibles
+            </Checkbox>
+          </div>
+
           <Entities
             entityName="items"
             entities={items}
@@ -463,14 +510,13 @@ export default function ProductDetailPage({ params }) {
             className="p-3"
             emptyContent="No se encontraron Items asociados a este producto"
           />
+
           <div className="flex justify-end gap-2 p-3">
             <Button
               color="success"
               className="text-white w-full md:w-auto"
               onPress={handleExport}
-              startContent={
-                <ArrowDownTrayIcon className="w-4 h-4 text-white" />
-              }
+              startContent={<ArrowDownTrayIcon className="w-4 h-4 text-white" />}
               size={screenSize === "lg" ? "md" : "sm"}
             >
               Exportar Excel
@@ -491,36 +537,25 @@ export default function ProductDetailPage({ params }) {
           </div>
         </Section>
       )}
+
       <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">
-                Confirmar Eliminación
-              </ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">Confirmar Eliminación</ModalHeader>
               <ModalBody>
-                <p>
-                  ¿Estás seguro de que deseas eliminar los items seleccionados?
-                  Esta acción no se puede deshacer.
-                </p>
+                <p>¿Estás seguro de que deseas eliminar los items seleccionados? Esta acción no se puede deshacer.</p>
               </ModalBody>
               <ModalFooter>
-                <Button color="default" variant="light" onPress={onClose}>
-                  Cancelar
-                </Button>
-                <Button
-                  color="danger"
-                  onPress={handleDeleteItems}
-                  isLoading={creatingOrder}
-                >
-                  Eliminar
-                </Button>
+                <Button color="default" variant="light" onPress={onClose}>Cancelar</Button>
+                <Button color="danger" onPress={handleDeleteItems} isLoading={creatingOrder}>Eliminar</Button>
               </ModalFooter>
             </>
           )}
         </ModalContent>
       </Modal>
-      <Section title={"Acciones"}>
+
+      <Section title="Acciones">
         <EntityActions
           entity={product}
           setEntity={setProduct}

@@ -31,6 +31,7 @@ import { useSocket } from "@/lib/hooks/useSocket";
 import toast from "react-hot-toast";
 import { getPartyLabel } from "@/lib/utils/getPartyLabel";
 import CustomerCreditAlert from "@/components/customers/CustomerCreditAlert";
+import { isProductRowValid, formatProductForPayload } from "@/lib/utils/productTypeHelpers";
 
 export default function SaleDetailPage({ params }) {
   const { id } = use(params);
@@ -103,6 +104,7 @@ export default function SaleDetailPage({ params }) {
               $or: [
                 { name: { $containsi: term } },
                 { lastName: { $containsi: term } },
+                { companyName: { $containsi: term } },
                 { identification: { $containsi: term } },
                 { email: { $containsi: term } },
               ],
@@ -145,6 +147,7 @@ export default function SaleDetailPage({ params }) {
               $or: [
                 { name: { $containsi: term } },
                 { lastName: { $containsi: term } },
+                { companyName: { $containsi: term } },
                 { identification: { $containsi: term } },
                 { email: { $containsi: term } },
               ],
@@ -247,10 +250,8 @@ export default function SaleDetailPage({ params }) {
       },
     ];
   }, [orders, document, user]);
-  const handleDelete = () => {
-    router.push("/sales");
-
-    const deletePromise = deleteOrder(document.id, { background: true })
+  const handleDelete = async () => {
+    const deletePromise = deleteOrder(document.id)
       .then(result => {
         if (!result.success) throw new Error("Error al eliminar");
         return result;
@@ -260,6 +261,12 @@ export default function SaleDetailPage({ params }) {
       success: "Orden eliminada exitosamente",
       error: "Error al eliminar la orden",
     });
+    try {
+      await deletePromise;
+      router.push("/sales");
+    } catch {
+      // Delete failed — stay on page, toast already shows the error
+    }
   };
   const handleCreateSaleInvoice = async () => {
     const promise = createSaleInvoice(document.id).then((result) => {
@@ -281,125 +288,15 @@ export default function SaleDetailPage({ params }) {
     const products = document?.orderProducts || [];
       const confirmed = products
         .filter((p) => p.product)
-        .every((product) => {
-          const type = product.product?.type || "variableQuantityPerItem";
-
-          if (type === "fixedQuantityPerItem") {
-            const count = Number(product.confirmedQuantity);
-            return count > 0;
-          } else if (type === "cutItem") {
-            const validItems = (product.items || []).filter(
-              (i) => Number(i.currentQuantity || i.quantity) > 0,
-            );
-            return validItems.length > 0;
-          } else {
-            const validItems = (product.items || []).filter((i) => {
-              const qty = Number(i.currentQuantity);
-              return (
-                i.currentQuantity !== "" &&
-                i.currentQuantity !== null &&
-                i.currentQuantity !== undefined &&
-                !isNaN(qty) &&
-                qty !== 0
-              );
-            });
-            // Product must have at least one valid item with quantity, lot, and itemNumber
-            return (
-              validItems.length > 0 &&
-              validItems.every((item) => {
-                const qty = Number(item.currentQuantity);
-                return (
-                  qty > 0 &&
-                  item.lotNumber !== "" &&
-                  item.lotNumber !== null &&
-                  item.lotNumber !== undefined &&
-                  item.itemNumber !== "" &&
-                  item.itemNumber !== null &&
-                  item.itemNumber !== undefined
-                );
-              })
-            );
-          }
-        });
+        .every((p) => isProductRowValid(p));
       const formattedProducts = products
         .filter((p) => p.product)
         .map((p) => {
-          const type = p.product?.type || "variableQuantityPerItem";
-
-          let productPayload = {
-            product: p.product.id || p.product,
-            requestedQuantity: p.requestedQuantity
-              ? Number(p.requestedQuantity)
-              : 0,
-            requestedPackages:
-              p.requestedPackages !== null && p.requestedPackages !== undefined
-                ? parseInt(p.requestedPackages, 10) || 1
-                : 1,
-            price: p.price ? Number(p.price) : 0,
-            ivaIncluded: p.ivaIncluded || false,
-            invoicePercentage: p.invoicePercentage
-              ? Number(p.invoicePercentage)
-              : 0,
-          };
-
-          if (type === "fixedQuantityPerItem") {
-            const count = Number(p.confirmedQuantity) || 0;
-            productPayload.count = count;
-            productPayload.confirmedQuantity = count;
-          } else if (type === "cutItem") {
-            const validItems = (p.items || []).filter(
-              (i) => Number(i.currentQuantity || i.quantity) > 0,
-            );
-            productPayload.confirmedQuantity = validItems.reduce(
-              (sum, item) =>
-                sum + (Number(item.currentQuantity || item.quantity) || 0),
-              0,
-            );
-            productPayload.items = validItems.map((item) => {
-              const payloadItem = {
-                quantity: Number(item.currentQuantity || item.quantity),
-                requestedPackages: item.requestedPackages
-                  ? Number(item.requestedPackages)
-                  : 1,
-                confirmNegativeStock:
-                  forceNegativeStock || item.confirmNegativeStock || false,
-              };
-              if (item.id && !String(item.id).includes("-")) {
-                payloadItem.id = item.id;
-              }
-              if (item.quantities) {
-                payloadItem.quantities = item.quantities;
-              }
-              return payloadItem;
-            });
-          } else {
-            const validItems = (p.items || []).filter((i) => {
-              const qty = Number(i.currentQuantity);
-              return (
-                i.currentQuantity !== "" &&
-                i.currentQuantity !== null &&
-                i.currentQuantity !== undefined &&
-                !isNaN(qty) &&
-                qty !== 0
-              );
-            });
-            productPayload.confirmedQuantity = validItems.reduce(
-              (sum, item) => sum + (Number(item.currentQuantity) || 0),
-              0,
-            );
-            productPayload.items = validItems.map((item) => ({
-              id:
-                item.id && !String(item.id).includes("-") ? item.id : undefined,
-              quantity: Number(item.currentQuantity),
-              requestedPackages: item.requestedPackages
-                ? Number(item.requestedPackages)
-                : 1,
-              lot: Number(item.lotNumber) || null,
-              itemNumber: Number(item.itemNumber) || null,
-            }));
-          }
-
-          return productPayload;
+          // Only send items for VARIABLE_QUANTITY when they have been loaded from the server
+          // (i.e. the accordion was opened). If not loaded, pass itemsLoaded=false so the
+          // backend preserves existing items instead of treating an empty array as "delete all".
+          const itemsLoaded = (p.items || []).length > 0 || !p.id;
+          return formatProductForPayload(p, forceNegativeStock, itemsLoaded);
         });
       const data = {
         products: formattedProducts,
@@ -427,7 +324,13 @@ export default function SaleDetailPage({ params }) {
       }
       const promise = updateOrder(document.id, data, { background: true })
         .then(result => {
-          if (!result.success) throw new Error(result.error?.message || "Error al actualizar");
+          if (!result.success) {
+            const msg = result.error?.message || "Error al actualizar";
+            if (msg.startsWith("CREDIT_BLOCK:")) {
+              throw new Error(`Crédito bloqueado: ${msg.slice("CREDIT_BLOCK:".length).trim()}`);
+            }
+            throw new Error(msg);
+          }
           return result;
         });
       toast.promise(promise, {

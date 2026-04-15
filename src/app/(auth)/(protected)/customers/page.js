@@ -326,6 +326,7 @@ function CustomersPageInner() {
             { identification: { $containsi: term } },
             { name: { $containsi: term } },
             { lastName: { $containsi: term } },
+            { companyName: { $containsi: term } },
             { territory: { city: { $containsi: term } } },
           ],
         }));
