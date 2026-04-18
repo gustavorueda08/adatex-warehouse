@@ -52,10 +52,9 @@ export default function PInvoice({ document, taxes = [] }) {
         if (document?.state === "draft") {
           return Number(p.requestedQuantity) > 0;
         }
-        if (p.product?.type === "service") {
-          return Number(p.confirmedQuantity) > 0;
-        }
-        return p.items && p.items.length > 0;
+        // Use confirmedQuantity (always present as scalar) instead of items.length,
+        // because items are not populated on initial load to avoid ECONNRESET with large orders.
+        return Number(p.confirmedQuantity) > 0;
       }) || [];
     // Calcular subtotal
     let subtotalForTaxes = 0;

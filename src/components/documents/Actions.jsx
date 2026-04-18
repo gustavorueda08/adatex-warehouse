@@ -1,6 +1,7 @@
 import { generateQuotationPDF } from "@/lib/utils/generateQuotationPDF";
 import { exportDocumentToPDF } from "@/lib/utils/exportToPDF";
 import { exportDocumentToExcel } from "@/lib/utils/exportToExcel";
+import { enrichDocumentWithItems } from "@/lib/utils/fetchItemsForExport";
 import { ORDER_STATES } from "@/lib/utils/orderStates";
 import { ORDER_TYPES } from "@/lib/utils/orderTypes";
 import {
@@ -241,26 +242,34 @@ export default function Actions({
   };
 
   const handleDownloadSelect = async (format) => {
-    let data = document;
-    if (document.type === ORDER_TYPES.RETURN) {
-      data.orderProducts = document.orderProducts.map((product) => {
-        return {
-          ...product,
-          items: product.items.filter((item) => item.selected),
+    const loadingKey = format === "pdf" ? "downloadingPDF" : "downloadingExcel";
+    setLocalLoadings((prev) => ({ ...prev, [loadingKey]: true }));
+    try {
+      // Fetch items for any variableQuantityPerItem orderProduct that hasn't been
+      // expanded in the PackingList accordion yet. fixedQuantityPerItem products are
+      // skipped (50k+ items) and will fall back to scalar data in the export helpers.
+      let data = await enrichDocumentWithItems(document);
+
+      if (data.type === ORDER_TYPES.RETURN) {
+        data = {
+          ...data,
+          orderProducts: data.orderProducts.map((product) => ({
+            ...product,
+            items: (product.items || []).filter((item) => item.selected),
+          })),
         };
-      });
-    }
-    const filteredDocument = filterDocumentForExport(data);
-    if (format === "pdf") {
-      await handleAction(
-        () => exportDocumentToPDF(filteredDocument),
-        "downloadingPDF",
-      );
-    } else if (format === "excel") {
-      await handleAction(
-        () => exportDocumentToExcel(filteredDocument),
-        "downloadingExcel",
-      );
+      }
+
+      const filteredDocument = filterDocumentForExport(data);
+      if (format === "pdf") {
+        await exportDocumentToPDF(filteredDocument);
+      } else if (format === "excel") {
+        await exportDocumentToExcel(filteredDocument);
+      }
+    } catch (error) {
+      console.error("Error al exportar:", error);
+    } finally {
+      setLocalLoadings((prev) => ({ ...prev, [loadingKey]: false }));
     }
     onDownloadClose();
   };

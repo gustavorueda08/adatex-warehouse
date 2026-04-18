@@ -220,8 +220,8 @@ export function calculateSummary(products) {
         totalIVA += productSubtotal * 0.19; // IVA 19%
       }
     } else {
-      // Si no hay items, usar requestedQuantity
-      const quantity = Number(product.requestedQuantity || 0);
+      // Items not loaded — use confirmedQuantity (actual) over requestedQuantity (planned).
+      const quantity = Number(product.confirmedQuantity || product.requestedQuantity || 0);
       totalQuantity += quantity;
       totalItems += quantity > 0 ? 1 : 0;
 
@@ -389,17 +389,25 @@ export function transformToPackingListStructure(document) {
         quantities.push(qty);
       });
     } else {
-      // Si no hay items, usar requestedQuantity como única cantidad
-      const qty = Number(product.requestedQuantity || 0);
+      // Items not loaded (omitted on initial fetch to avoid ECONNRESET with large orders).
+      // Use confirmedQuantity (actual received amount) over requestedQuantity (planned amount).
+      const qty = Number(product.confirmedQuantity || product.requestedQuantity || 0);
       if (qty > 0) {
         quantities.push(qty);
       }
     }
 
+    // When items are not loaded, confirmedPackages (scalar, always present, +1 per item in DB)
+    // is used as the actual item/package count in summary tables.
+    const itemCount = items.length > 0
+      ? items.length
+      : Math.round(Number(product.confirmedPackages) || 0) || null;
+
     packingList[key] = {
       name: productName,
       quantities: quantities,
       unit: product.product?.unit || "und",
+      itemCount,
     };
   });
 
@@ -458,7 +466,8 @@ export function getResumeItemsFromPackingList(packingList) {
       (acc, q) => acc + Number(q || 0),
       0
     );
-    const count = product.quantities.length; // Número de rollos/items
+    // Use itemCount (from confirmedPackages scalar) when set; otherwise quantities.length.
+    const count = product.itemCount ?? product.quantities.length;
 
     return {
       name: product.name,

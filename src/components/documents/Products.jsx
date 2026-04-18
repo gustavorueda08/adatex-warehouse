@@ -775,8 +775,13 @@ export default function Products({
             className="max-w-[100px]"
           />
         );
-      case "items":
-        return orderProduct.items?.length || 0;
+      case "items": {
+        // items are not populated on initial load (ECONNRESET guard for 50k-item orders).
+        // Use confirmedPackages (scalar, always present, +1 per item) as fallback.
+        const loaded = orderProduct.items?.length;
+        if (loaded) return loaded;
+        return Math.round(Number(orderProduct.confirmedPackages) || 0) || 0;
+      }
       case "unit":
         return orderProduct?.product?.unit || "";
       case "invoicePercentage":

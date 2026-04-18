@@ -114,8 +114,9 @@ async function createMainWorksheet(workbook, packingList, data) {
   const totalByColumn = keys.map((key) =>
     packingList[key].quantities.reduce((acc, q) => acc + Number(q || 0), 0)
   );
-  const totalItems = quantitiesColumns.map((v) => v.length);
-  const itemsCount = quantitiesColumns.flat().length;
+  // Use itemCount (confirmedPackages scalar) when items were not loaded; otherwise quantities.length.
+  const totalItems = keys.map((key) => packingList[key].itemCount ?? packingList[key].quantities.length);
+  const itemsCount = totalItems.reduce((acc, n) => acc + n, 0);
   const totalQuantity = quantitiesColumns
     .flat()
     .reduce((acc, quantity) => acc + Number(quantity || 0), 0);

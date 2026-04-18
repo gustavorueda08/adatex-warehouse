@@ -363,7 +363,7 @@ function PackingListProductHeader({
         <span className="text-xs text-zinc-500">
           Items {type === "fixedQuantityPerItem"
             ? Math.round(product.confirmedQuantity || 0)
-            : (product.items || []).length}
+            : (product.items || []).length || Math.round(Number(product.confirmedPackages) || 0)}
         </span>
       </div>
       <Input
@@ -534,6 +534,12 @@ function PackingListProduct({
   // handleItemChange and handleUpdate can read it from product.items.
   useEffect(() => {
     if (isFixed || !pageItems || !accordionOpen || isLoadingPage || isFetching) return;
+
+    // Guard: server hasn't responded yet — pageCount is still undefined (initial
+    // serverPagination = {}). Without this, the effect fires immediately when the
+    // accordion opens (pageItems=[], isLoadingPage=false) and calls
+    // setVariableAllLoaded(true) before the first fetch completes.
+    if (serverPagination?.pageCount === undefined) return;
 
     if (serverPage === 1) {
       variableAccumRef.current = [...pageItems];
@@ -764,7 +770,7 @@ function PackingListProduct({
   // Displayed total count for the accordion footer / subtitle
   const displayTotalItems = isFixed
     ? (serverPagination?.total ?? (product.confirmedQuantity || 0))
-    : items.length;
+    : (items.length || Math.round(Number(product.confirmedPackages) || 0));
 
   const showNationalization =
     document?.type === "purchase" &&
@@ -1225,7 +1231,9 @@ export default function PackingList({
       }, 0) * 100,
     ) / 100;
   const totalItems = products.reduce((acc, product) => {
-    return acc + (Number((product.items || []).length) || 0);
+    // Use items.length when loaded; fall back to confirmedPackages scalar (+1 per item in DB).
+    const count = (product.items || []).length || Math.round(Number(product.confirmedPackages) || 0);
+    return acc + count;
   }, 0);
   const completedPercentage =
     Math.round(((totalConfirmed / totalRequested) * 100 || 0) * 100) / 100;
