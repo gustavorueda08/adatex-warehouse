@@ -261,7 +261,7 @@ function KardexPageInner() {
                         Salidas
                       </th>
                       <th className="text-right font-medium px-3 py-2">
-                        Ajustes
+                        Entr. importación
                       </th>
                       <th className="text-right font-medium px-3 py-2">
                         Saldo final
