@@ -15,6 +15,7 @@ import {
   MapIcon,
   TagIcon,
   ChartBarIcon,
+  DocumentChartBarIcon,
 } from "@heroicons/react/24/outline";
 import {
   ArrowsRightLeftIcon,
@@ -186,6 +187,11 @@ const DEFAULT_LINKS = [
     label: "Predicciones",
     icon: ChartBarIcon,
     href: "/forecast",
+  },
+  {
+    label: "Kardex",
+    icon: DocumentChartBarIcon,
+    href: "/kardex",
   },
 ];
 
