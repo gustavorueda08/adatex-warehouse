@@ -211,6 +211,16 @@ function KardexPageInner() {
         </div>
       </div>
 
+      {/* Nota metodológica */}
+      {preview && preview.meta?.note && (
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400">
+          <span className="font-medium text-zinc-700 dark:text-zinc-300">
+            Nota metodológica:{" "}
+          </span>
+          {preview.meta.note}
+        </div>
+      )}
+
       {/* Vista previa por año */}
       {preview &&
         preview.years.map((y) => (
@@ -251,6 +261,9 @@ function KardexPageInner() {
                         Salidas
                       </th>
                       <th className="text-right font-medium px-3 py-2">
+                        Ajustes
+                      </th>
+                      <th className="text-right font-medium px-3 py-2">
                         Saldo final
                       </th>
                       <th className="text-right font-medium px-3 py-2">
@@ -285,6 +298,9 @@ function KardexPageInner() {
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-red-700 dark:text-red-400">
                           {nf.format(p.totalOut)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-amber-600 dark:text-amber-400">
+                          {nf.format(p.totalAdjust || 0)}
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums font-semibold">
                           {nf.format(p.closing)}
