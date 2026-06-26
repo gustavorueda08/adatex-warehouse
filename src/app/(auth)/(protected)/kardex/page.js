@@ -19,7 +19,8 @@ const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 2018 }, (_, i) => {
 });
 
 function KardexPageInner() {
-  const [year, setYear] = useState(CURRENT_YEAR);
+  const [fromYear, setFromYear] = useState(CURRENT_YEAR);
+  const [toYear, setToYear] = useState(CURRENT_YEAR);
   const [productId, setProductId] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -44,8 +45,16 @@ function KardexPageInner() {
     [products]
   );
 
+  const years = useMemo(() => {
+    const lo = Math.min(fromYear, toYear);
+    const hi = Math.max(fromYear, toYear);
+    const list = [];
+    for (let y = lo; y <= hi; y++) list.push(y);
+    return list;
+  }, [fromYear, toYear]);
+
   const buildQuery = () => {
-    const params = new URLSearchParams({ year: String(year) });
+    const params = new URLSearchParams({ years: years.join(",") });
     if (productId) params.append("productId", String(productId));
     return params.toString();
   };
@@ -65,8 +74,9 @@ function KardexPageInner() {
       }
       const data = await res.json();
       setPreview(data);
+      const totalLines = data.years.reduce((s, y) => s + y.totalLines, 0);
       toast.success(
-        `${data.meta.totalProducts} productos · ${data.meta.totalLines} líneas`,
+        `${data.years.length} año(s) · ${totalLines} líneas`,
         { id: toastId }
       );
     } catch (err) {
@@ -91,7 +101,9 @@ function KardexPageInner() {
       const blob = await res.blob();
       const disposition = res.headers.get("content-disposition") || "";
       const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match ? match[1] : `Kardex-Adatex-${year}.xlsx`;
+      const filename = match
+        ? match[1]
+        : `Kardex-Adatex-${years.join("-")}.xlsx`;
 
       const anchor = document.createElement("a");
       anchor.href = URL.createObjectURL(blob);
@@ -114,26 +126,41 @@ function KardexPageInner() {
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
           Trazabilidad de inventario por producto (todas las bodegas) en
-          cantidades, por año fiscal. Incluye saldo inicial, movimientos físicos
-          y saldo final. Pensado para la entrega a la DIAN.
+          cantidades. Genera un Excel con una pestaña por año; el saldo final de
+          cada año es el saldo inicial del siguiente. Pensado para la entrega a
+          la DIAN.
         </p>
       </div>
 
       {/* Filtros */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 md:p-6 bg-white dark:bg-[#1E1F22]">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-medium text-zinc-500 mb-1">
-              Año fiscal
+              Desde (año)
             </label>
             <Select
               options={YEAR_OPTIONS}
-              value={year}
+              value={fromYear}
               onChange={(v) => {
-                setYear(v);
+                setFromYear(v);
                 setPreview(null);
               }}
-              placeholder="Seleccionar año"
+              placeholder="Año inicial"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">
+              Hasta (año)
+            </label>
+            <Select
+              options={YEAR_OPTIONS}
+              value={toYear}
+              onChange={(v) => {
+                setToYear(v);
+                setPreview(null);
+              }}
+              placeholder="Año final"
             />
           </div>
           <div className="md:col-span-2">
@@ -160,7 +187,11 @@ function KardexPageInner() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-5">
+        <p className="text-xs text-zinc-400 mt-3">
+          Años seleccionados: {years.join(", ")}
+        </p>
+
+        <div className="flex flex-wrap gap-3 mt-4">
           <Button
             variant="zinc"
             onClick={handlePreview}
@@ -180,117 +211,95 @@ function KardexPageInner() {
         </div>
       </div>
 
-      {/* Vista previa */}
-      {preview && (
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-[#1E1F22]">
-          <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium text-zinc-900 dark:text-white">
-              Resumen {preview.meta.year}
-            </h2>
-            <span className="text-xs text-zinc-500">
-              {preview.meta.totalProducts} productos ·{" "}
-              {preview.meta.totalLines} líneas (
-              {preview.meta.sourceMovements?.toLocaleString("es-CO")} movs.
-              agregados por documento/día)
-              {preview.meta.skippedNoProduct > 0
-                ? ` · ${preview.meta.skippedNoProduct} sin producto omitidos`
-                : ""}
-            </span>
-          </div>
-
-          {preview.meta.discrepancies > 0 && (
-            <div className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-              ⚠️ {preview.meta.discrepancies} producto(s) con diferencia entre el
-              saldo del Kardex (libro de movimientos) y el stock físico actual.
-              Revisa la columna <strong>Diferencia</strong> antes de entregar:
-              indica posibles inconsistencias de datos del sistema que conviene
-              explicar o corregir.
+      {/* Vista previa por año */}
+      {preview &&
+        preview.years.map((y) => (
+          <div
+            key={y.year}
+            className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-[#1E1F22]"
+          >
+            <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-medium text-zinc-900 dark:text-white">
+                Año {y.year}
+              </h2>
+              <span className="text-xs text-zinc-500">
+                {y.totalProducts} productos · {y.totalLines} líneas
+              </span>
             </div>
-          )}
 
-          {preview.products.length === 0 ? (
-            <div className="p-6 text-sm text-zinc-500">
-              No se encontraron movimientos para los filtros seleccionados.
-            </div>
-          ) : (
-            <div className="overflow-x-auto max-h-[60vh]">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                  <tr>
-                    <th className="text-left font-medium px-3 py-2">Código</th>
-                    <th className="text-left font-medium px-3 py-2">Producto</th>
-                    <th className="text-center font-medium px-3 py-2">Und</th>
-                    <th className="text-right font-medium px-3 py-2">
-                      Saldo inicial
-                    </th>
-                    <th className="text-right font-medium px-3 py-2">Entradas</th>
-                    <th className="text-right font-medium px-3 py-2">Salidas</th>
-                    <th className="text-right font-medium px-3 py-2">
-                      Saldo final
-                    </th>
-                    <th className="text-right font-medium px-3 py-2">
-                      Stock actual
-                    </th>
-                    <th className="text-right font-medium px-3 py-2">
-                      Diferencia
-                    </th>
-                    <th className="text-right font-medium px-3 py-2"># Líneas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.products.map((p, idx) => (
-                    <tr
-                      key={p.productId}
-                      className={
-                        idx % 2 === 0
-                          ? "bg-white dark:bg-[#1E1F22]"
-                          : "bg-zinc-50 dark:bg-zinc-900/40"
-                      }
-                    >
-                      <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-300">
-                        {p.code}
-                      </td>
-                      <td className="px-3 py-1.5 text-zinc-900 dark:text-white">
-                        {p.name}
-                      </td>
-                      <td className="px-3 py-1.5 text-center text-zinc-500">
-                        {p.unit}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums">
-                        {nf.format(p.opening)}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-green-700 dark:text-green-400">
-                        {nf.format(p.totalIn)}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-red-700 dark:text-red-400">
-                        {nf.format(p.totalOut)}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums font-semibold">
-                        {nf.format(p.closing)}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums">
-                        {nf.format(p.currentStock)}
-                      </td>
-                      <td
-                        className={`px-3 py-1.5 text-right tabular-nums ${
-                          Math.abs(p.difference) >= 0.01
-                            ? "font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
-                            : "text-zinc-400"
-                        }`}
-                      >
-                        {nf.format(p.difference)}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-zinc-500">
-                        {p.movementCount}
-                      </td>
+            {y.products.length === 0 ? (
+              <div className="p-6 text-sm text-zinc-500">
+                No se encontraron movimientos para este año.
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-[55vh]">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                    <tr>
+                      <th className="text-left font-medium px-3 py-2">Código</th>
+                      <th className="text-left font-medium px-3 py-2">
+                        Producto
+                      </th>
+                      <th className="text-center font-medium px-3 py-2">Und</th>
+                      <th className="text-right font-medium px-3 py-2">
+                        Saldo inicial
+                      </th>
+                      <th className="text-right font-medium px-3 py-2">
+                        Entradas
+                      </th>
+                      <th className="text-right font-medium px-3 py-2">
+                        Salidas
+                      </th>
+                      <th className="text-right font-medium px-3 py-2">
+                        Saldo final
+                      </th>
+                      <th className="text-right font-medium px-3 py-2">
+                        # Líneas
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+                  </thead>
+                  <tbody>
+                    {y.products.map((p, idx) => (
+                      <tr
+                        key={p.productId}
+                        className={
+                          idx % 2 === 0
+                            ? "bg-white dark:bg-[#1E1F22]"
+                            : "bg-zinc-50 dark:bg-zinc-900/40"
+                        }
+                      >
+                        <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-300">
+                          {p.code}
+                        </td>
+                        <td className="px-3 py-1.5 text-zinc-900 dark:text-white">
+                          {p.name}
+                        </td>
+                        <td className="px-3 py-1.5 text-center text-zinc-500">
+                          {p.unit}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">
+                          {nf.format(p.opening)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-green-700 dark:text-green-400">
+                          {nf.format(p.totalIn)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-red-700 dark:text-red-400">
+                          {nf.format(p.totalOut)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums font-semibold">
+                          {nf.format(p.closing)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-zinc-500">
+                          {p.movementCount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ))}
     </div>
   );
 }
